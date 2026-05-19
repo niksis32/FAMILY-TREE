@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/persons">Люди</a>
               <a href="/tree">Древо</a>
               <a href="/search">Поиск</a>
+              <a href="/documentation">Документация</a>
             </nav>
           </div>
         </header>
