@@ -1,0 +1,95 @@
+# =============================================================================
+# Local development overlay — infra + hot-reload app containers (optional).
+# Usage:
+#   Infra only:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   With apps:   docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile apps up -d
+#   + Neo4j:     ... --profile graph
+# =============================================================================
+
+services:
+  # MinIO bucket init (runs once)
+  minio-init:
+    image: minio/mc:latest
+    container_name: family_minio_init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_MEDIA};
+      mc mb --ignore-existing local/$${MINIO_BUCKET_DOCUMENTS};
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-family_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-family_password}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-family-media}
+      MINIO_BUCKET_DOCUMENTS: ${MINIO_BUCKET_DOCUMENTS:-family-documents}
+    profiles:
+      - apps
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+      target: development
+    container_name: family_api
+    restart: unless-stopped
+    profiles:
+      - apps
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-family_user}:${POSTGRES_PASSWORD:-family_password}@postgres:5432/${POSTGRES_DB:-family_platform}?schema=public
+      REDIS_URL: redis://redis:6379
+      MEILI_HOST: http://meilisearch:7700
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      target: development
+    container_name: family_web
+    restart: unless-stopped
+    profiles:
+      - apps
+    env_file:
+      - .env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-4000}/api/v1
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+    depends_on:
+      - api
+
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+    container_name: family_ai
+    restart: unless-stopped
+    profiles:
+      - ai
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    environment:
+      AI_SERVICE_ENABLED: "true"

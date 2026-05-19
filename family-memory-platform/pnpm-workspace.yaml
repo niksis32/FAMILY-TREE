@@ -1,0 +1,4 @@
+# Monorepo workspaces: apps (runnable) + packages (shared libraries)
+packages:
+  - "apps/*"
+  - "packages/*"

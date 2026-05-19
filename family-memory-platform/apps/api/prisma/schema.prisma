@@ -1,0 +1,230 @@
+// Family Memory Platform — PostgreSQL schema (MVP entities)
+// Run: pnpm db:generate && pnpm db:migrate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth & admin ---
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  role         UserRole @default(MEMBER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+enum UserRole {
+  MEMBER
+  EDITOR
+  ADMIN
+}
+
+// --- Genealogy core ---
+
+model Person {
+  id          String    @id @default(cuid())
+  givenName   String
+  familyName  String?
+  gender      String?
+  birthDate   DateTime?
+  deathDate   DateTime?
+  isLiving    Boolean   @default(true)
+  biography   String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  relationshipsFrom Relationship[] @relation("fromPerson")
+  relationshipsTo   Relationship[] @relation("toPerson")
+  familyMembers       FamilyMember[]
+  events              Event[]
+  media               Media[]
+  documents           Document[]
+  timelineItems       TimelineItem[]
+  citations           Citation[]
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members FamilyMember[]
+  events  Event[]
+}
+
+model FamilyMember {
+  id       String           @id @default(cuid())
+  familyId String
+  personId String
+  role     FamilyMemberRole @default(CHILD)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, personId])
+}
+
+enum FamilyMemberRole {
+  HUSBAND
+  WIFE
+  PARTNER
+  CHILD
+}
+
+model Relationship {
+  id           String   @id @default(cuid())
+  fromPersonId String
+  toPersonId   String
+  type         String // parent, child, spouse, sibling — see @family/shared constants
+  startDate    DateTime?
+  endDate      DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  fromPerson Person @relation("fromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson   Person @relation("toPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+
+  @@index([fromPersonId])
+  @@index([toPersonId])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  type        String
+  date        DateTime?
+  dateEnd     DateTime?
+  description String?   @db.Text
+  personId    String?
+  familyId    String?
+  placeId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  family Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  place  Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  timelineItems TimelineItem[]
+}
+
+model Place {
+  id        String   @id @default(cuid())
+  name      String
+  latitude  Float?
+  longitude Float?
+  country   String?
+  region    String?
+  city      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events Event[]
+}
+
+// --- Media & documents ---
+
+model Media {
+  id          String    @id @default(cuid())
+  personId    String?
+  title       String?
+  mimeType    String
+  storageKey  String // MinIO object key
+  bucket      String
+  sizeBytes   Int?
+  takenAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  personId    String?
+  title       String
+  mimeType    String
+  storageKey  String
+  bucket      String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+}
+
+// --- Sources & citations (genealogical proof standard) ---
+
+model Source {
+  id          String   @id @default(cuid())
+  title       String
+  author      String?
+  publication String?
+  repository  String?
+  url         String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  citations Citation[]
+}
+
+model Citation {
+  id         String   @id @default(cuid())
+  sourceId   String
+  personId   String?
+  page       String?
+  detail     String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  source Source  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+}
+
+// --- Timeline & audit ---
+
+model TimelineItem {
+  id          String   @id @default(cuid())
+  personId    String
+  eventId     String?
+  title       String
+  description String?  @db.Text
+  sortDate    DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  event  Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([personId, sortDate])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

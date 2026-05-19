@@ -1,0 +1,29 @@
+{
+  "name": "family-memory-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Family Memory Platform — self-hosted genealogy, media archive, timeline",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "docker:infra": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
+    "docker:infra:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
+    "docker:graph": "docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile graph up -d",
+    "db:generate": "pnpm --filter @family/api exec prisma generate",
+    "db:migrate": "pnpm --filter @family/api exec prisma migrate dev",
+    "db:studio": "pnpm --filter @family/api exec prisma studio"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

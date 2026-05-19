@@ -1,0 +1,105 @@
+# =============================================================================
+# Production overlay for VPS deployment (no bind mounts, optimized images).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  postgres:
+    restart: always
+    ports: [] # expose only on internal network in prod
+
+  redis:
+    restart: always
+    ports: []
+
+  minio:
+    restart: always
+    ports: []
+
+  meilisearch:
+    restart: always
+    environment:
+      MEILI_ENV: production
+    ports: []
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+      target: production
+    container_name: family_api
+    restart: always
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      MEILI_HOST: http://meilisearch:7700
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+    expose:
+      - "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    networks:
+      - family_internal
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      target: production
+    container_name: family_web
+    restart: always
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+    depends_on:
+      - api
+    networks:
+      - family_internal
+
+  nginx:
+    image: nginx:alpine
+    container_name: family_nginx
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - family_internal
+      - family_public
+
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+    container_name: family_ai
+    restart: always
+    profiles:
+      - ai
+    expose:
+      - "8000"
+    networks:
+      - family_internal
+
+networks:
+  family_internal:
+    driver: bridge
+  family_public:
+    driver: bridge
