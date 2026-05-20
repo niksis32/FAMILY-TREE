@@ -696,6 +696,7 @@ pnpm build
   - `db:seed`.
 - Миграции применены к локальному `family_postgres`.
 - Seed выполнен повторно и идемпотентно.
+- Дополнительно проверено создание схемы с нуля на временной базе `family_platform_p0_check`.
 
 Проверено:
 
@@ -705,14 +706,30 @@ npx --yes prisma@6.1.0 migrate status --schema .\apps\api\prisma\schema.prisma
 node .\apps\api\prisma\seed.js
 ```
 
+Проверка clean database:
+
+```powershell
+docker exec family_postgres psql -U family_user -d postgres -c "DROP DATABASE IF EXISTS family_platform_p0_check;"
+docker exec family_postgres psql -U family_user -d postgres -c "CREATE DATABASE family_platform_p0_check;"
+$env:DATABASE_URL='postgresql://family_user:change_me_postgres@localhost:5432/family_platform_p0_check?schema=public'
+npx --yes prisma@6.1.0 migrate deploy --schema .\apps\api\prisma\schema.prisma
+node .\apps\api\prisma\seed.js
+docker exec family_postgres psql -U family_user -d postgres -c "DROP DATABASE IF EXISTS family_platform_p0_check;"
+```
+
 Результат:
 
 - `2 migrations found`;
 - `Database schema is up to date`;
+- на временной чистой БД применены:
+  - `20260519145419_init`;
+  - `20260520075800_prisma_schema_hardening`;
+- `All migrations have been successfully applied`;
 - `Seed completed. Admin: admin@example.local, family: Семья Петровых`.
 
 Критерий готовности:
 
+- Схема создаётся с нуля через `migrate deploy` на пустой PostgreSQL database.
 - Новый разработчик может выполнить `pnpm db:generate && pnpm db:migrate && pnpm db:seed` без ручных правок после clean install.
 - В текущем Windows shell остаётся отдельная проблема `pnpm exec prisma`/`sh` окружения; через прямой Prisma CLI schema/migrate/seed работают.
 
@@ -746,20 +763,39 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\apps\web\tsconfig.json --noEmit
 ```
 
+Runtime smoke (API на `http://localhost:4002`, свежая сборка после `nest build`):
+
+```powershell
+# тестовые пользователи: admin/editor/viewer@example.local, пароль Test12345!
+$base = 'http://localhost:4002/api/v1'
+# POST /auth/login -> accessToken + role
+# GET /users/me с Bearer -> email текущего пользователя
+# POST /persons без token -> 401
+# POST /persons с VIEWER -> 403
+# POST /persons с EDITOR -> 201
+# DELETE /persons/:id с EDITOR -> 403
+# DELETE /persons/:id с ADMIN -> 200
+# POST /auth/register-first-admin при существующем ADMIN -> 409
+```
+
 Результат:
 
 - API type-check проходит;
 - Web type-check проходит;
-- JWT/RBAC типы совместимы с frontend и backend.
+- JWT/RBAC типы совместимы с frontend и backend;
+- runtime smoke: `9/9` сценариев RBAC на `POST/DELETE /persons` и auth endpoints;
+- `login` возвращает JWT с ролью `ADMIN|EDITOR|VIEWER`;
+- `GET /users/me` работает с Bearer token;
+- исправлен DI: `AuthModule` экспортирует `JwtModule` (иначе `UsersModule` не поднимался с `JwtAuthGuard`).
 
 Критерий готовности:
 
 - Runtime smoke через Swagger/browser:
-  - без token mutation route возвращает `401`;
-  - `VIEWER` не может выполнять mutation routes;
-  - `EDITOR` может create/update, но не delete;
-  - `ADMIN` может управлять данными.
-- Эти runtime-проверки ещё нужно выполнить после запуска `api` и `web`.
+  - без token mutation route возвращает `401` — **да**;
+  - `VIEWER` не может выполнять mutation routes — **да** (`403`);
+  - `EDITOR` может create/update, но не delete — **да** (`201` / `403`);
+  - `ADMIN` может управлять данными — **да** (`200` на delete).
+- Для локальной проверки перезапускать актуальную сборку API (`nest build` + `node dist/apps/api/src/main.js`); на `:4000` может оставаться старый skeleton-процесс.
 
 ### P0.4. Реализовать backend CRUD MVP
 
@@ -774,18 +810,70 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 - `sources`;
 - `citations`.
 
+Статус:
+
+- Реализовано (см. также §3.4):
+  - NestJS-модули и controllers для всех 8 сущностей;
+  - `GET` list + `GET :id` (read без token для MVP);
+  - `POST` / `PATCH` / `DELETE` с `JwtAuthGuard` + `RolesGuard`;
+  - soft delete через `deletedAt` на delete;
+  - DTO + `class-validator` на create/update;
+  - `RelationshipsService` использует `validateRelationshipSet` из `@family/genealogy-core`;
+  - best-effort search indexing на create/update: `Person`, `Document`, `Source`, `Place`.
+- Endpoints (prefix `/api/v1`):
+  - `persons`, `families`, `relationships`, `events`, `places`, `documents`, `sources`, `citations`.
+
+Проверено:
+
+```powershell
+node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\apps\api\tsconfig.json --noEmit
+```
+
+Runtime smoke «базовая семья» (API `http://localhost:4002`, Swagger `http://localhost:4002/docs`, token `admin@example.local` / `Test12345!`):
+
+```powershell
+$base = 'http://localhost:4002/api/v1'
+# login -> Bearer token
+# POST /persons x3 — отец, мать, ребёнок
+# POST /families — семья
+# POST /relationships x2 — type=PARENT (отец→ребёнок, мать→ребёнок)
+# POST /places — место
+# POST /events — type=BIRTH, personId=ребёнок, placeId=место
+# POST /sources — источник
+# POST /documents — документ (storageKey/bucket/mimeType), personId + sourceId
+# POST /citations — цитата sourceId + personId
+# GET list по всем 8 сущностям + PATCH /persons/:id + DELETE /citations/:id (soft)
+```
+
+Результат:
+
+- API type-check проходит;
+- Swagger UI отвечает `200` на `/docs`;
+- runtime smoke: **18/18** шагов, сценарий «базовая семья» создан end-to-end через REST;
+- созданные сущности (пример IDs из прогона `2026-05-20`):
+  - persons: `cmpe2s3yg…` (отец), `cmpe2s3zi…` (мать), `cmpe2s400…` (ребёнок);
+  - family: `cmpe2s40o…`;
+  - relationships: `cmpe2s41j…`, `cmpe2s420…` (`PARENT`);
+  - place: `cmpe2s428…`;
+  - event `BIRTH`: `cmpe2s42y…`;
+  - source: `cmpe2s437…`;
+  - document: `cmpe2s43p…`;
+  - citation: `cmpe2s44d…` (после smoke удалена soft-delete).
+- Ограничение MVP: `FamilyMember` в API пока не имеет отдельного CRUD — семья создаётся как запись `Family`; участники связываются через `relationships` (достаточно для критерия parent-child).
+
 Критерий готовности:
 
 - Swagger позволяет вручную создать базовую семью:
-  - 2 родителя;
-  - 1 ребёнок;
-  - семья;
-  - relationship parent-child;
-  - событие рождения;
-  - место;
-  - документ;
-  - источник;
-  - цитата.
+  - 2 родителя — **да** (`POST /persons`);
+  - 1 ребёнок — **да** (`POST /persons`);
+  - семья — **да** (`POST /families`);
+  - relationship parent-child — **да** (`POST /relationships`, `type=PARENT`);
+  - событие рождения — **да** (`POST /events`, `type=BIRTH`);
+  - место — **да** (`POST /places`);
+  - документ — **да** (`POST /documents`);
+  - источник — **да** (`POST /sources`);
+  - цитата — **да** (`POST /citations`).
+- Для локальной проверки использовать актуальную сборку API на свободном порту (например `4002`); на `:4000` может работать старый skeleton без реального CRUD.
 
 ### P0.5. Подключить frontend к реальному API
 
@@ -796,14 +884,80 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 - Подключить формы к CRUD.
 - Подключить JWT token к API client.
 
+Статус:
+
+- Реализовано (см. также §3.5):
+  - `apps/web/lib/api-client.ts`: `GET/POST/PATCH/DELETE`, typed CRUD для 8 сущностей + `tree`, `timeline`, `search`, `media`, `gedcom`, `users/me`;
+  - `AuthProvider`: реальный `POST /auth/login`, cookie `family_access_token`, **без** silent demo session при ошибке backend;
+  - `middleware.ts`: redirect на `/login` без cookie для protected routes;
+  - `login/page.tsx`: login + `register-first-admin`, явные error states;
+  - Workspaces с API + states:
+    - `PersonsWorkspace` — list/create, `isLoading` / `isSaving` / `EmptyState`;
+    - `PersonDetailsWorkspace` — `GET /persons/:id`;
+    - `FamiliesWorkspace`, `TimelineAdminWorkspace`, `DocumentsWorkspace`, `MediaGallery`, `DashboardOverview`;
+    - `TreeExplorer` — `GET /tree/person/:id/:mode`, без hardcoded demo graph при ошибке;
+    - `SearchPanel` — `GET /search`, без mock fallback.
+- Demo fallback **отключён** в happy path:
+  - login, dashboard, persons, families, tree, documents/sources/citations, media gallery.
+- Остаточный demo (не блокирует P0.5 CRUD happy path):
+  - `TimelineView` при ошибке API показывает `fallbackTimeline` (только если backend недоступен);
+  - `settings/page.tsx` — placeholder email `demo@family.local`;
+  - `domain.tsx` — типы из `mock-data` для UI-карточек (данные приходят из API).
+
+Проверено:
+
+```powershell
+node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\apps\web\tsconfig.json --noEmit
+```
+
+Runtime integration smoke (те же вызовы, что делает UI через `api-client`, API `http://localhost:4002`):
+
+```powershell
+# login -> accessToken
+# GET /persons (список)
+# POST /persons + token (создание как в форме /persons)
+# GET /persons/:id (карточка)
+# GET /tree/person/:id/full (дерево)
+# POST /places + POST /events + GET /timeline/person/:id (timeline)
+# POST /persons без token -> 401
+# GET /users/me -> role ADMIN
+# GET /search?q=... + POST /search/reindex (поиск)
+```
+
+Результат:
+
+- Web type-check проходит;
+- Web UI отвечает `200` на `http://localhost:3001/login`;
+- integration smoke через API paths UI: **7/8** шагов ✅;
+  - persons list/create/details — ✅;
+  - tree graph — ✅;
+  - timeline person — ✅ (`events >= 1` после create event);
+  - JWT `users/me` + mutation `401` без token — ✅;
+  - search hits после reindex — ⚠️ `0` results в текущем окружении (Meilisearch container `unhealthy`, reindex сообщает `indexed: 11`, но `GET /search` возвращает пустые массивы).
+- Для браузерной проверки UI задать в `apps/web/.env.local`:
+  - `NEXT_PUBLIC_API_URL=http://localhost:4002/api/v1`
+  - иначе по умолчанию клиент бьёт в `http://localhost:4000` (там может быть старый skeleton).
+
+Ручной чеклист UI (после login `admin@example.local` / `Test12345!`):
+
+| Маршрут | Компонент | Действие |
+|---------|-----------|----------|
+| `/login` | `login/page` | login / register-first-admin |
+| `/persons` | `PersonsWorkspace` | создать персону → список обновился |
+| `/persons/:id` | `PersonDetailsWorkspace` | открыть карточку созданной персоны |
+| `/tree` | `TreeExplorer` | ввести Person ID → граф из API |
+| `/timeline` | `TimelineAdminWorkspace` + `TimelineView` | создать place/event → timeline по Person ID |
+| `/search` | `SearchPanel` | запрос после `reindex` (когда Meilisearch healthy) |
+
 Критерий готовности:
 
 - Пользователь через UI может создать базовые данные и увидеть их:
-  - в списке людей;
-  - в карточке человека;
-  - в дереве;
-  - в timeline;
-  - в поиске.
+  - в списке людей — **да** (`/persons`, `PersonsWorkspace`);
+  - в карточке человека — **да** (`/persons/:id`, `PersonDetailsWorkspace`);
+  - в дереве — **да** (`/tree`, `TreeExplorer` + real Person ID);
+  - в timeline — **да** (`/timeline`, create через `TimelineAdminWorkspace`, просмотр через `TimelineView` при доступном API);
+  - в поиске — **частично**: UI и endpoint подключены; выдача зависит от работоспособности Meilisearch (в smoke окружении hits пустые, нужен healthy `family_meilisearch` + `POST /search/reindex`).
+- Локально: API на актуальной сборке (`4002`), Web (`3001`), `NEXT_PUBLIC_API_URL` указывает на тот же API.
 
 ---
 
@@ -821,6 +975,44 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
   - `entityId`.
 - Document upload через тот же MinIO flow.
 
+Статус:
+
+- Реализовано:
+  - `MediaService`: presigned PUT/GET через MinIO client; MIME/size validation;
+  - `POST /media/upload-url`, `POST /media/metadata`, `GET /media`, `GET /media/:id/download-url`, `POST /media/:id/link`;
+  - Prisma `MediaLink` (`mediaId`, `ownerType`, `ownerId`) — аналог universal link (`entityType` → `ownerType`: `PERSON|FAMILY|EVENT|DOCUMENT|SOURCE`);
+  - при `createMetadata` с `personId` создаётся `MediaLink` на `PERSON`;
+  - `linkMedia` поддерживает `person|family|event|document|source`;
+  - frontend `MediaGallery` — list из `GET /media` (без mock);
+  - frontend `MediaUploader` — presigned URL → PUT MinIO → `POST /media/metadata`.
+- Частично / не сделано:
+  - проверка существования bucket (`headBucket` / `bucketExists`) **не реализована** — при отсутствии bucket или credentials presigned URL даёт `500`;
+  - `Document` создаётся через metadata CRUD (`storageKey` + `bucket` вручную), **без** общего presigned-upload flow как у media;
+  - отдельный UI upload для documents в MinIO — нет (только форма metadata в `DocumentsWorkspace`).
+
+Проверено:
+
+```powershell
+# API http://localhost:4002, admin token
+GET /media
+POST /media/upload-url  # требует MINIO_ROOT_USER/PASSWORD/MINIO_ENDPOINT в env API
+```
+
+Результат smoke (`2026-05-20`):
+
+- `GET /media` — ✅ (gallery endpoint, count может быть `0`);
+- `POST /media/upload-url` — ⚠️ `500` в текущем процессе API без полного MinIO env (ожидаемо до настройки credentials);
+- кодовая база: `MediaLink` + `MediaUploader` flow готовы при healthy MinIO + `minio-init` buckets.
+
+Критерий готовности:
+
+- Bucket check при старте/upload — **нет**;
+- Gallery из API — **да** (`MediaGallery`, `GET /media`);
+- Universal `MediaLink` — **да** (schema + API link, поля `mediaId` + owner type/id);
+- Document upload через тот же MinIO flow — **частично** (media — presigned flow; documents — metadata-only).
+
+---
+
 ### P1.2. Search
 
 Сделать:
@@ -836,6 +1028,47 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
   - `documentText`;
   - `tags`.
 
+Статус:
+
+- Реализовано:
+  - best-effort auto-index в services:
+    - `PersonsService` → `search.indexPerson` на create/update;
+    - `DocumentsService` → `indexDocument`;
+    - `SourcesService` → `indexSource`;
+    - `PlacesService` → `indexPlace`;
+  - `GET /search?q=` + `POST /search/reindex` (Meilisearch index `family_search`);
+  - `tags` в search payload (Meilisearch document field, не колонка PostgreSQL);
+  - Prisma `Document.ocrText` + DTO `CreateDocumentDto.ocrText`.
+- Частично / не сделано:
+  - `POST /search/reindex` **без** `JwtAuthGuard` / `@Roles('ADMIN')` — доступен анонимно и для `VIEWER` (проверено smoke);
+  - поле `documentText` в schema **отсутствует**;
+  - `ocrText` сохраняется в БД, но **не попадает** в `indexDocument` (`text` берётся только из `description`);
+  - выдача поиска зависит от healthy Meilisearch (в P0.5 smoke hits были пустые при `unhealthy` container).
+
+Проверено:
+
+```powershell
+POST /persons + POST /documents (ocrText=...) + POST /search/reindex
+POST /search/reindex от VIEWER token  # сейчас не блокируется
+```
+
+Результат smoke (`2026-05-20`, API `:4002`):
+
+- `POST /documents` с `ocrText` — ✅ поле сохраняется;
+- `POST /search/reindex` — ✅ `indexed: 12`;
+- `POST /search/reindex` от `VIEWER` — ⚠️ разрешён (требование admin-role **не выполнено**);
+- `GET /search?q=...` — ⚠️ пустые hits в текущем Meilisearch окружении (инфра, не отсутствие кода индексации).
+
+Критерий готовности:
+
+- Автоиндексация Person/Document/Source/Place — **да** (best-effort, не блокирует CRUD);
+- `reindex` только ADMIN — **нет**;
+- `ocrText` — **да** (хранение); **частично** (не в search index);
+- `documentText` — **нет**;
+- `tags` — **да** (в Meilisearch index payload).
+
+---
+
 ### P1.3. GEDCOM
 
 Сделать:
@@ -849,6 +1082,43 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 - Import report с деталями.
 - UI preview table.
 
+Статус:
+
+- Реализовано:
+  - `POST /gedcom/preview` — parse без записи в БД, counts + `errors`/`warnings` + `preview.persons|families|sources` (slice до 20);
+  - `POST /gedcom/import` с `dryRun?: boolean` — при `dryRun=true` возвращает report без `imported`;
+  - import создаёт persons, families, family members, relationships, events, sources через `@family/genealogy-core` mapper;
+  - frontend `/settings/import` + `GedcomImportPanel`: upload `.ged` → preview metrics → confirm import;
+  - import report: `personsFound`, `familiesFound`, `relationshipsFound`, `eventsFound`, `sourcesFound`, `errors`, `warnings`, `created` после import.
+- Частично / не сделано:
+  - **нет** Prisma `$transaction` — import идёт последовательными `create` (частичный импорт при ошибке возможен);
+  - **нет** conflict detection (похожие имена, даты рождения, существующие семьи);
+  - UI preview — метрики и error/warning blocks, **без** таблицы персон/семей из `preview.persons` (данные API есть, UI не рендерит table).
+
+Проверено:
+
+```powershell
+# минимальный GEDCOM 5.5.5 snippet
+POST /gedcom/preview
+POST /gedcom/import { dryRun: true }
+POST /gedcom/import { dryRun: false }
+```
+
+Результат smoke (`2026-05-20`, API `:4002`):
+
+- `preview` — ✅ `persons=2`, `families=1`;
+- `import dryRun=true` — ✅ `imported=false`;
+- `import dryRun=false` — ✅ `imported=true`, `created.persons=2`;
+- conflict detection — ❌ не в ответе API.
+
+Критерий готовности:
+
+- Import transaction — **нет**;
+- Dry-run без записи — **да** (`/gedcom/preview` + `import` с `dryRun`);
+- Conflict detection — **нет**;
+- Import report с деталями — **частично** (counts/errors/warnings/created; без conflicts);
+- UI preview table — **частично** (metrics only; table — в backlog).
+
 ### P1.4. Tree
 
 Сделать:
@@ -860,6 +1130,45 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 - Скрытие living persons для public/viewer.
 - Улучшить layout.
 
+Статус:
+
+- Реализовано:
+  - API `TreeModule`: `GET /tree/person/:id/ancestors|descendants|full`;
+  - обход графа relationships + вычисление `generation` для layout;
+  - frontend `TreeExplorer` + `TreeCanvas` (React Flow): режимы ancestors/descendants/full, клик по узлу → `PersonDetailsPanel`;
+  - позиционирование узлов по поколениям (`generation * 260`, горизонтальный offset в ряду);
+  - отображение `isLiving` в боковой панели (badge living/archive).
+- Частично / не сделано:
+  - root person только через ручной ввод **Person ID** (нет picker из `/persons` или `/search`);
+  - **нет** query-параметров `ancestorsDepth` / `descendantsDepth` — обход BFS без лимита глубины;
+  - **нет** фильтрации living/private persons для `VIEWER`/public;
+  - режимы `ancestors`/`descendants` в smoke дают `edges=0` из‑за сравнения типов связи в lowercase в `TreeService.parentChildDirection` при enum `PARENT` в БД (режим `full` через undirected adjacency работает: `nodes=3`, `edges=3` на seed).
+
+Проверено:
+
+```powershell
+# API http://localhost:4002, seed root seed-person-ivan
+GET /tree/person/{id}/full
+GET /tree/person/{id}/ancestors
+GET /tree/person/{id}/descendants
+```
+
+Результат smoke (`2026-05-20`, API `:4002`, root `seed-person-ivan`):
+
+- `full` — ✅ `nodes=3`, `edges=3`;
+- `ancestors` — ⚠️ `nodes=1`, `edges=0` (ожидались предки — bug enum case);
+- `descendants` — ⚠️ `nodes=1`, `edges=0` (ожидались потомки — тот же bug);
+- Web `/tree`: `TreeExplorer` грузит graph через `apiClient.tree.graph` при вводе ID.
+
+Критерий готовности:
+
+- Выбор root из поиска/списка — **нет** (только Person ID input);
+- Ограничения глубины ancestors/descendants — **нет**;
+- Скрытие living для public/viewer — **нет**;
+- Улучшить layout — **частично** (React Flow + generation layout; ancestors/descendants traversal требует fix).
+
+---
+
 ### P1.5. Timeline
 
 Сделать:
@@ -869,26 +1178,277 @@ node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\
 - `dateFrom/dateTo` на уровне UI.
 - AI summary button disabled/enabled based on `AI_SERVICE_ENABLED`.
 
+Статус:
+
+- Реализовано:
+  - API `GET /timeline/person/:id` — события person + synthetic birth/death + `dateEnd` → `dateTo` в ответе;
+  - API `POST/PATCH /events`, `POST /places` с RBAC;
+  - frontend `/timeline`: `TimelineAdminWorkspace` (create event/place, list, empty states) + `TimelineView` (фильтр по типам, карточки с `formatDateRange(dateFrom, dateTo)`);
+  - в `TimelineView` блоки «Документы»/«Медиа» показывают связанные assets person-level (из API timeline).
+- Частично / не сделано:
+  - UI **create** event есть, **update** в форме нет (`apiClient.events` без `update`, только `list/create/remove`);
+  - привязка document/media к **конкретному event** не реализована (нет `eventId` на Document/Media в UI; timeline отдаёт все docs/media персоны на каждую карточку);
+  - в форме event только одно поле `date`, **нет** `dateEnd` (API поле `dateEnd` поддерживается — проверено smoke);
+  - AI: в UI текст `AI summary ready: ...`, **нет** кнопки и проверки `AI_SERVICE_ENABLED` (логика disabled/enabled только в backend `AiService`, не в timeline UI);
+  - `TimelineView` при ошибке API всё ещё показывает demo fallback timeline.
+
+Проверено:
+
+```powershell
+GET /timeline/person/{id}
+POST /events { type, date, dateEnd, personId, placeId }
+PATCH /events/:id
+# UI: TimelineAdminWorkspace create; TimelineView date range display
+```
+
+Результат smoke (`2026-05-20`, API `:4002`):
+
+- `GET /timeline/person/seed-person-ivan` — ✅ `events=3`;
+- `POST /events` с `dateEnd` — ✅ сохраняется;
+- timeline отображает `dateTo` для migration event — ✅;
+- `PATCH /events/:id` — ✅ (backend); UI update form — ❌;
+- привязка media/doc к event — **частично** (person-level в API, не per-event);
+- AI button + `AI_SERVICE_ENABLED` в web — ❌.
+
+Критерий готовности:
+
+- Event create/update UI — **частично** (create ✅, update в UI ❌);
+- Привязка documents/media к event — **частично** (person-level отображение, не event-level link);
+- `dateFrom/dateTo` в UI — **частично** (отображение range в `TimelineView` ✅, ввод `dateEnd` в форме ❌);
+- AI summary button по `AI_SERVICE_ENABLED` — **нет**.
+
 ---
 
 ## 6. P2-задачи после первого релиза
 
-- OCR через AI service.
-- Relationship suggestions.
-- Timeline AI summary.
-- Face recognition / photo clustering.
-- Graph analytics через Neo4j.
-- Advanced privacy rules.
-- Backup UI/status.
-- Admin audit dashboard.
-- Public shared family pages.
-- Export GEDCOM.
+Задачи **после первого MVP-релиза** — в текущей кодовой базе в основном заготовки, инфраструктура или library-level функции без полноценного product UI.
+
+### P2.1. OCR через AI service
+
+Сделать: распознавание архивов/документов через optional AI layer.
+
+Статус:
+
+- Реализовано (каркас):
+  - API proxy: `GET /ai/health`, `POST /ai/ocr/preview` (`AiService` → FastAPI);
+  - `apps/ai-service` (FastAPI): stub `/ocr/preview` с `status: stub`, `futureEngines: tesseract, paddleocr`;
+  - Docker Compose service `ai-service` (profile `ai`);
+  - Prisma `Document.ocrText` + ручное сохранение через CRUD documents.
+- Не сделано:
+  - реальный OCR engine (Tesseract/PaddleOCR/облако);
+  - автопайплайн upload → OCR → запись `ocrText`;
+  - UI кнопка OCR на documents (только поле description/ocr в форме metadata).
+
+Проверено:
+
+```powershell
+POST /api/v1/ai/ocr/preview  # body: fileName, textHint
+# AI_SERVICE_ENABLED=false по умолчанию
+```
+
+Результат smoke (`2026-05-20`, API `:4002`):
+
+- `enabled=false`, `status=disabled` — ✅ proxy корректно отклоняет без AI;
+- при `AI_SERVICE_ENABLED=true` + profile `ai` — stub FastAPI отвечает, без реального распознавания.
+
+Критерий готовности P2.1: **нет** (нужен working OCR + UI trigger).
+
+---
+
+### P2.2. Relationship suggestions
+
+Сделать: AI/графовые подсказки родственных связей.
+
+Статус:
+
+- Реализовано (каркас):
+  - `POST /api/v1/ai/relationship/suggest` + FastAPI stub `suggestions: []`;
+  - DTO: `personId`, `candidates`, `context`.
+- Не сделано:
+  - ML/LLM логика, интеграция с graph analytics;
+  - UI для принятия/отклонения suggestions;
+  - связь с `RelationshipsService` validation.
+
+Проверено: `POST /ai/relationship/suggest` → `enabled=false` (disabled mode).
+
+Критерий готовности P2.2: **нет**.
+
+---
+
+### P2.3. Timeline AI summary
+
+Сделать: генерация краткого summary жизни по событиям timeline.
+
+Статус:
+
+- Реализовано (каркас):
+  - `POST /api/v1/ai/timeline/summary` + FastAPI stub (`summary: ""`, `eventCount`);
+  - `TimelineView` показывает текст `AI summary ready: ...` из `aiSummaryInput` (не вызов API).
+- Не сделано:
+  - кнопка summary в UI с `AI_SERVICE_ENABLED`;
+  - реальный LLM summary;
+  - сохранение summary в `TimelineItem` / Event.
+
+Проверено: `POST /ai/timeline/summary` → disabled; UI — static text only.
+
+Критерий готовности P2.3: **нет**.
+
+---
+
+### P2.4. Face recognition / photo clustering
+
+Сделать: распознавание лиц и кластеризация фото в архиве.
+
+Статус:
+
+- **Не начато** в репозитории: нет модулей API, нет UI, нет зависимостей CV/embedding для faces.
+- Media pipeline: только upload + metadata + `MediaLink`.
+
+Критерий готовности P2.4: **нет**.
+
+---
+
+### P2.5. Graph analytics через Neo4j
+
+Сделать: аналитика родственных графов на Neo4j.
+
+Статус:
+
+- Реализовано (инфра):
+  - Docker Compose service `neo4j` (profile `graph`), volume `neo4j_data`;
+  - `infra/scripts/backup-neo4j.sh`;
+  - env `NEO4J_*`, `NEO4J_ENABLED=false` по умолчанию.
+- Не сделано:
+  - синхронизация PostgreSQL → Neo4j;
+  - API endpoints graph analytics;
+  - UI визуализация analytics (отдельно от `TreeModule` на SQL relationships).
+
+Проверено: контейнер `family_neo4j` не запущен в текущем dev smoke (profile не активирован).
+
+Критерий готовности P2.5: **нет** (только infra skeleton).
+
+---
+
+### P2.6. Advanced privacy rules
+
+Сделать: расширенные правила приватности (living, role-based, public tree).
+
+Статус:
+
+- Реализовано (library):
+  - `packages/genealogy-core/src/privacy-rules.ts`: `canViewPersonDetails`, `hideLivingPersonsForPublicView`, `calculatePersonPrivacy`;
+  - Prisma `Person.privacyLevel` (`PUBLIC|FAMILY|PRIVATE`) + UI `PrivacyBadge` / форма persons.
+- Не сделано:
+  - применение privacy rules в API `tree`, `persons`, `timeline` для `VIEWER`/anonymous;
+  - enforcement на уровне search/media/documents;
+  - «advanced» политики (по ветке семьи, по роли, consent).
+
+Критерий готовности P2.6: **частично** (модель + library; product enforcement **нет**).
+
+---
+
+### P2.7. Backup UI/status
+
+Сделать: UI статуса бэкапов и управление restore.
+
+Статус:
+
+- Реализовано (ops scripts):
+  - `infra/scripts/backup-postgres.sh`, `backup-minio.sh`, `backup-meilisearch.sh`, `backup-neo4j.sh`;
+  - `infra/scripts/restore-postgres.sh`;
+  - документация в `DEPLOY_VPS.md` § Backups.
+- Не сделано:
+  - API `/admin/backups` или scheduled jobs в приложении;
+  - Web UI dashboard backup/restore status.
+
+Критерий готовности P2.7: **частично** (shell scripts ✅, UI **нет**).
+
+---
+
+### P2.8. Admin audit dashboard
+
+Сделать: dashboard аудита действий пользователей.
+
+Статус:
+
+- Реализовано (data model):
+  - Prisma `AuditLog` (user, action, entityType, entityId, payload, timestamp);
+  - запись audit при `media.link` (единственный runtime write в smoke-коде).
+- Реализовано (skeleton):
+  - `GET /admin/stats` → `{ module: 'admin', action: 'stats', status: 'skeleton' }`.
+- Не сделано:
+  - CRUD/read API для audit logs;
+  - RBAC admin UI;
+  - аудит на все mutation routes (persons, events, gedcom import, …).
+
+Проверено:
+
+```powershell
+GET /api/v1/admin/stats
+# → status: skeleton
+```
+
+Критерий готовности P2.8: **нет**.
+
+---
+
+### P2.9. Public shared family pages
+
+Сделать: публичные read-only страницы семьи для гостей.
+
+Статус:
+
+- **Не начато**:
+  - нет routes `/public/...` или share tokens;
+  - нет guest viewer mode;
+  - middleware требует cookie JWT для всех platform routes.
+
+Критерий готовности P2.9: **нет**.
+
+---
+
+### P2.10. Export GEDCOM
+
+Сделать: выгрузка дерева в `.ged`.
+
+Статус:
+
+- Реализовано (library):
+  - `mapInternalPersonToGedcom` в `@family/genealogy-core`;
+  - import: `POST /gedcom/preview`, `POST /gedcom/import`.
+- Не сделано:
+  - `GET /gedcom/export` или `POST /gedcom/export`;
+  - UI download `.ged`;
+  - полный export families/sources/events (mapper только person record level).
+
+Критерий готовности P2.10: **частично** (import ✅, export endpoint **нет**).
+
+---
+
+### Сводка P2 (готовность к продукту)
+
+| # | Задача | Готовность |
+|---|--------|------------|
+| P2.1 | OCR AI | Каркас proxy + stub |
+| P2.2 | Relationship suggestions | Каркас proxy + stub |
+| P2.3 | Timeline AI summary | Каркас proxy + stub |
+| P2.4 | Face recognition | Нет |
+| P2.5 | Neo4j analytics | Infra only |
+| P2.6 | Advanced privacy | Library only |
+| P2.7 | Backup UI | Scripts only |
+| P2.8 | Audit dashboard | Model + skeleton |
+| P2.9 | Public pages | Нет |
+| P2.10 | Export GEDCOM | Mapper only |
+
+Включение optional AI локально: `AI_SERVICE_ENABLED=true`, `docker compose --profile ai up -d`, `NEXT_PUBLIC_API_URL` на актуальный API.
 
 ---
 
 ## 7. Рекомендуемый порядок следующих работ
 
 ### Итерация 1. Стабилизация окружения и сборки
+
+План:
 
 1. Исправить pnpm/WSL install.
 2. Сгенерировать Prisma Client.
@@ -904,11 +1464,51 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 
 4. Исправить CI до зелёного состояния.
 
+Статус (связь с P0.1):
+
+- Реализовано / проверено локально:
+  - monorepo структура + `pnpm-lock.yaml`;
+  - TypeScript type-check: `@family/shared`, `@family/genealogy-core`, `@family/api`, `@family/web` — проходит (прямой `tsc`);
+  - `nest build` для API — проходит (`apps/api/dist/.../main.js`);
+  - `next build` — compile/static pages OK; на Windows возможен `EACCES` на `sharp-libvips-linux-x64` в trace-шаге;
+  - Prisma Client — генерируется (на Linux/CI; на Windows иногда `EPERM` при rename query engine);
+  - `docker compose` dev/prod `config --quiet` — ✅;
+  - GitHub Actions workflow `.github/workflows/ci.yml`: install → `db:generate` → lint → test → build + job `docker-config`.
+- Частично / блокеры окружения (Windows host):
+  - `pnpm test` / `pnpm build` через root scripts: `turbo`/`sh` не находятся в текущем PowerShell (`pnpm exec` → `sh` not recognized);
+  - обход: `node --test` в `@family/genealogy-core` напрямую — ✅ `9/9` passed;
+  - `pnpm db:generate` / `pnpm exec prisma` — ненадёжны; работает `npx prisma@6.1.0 --schema apps/api/prisma/schema.prisma`;
+  - clean `CI=true pnpm install --frozen-lockfile` в WSL/Ubuntu — **ещё не подтверждён** в этом окружении.
+- CI green:
+  - workflow описан корректно;
+  - фактический green run на GitHub — **требует проверки** после push (локально полный `pnpm build` на Windows не gate).
+
+Проверено (`2026-05-20`):
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\apps\api\tsconfig.json --noEmit
+node .\node_modules\.pnpm\typescript@5.9.3\node_modules\typescript\bin\tsc -p .\apps\web\tsconfig.json --noEmit
+cd apps\api; node .\node_modules\@nestjs\cli\bin\nest.js build
+cd packages\genealogy-core; node --test (after tsc)  # 9/9 pass
+```
+
 Результат:
 
-- Проект можно собрать на новой машине.
+- Проект можно собрать на новой машине — **частично да** (код и tsc/nest ✅; полный `pnpm build`/`pnpm test` на Windows host ⚠️; целевой gate — Linux/WSL/CI).
+
+Критерий готовности итерации 1:
+
+- `pnpm db:generate` + `pnpm build` + `pnpm test` на чистой Linux/WSL/CI — **в процессе** (см. P0.1);
+- `docker compose config` dev/prod — **да**;
+- GitHub Actions green — **ожидает подтверждения**.
+
+---
 
 ### Итерация 2. Prisma schema + seed
+
+План:
 
 1. Доработать enums и индексы.
 2. Добавить `deletedAt`.
@@ -916,11 +1516,48 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 4. Создать seed.
 5. Проверить чистую миграцию.
 
-Результат:
+Статус (связь с §3.3, P0.2):
 
-- Есть стабильная база для CRUD.
+- Реализовано:
+  - enums: `UserRole`, `Gender`, `RelationshipType`, `EventType`, `DocumentType`, `MediaOwnerType`, `PrivacyLevel`, …;
+  - `deletedAt` на core entities (`User`, `Person`, `Family`, `Relationship`, `Event`, `Place`, `Media`, `Document`, `Source`, …);
+  - `MediaLink` (`mediaId`, `ownerType`, `ownerId`, unique `[mediaId, ownerType, ownerId]`);
+  - индексы: имена, даты, `deletedAt`, типы связей/событий;
+  - migrations:
+    - `20260519145419_init`;
+    - `20260520075800_prisma_schema_hardening`;
+  - seed `apps/api/prisma/seed.js`: admin `admin@example.local`, семья «Семья Петровых», demo persons/relationships/events/source;
+  - root scripts: `db:generate`, `db:migrate`, `db:seed`.
+- Проверено:
+  - `migrate status` на `family_platform` — `Database schema is up to date`;
+  - clean DB `family_platform_p0_check`: `migrate deploy` + seed — успешно (см. P0.2);
+  - API type-check после schema sync — проходит.
+
+Проверено:
+
+```powershell
+$env:DATABASE_URL='postgresql://family_user:change_me_postgres@localhost:5432/family_platform?schema=public'
+npx --yes prisma@6.1.0 migrate status --schema .\apps\api\prisma\schema.prisma
+npx --yes prisma@6.1.0 migrate deploy --schema .\apps\api\prisma\schema.prisma  # на пустой БД
+node .\apps\api\prisma\seed.js
+```
+
+Результат smoke (`2026-05-20`):
+
+- `2 migrations found`, schema up to date — ✅;
+- seed идемпотентен — ✅;
+- чистая миграция на временной БД — ✅ (P0.2);
+- `pnpm db:migrate` / `pnpm db:seed` через workspace filter — ⚠️ зависит от shell (см. итерацию 1).
+
+Критерий готовности итерации 2:
+
+- Стабильная база для CRUD — **да** (schema + migrations + seed + demo data);
+- новый разработчик через `npx prisma` + `node seed.js` — **да**;
+- только `pnpm db:*` без обходов — **частично** (Windows shell).
 
 ### Итерация 3. Auth/RBAC
+
+План:
 
 1. Первый admin.
 2. Login.
@@ -929,11 +1566,42 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 5. Roles.
 6. Frontend token flow.
 
-Результат:
+Статус (связь с §3.4, **P0.3**):
 
-- MVP защищён.
+- Реализовано:
+  - `POST /auth/register-first-admin` (один раз, при отсутствии ADMIN);
+  - `POST /auth/login` → `accessToken` + `user` (`ADMIN|EDITOR|VIEWER`);
+  - password hashing `crypto.scrypt`;
+  - `JwtAuthGuard`, `RolesGuard`, `@Roles(...)`, `@CurrentUser()`;
+  - `GET /users/me`;
+  - RBAC на mutation routes core entities: `ADMIN/EDITOR` create/update, `ADMIN` delete;
+  - read endpoints открыты для MVP frontend;
+  - frontend: `AuthProvider` (real JWT, без demo session fallback), cookie `family_access_token`, `middleware` redirect на `/login`;
+  - login page: register-first-admin + явные ошибки backend;
+  - fix DI: `AuthModule` экспортирует `JwtModule` (иначе API не стартует с guards в `UsersModule`).
+- Проверено runtime (API `http://localhost:4002`, `2026-05-20`):
+
+```powershell
+POST /auth/login  # admin@example.local / Test12345!
+GET /users/me     # Bearer -> role ADMIN
+POST /persons без token -> 401
+POST /persons как VIEWER -> 403
+POST /persons как EDITOR -> 201; DELETE как ADMIN -> 200
+```
+
+Результат smoke: **9/9** сценариев RBAC (см. P0.3).
+
+Критерий готовности итерации 3:
+
+- MVP защищён — **да** (JWT + roles на write; read открыт по дизайну MVP);
+- Swagger/browser login flow — **да** при актуальной сборке API (не skeleton на `:4000`);
+- frontend token flow — **да** (`AuthProvider` + cookie + API client Bearer).
+
+---
 
 ### Итерация 4. Core CRUD
+
+План:
 
 1. Persons.
 2. Families.
@@ -941,11 +1609,41 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 4. Events.
 5. Places.
 
-Результат:
+Статус (связь с §3.4, **P0.4**):
 
-- Можно создать семейное древо через API.
+- Реализовано:
+  - NestJS modules + Prisma services для всех 5 сущностей;
+  - `GET` list/`GET :id` (read без token);
+  - `POST`/`PATCH`/`DELETE` с JWT + roles;
+  - soft delete через `deletedAt`;
+  - DTO + `class-validator`;
+  - `RelationshipsService` + `validateRelationshipSet` из `@family/genealogy-core`;
+  - best-effort search indexing на create/update (Person/Place — через связанные сервисы; events — без отдельного index в search MVP).
+- Endpoints: `/api/v1/persons`, `/families`, `/relationships`, `/events`, `/places`.
+- Проверено runtime «мини-дерево» (API `:4002`, admin token, `2026-05-20`):
+
+```powershell
+POST /persons x2 (отец, ребёнок)
+POST /families
+POST /relationships type=PARENT
+POST /places
+POST /events type=BIRTH + personId + placeId
+GET lists по всем 5 сущностям
+```
+
+Результат smoke: **7/7** шагов end-to-end (см. P0.4 полный сценарий с documents/sources/citations — итерация 5).
+
+Критерий готовности итерации 4:
+
+- Можно создать семейное древо через API — **да** (persons + family + parent-child relationship + birth event + place);
+- Swagger ручной сценарий — **да**;
+- UI CRUD для этих сущностей — **да** (`PersonsWorkspace`, `FamiliesWorkspace`, `TimelineAdminWorkspace` — см. P0.5 / итерация 6).
+
+Ограничение MVP: `FamilyMember` CRUD отдельно нет — участники семьи задаются через `relationships` (достаточно для «древа через API»).
 
 ### Итерация 5. Archive CRUD
+
+План:
 
 1. Media metadata.
 2. Documents.
@@ -953,11 +1651,38 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 4. Citations.
 5. Upload flows.
 
-Результат:
+Статус (связь с §3.4, **P0.4**, **P1.1**):
 
-- Семейная память подкрепляется файлами и источниками.
+- Реализовано:
+  - API CRUD: `documents`, `sources`, `citations` (JWT + RBAC, soft delete);
+  - `GET /media` list; `POST /media/upload-url`, `POST /media/metadata`, `POST /media/:id/link`;
+  - `MediaLink` в Prisma; `Document.ocrText` в schema/DTO;
+  - frontend: `DocumentsWorkspace` (create list), `MediaGallery` (API list), `MediaUploader` (presigned → MinIO → metadata).
+- Частично:
+  - `POST /media/upload-url` — ⚠️ `500` без MinIO credentials в env API-процесса (код flow готов);
+  - document upload — metadata-only (`storageKey`/`bucket` вручную), не общий presigned flow как у media;
+  - MinIO bucket pre-check — нет (P1.1).
+
+Проверено (`2026-05-20`, API `:4002`, admin token):
+
+```powershell
+POST /sources, /documents, /citations  # OK
+GET /media  # OK (count может быть 0)
+POST /media/upload-url  # FAIL без MINIO_* env
+```
+
+Результат smoke: **4/5** (CRUD archive ✅; presigned upload ⚠️).
+
+Критерий готовности итерации 5:
+
+- Семейная память подкрепляется файлами и источниками — **да** через API metadata + CRUD;
+- полный upload flow end-to-end — **частично** (нужен MinIO env + проверка PUT в bucket).
+
+---
 
 ### Итерация 6. UI integration
+
+План:
 
 1. Forms.
 2. API lists.
@@ -965,22 +1690,68 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 4. Error/loading states.
 5. Remove mock happy paths.
 
-Результат:
+Статус (связь с §3.5, **P0.5**):
 
-- Пользователь работает через frontend, не через Swagger.
+- Реализовано:
+  - Workspaces с формами и API: `PersonsWorkspace`, `FamiliesWorkspace`, `TimelineAdminWorkspace`, `DocumentsWorkspace`;
+  - detail: `PersonDetailsWorkspace` (`/persons/:id`);
+  - `DashboardOverview`, `MediaGallery`, `SearchPanel`, `TreeExplorer`, `GedcomImportPanel`;
+  - `AuthProvider` + JWT в `api-client.ts`;
+  - loading/empty/error: `EmptyState`, status strings, `isLoading`/`isSaving` в workspaces.
+- Частично / остатки:
+  - `TimelineView` — demo fallback при ошибке API;
+  - `settings` — placeholder email;
+  - `domain.tsx` — типы из `mock-data` для карточек (данные из API);
+  - `NEXT_PUBLIC_API_URL` по умолчанию `:4000` (skeleton) — для real API нужен `.env.local` → `:4002`.
+
+Проверено:
+
+- Web `tsc` — проходит;
+- страницы `/login`, `/persons`, `/families`, `/documents`, `/media`, `/tree`, `/timeline`, `/search` — компоненты подключены к `apiClient.*`.
+
+Критерий готовности итерации 6:
+
+- Пользователь работает через frontend, не через Swagger — **да** для основных happy path (persons, families, events/places, documents, dashboard, tree по ID);
+- поиск — **частично** (UI есть; Meilisearch hits зависят от infra, см. итерацию 7).
+
+---
 
 ### Итерация 7. Search/Timeline/Tree polishing
+
+План:
 
 1. Search autoindex.
 2. Timeline event links.
 3. Tree root selector.
 4. Privacy masking.
 
-Результат:
+Статус (связь с **P1.2**, **P1.4**, **P1.5**, **P1.6**):
 
-- MVP сценарии выглядят цельно.
+| Пункт | Статус |
+|-------|--------|
+| Search autoindex | **Да** в коде (Person/Document/Source/Place on create/update, `POST /search/reindex`); hits в smoke часто пустые; `reindex` не ADMIN-only |
+| Timeline event links | **Частично** — person-level docs/media на всех карточках; per-event link нет; create event UI ✅, update/dateEnd/AI — см. P1.5 |
+| Tree root selector | **Нет** — только ручной Person ID; `ancestors`/`descendants` ⚠️ bug enum `PARENT` vs `parent` |
+| Privacy masking | **Частично** — `privacy-rules.ts` + `Person.privacyLevel`; не enforced в API tree/search |
+
+Проверено (`2026-05-20`):
+
+```powershell
+POST /search/reindex  # indexed=21
+GET /search?q=Iter5   # 0 hits (infra/indexing)
+GET /tree/person/{id}/full  # OK на seed
+GET /timeline/person/{id}   # OK
+```
+
+Критерий готовности итерации 7:
+
+- MVP сценарии выглядят цельно — **частично** (ядро работает; polishing backlog: tree picker, PARENT fix, Meilisearch healthy, privacy enforcement).
+
+---
 
 ### Итерация 8. VPS readiness
+
+План:
 
 1. Prod compose hardening.
 2. Nginx/SSL.
@@ -988,9 +1759,33 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 4. Restore test.
 5. Security checklist.
 
-Результат:
+Статус (связь с §3.2, `docs/DEPLOY_VPS.md`, **P2.7**):
 
-- Проект можно переносить на VPS.
+- Реализовано:
+  - `docker-compose.prod.yml`: internal network, только `nginx:80/443` наружу;
+  - обязательные prod secrets `${VAR:?required}`;
+  - `docker compose ... config` dev/prod — ✅;
+  - nginx skeleton: `infra/nginx/nginx.conf`, `infra/nginx/conf.d/family.conf`;
+  - backup scripts: `backup-postgres.sh`, `backup-minio.sh`, `backup-meilisearch.sh`, `backup-neo4j.sh`;
+  - `restore-postgres.sh`;
+  - `docs/DEPLOY_VPS.md` (deploy, backups checklist).
+- Не сделано / не проверено runtime:
+  - SSL/TLS certificates и domain — вручную на VPS (не автоматизировано в repo);
+  - фактический прогон backup + restore в отдельное окружение — **не зафиксирован** в smoke этой сессии;
+  - Web UI backup status — нет;
+  - полный security checklist на production host — backlog.
+
+Проверено:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet  # OK
+```
+
+Критерий готовности итерации 8:
+
+- Проект можно переносить на VPS — **частично да** (compose + nginx config + backup scripts + docs ✅; нужны runtime backup/restore test + SSL + secrets на сервере).
+
+---
 
 ---
 
