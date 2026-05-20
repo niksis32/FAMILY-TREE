@@ -13,10 +13,12 @@ export interface BaseEntity {
 /** MVP person summary for lists and tree nodes */
 export interface PersonSummary extends BaseEntity {
   givenName: string;
+  patronymic?: string | null;
   familyName?: string | null;
   birthDate?: string | null;
   deathDate?: string | null;
   gender?: string | null;
+  privacyLevel?: string | null;
   primaryPhotoUrl?: string | null;
 }
 

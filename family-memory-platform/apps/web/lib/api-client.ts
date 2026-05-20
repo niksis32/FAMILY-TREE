@@ -97,11 +97,25 @@ export interface RegisterFirstAdminInput extends LoginDto {
   displayName: string;
 }
 
+export interface FamilyMemberPersonRecord {
+  id: string;
+  givenName: string;
+  patronymic?: string | null;
+  familyName?: string | null;
+  gender?: string | null;
+}
+
+export interface FamilyMemberRecord {
+  id: string;
+  role: string;
+  person: FamilyMemberPersonRecord;
+}
+
 export interface FamilyRecord {
   id: string;
   name?: string | null;
   notes?: string | null;
-  members?: unknown[];
+  members?: FamilyMemberRecord[];
   createdAt?: string;
 }
 

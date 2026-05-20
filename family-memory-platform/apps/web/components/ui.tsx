@@ -35,6 +35,23 @@ export function Card({ className, children }: { className?: string; children: Re
   );
 }
 
+export function FormField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn('grid gap-1.5', className)}>
+      <span className="text-xs font-semibold tracking-wide text-stone-600 dark:text-slate-400">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input

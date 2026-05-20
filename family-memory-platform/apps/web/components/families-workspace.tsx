@@ -2,15 +2,22 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card, EmptyState, Input, Select, Textarea } from '@/components/ui';
-import { apiClient, type FamilyRecord, type RelationshipRecord } from '@/lib/api-client';
+import { RelationshipFields } from '@/components/relationship-fields';
+import { Button, Card, EmptyState, FormField, Input, Textarea } from '@/components/ui';
+import { apiClient, formatApiError, type FamilyRecord, type RelationshipRecord } from '@/lib/api-client';
+import {
+  buildRelationshipCreates,
+  emptyRelationshipDraft,
+  isRelationshipDraftFilled,
+  type RelationshipDraft,
+} from '@/lib/relationship-draft';
 
 export function FamiliesWorkspace() {
   const { session } = useAuth();
   const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [relationships, setRelationships] = useState<RelationshipRecord[]>([]);
   const [familyForm, setFamilyForm] = useState({ name: '', notes: '' });
-  const [relationshipForm, setRelationshipForm] = useState({ fromPersonId: '', toPersonId: '', type: 'PARENT', notes: '' });
+  const [relationshipForm, setRelationshipForm] = useState<RelationshipDraft>(emptyRelationshipDraft());
   const [status, setStatus] = useState('Загружаем семьи и связи...');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -25,7 +32,7 @@ export function FamiliesWorkspace() {
       setRelationships(nextRelationships);
       setStatus(`Семей: ${nextFamilies.length}, связей: ${nextRelationships.length}`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Не удалось загрузить семьи и связи');
+      setStatus(formatApiError(error));
     }
   }
 
@@ -43,7 +50,7 @@ export function FamiliesWorkspace() {
       await load();
       setStatus('Семья создана');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Не удалось создать семью');
+      setStatus(formatApiError(error));
     } finally {
       setIsSaving(false);
     }
@@ -53,18 +60,19 @@ export function FamiliesWorkspace() {
     event.preventDefault();
     setIsSaving(true);
     try {
-      await apiClient.relationships.create(
-        {
-          ...relationshipForm,
-          notes: relationshipForm.notes || undefined,
-        },
-        session?.accessToken,
-      );
-      setRelationshipForm({ fromPersonId: '', toPersonId: '', type: 'PARENT', notes: '' });
+      const payloads = buildRelationshipCreates(relationshipForm);
+      if (payloads.length === 0) {
+        setStatus('Заполните поля связи: семья, тип и участники');
+        return;
+      }
+      for (const payload of payloads) {
+        await apiClient.relationships.create(payload, session?.accessToken);
+      }
+      setRelationshipForm(emptyRelationshipDraft());
       await load();
-      setStatus('Родственная связь создана');
+      setStatus(payloads.length > 1 ? `Создано связей: ${payloads.length}` : 'Родственная связь создана');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Не удалось создать связь');
+      setStatus(formatApiError(error));
     } finally {
       setIsSaving(false);
     }
@@ -77,8 +85,20 @@ export function FamiliesWorkspace() {
         <Card>
           <h2 className="text-xl font-semibold">Создать семью</h2>
           <form className="mt-5 space-y-4" onSubmit={createFamily}>
-            <Input value={familyForm.name} onChange={(event) => setFamilyForm({ ...familyForm, name: event.target.value })} placeholder="Название семьи" />
-            <Textarea value={familyForm.notes} onChange={(event) => setFamilyForm({ ...familyForm, notes: event.target.value })} placeholder="Заметки" />
+            <FormField label="Название">
+              <Input
+                value={familyForm.name}
+                onChange={(event) => setFamilyForm({ ...familyForm, name: event.target.value })}
+                placeholder="Семья Ивановых"
+              />
+            </FormField>
+            <FormField label="Заметки">
+              <Textarea
+                value={familyForm.notes}
+                onChange={(event) => setFamilyForm({ ...familyForm, notes: event.target.value })}
+                placeholder="Комментарий к семье"
+              />
+            </FormField>
             <Button disabled={isSaving || !session} type="submit">
               Создать семью
             </Button>
@@ -87,20 +107,12 @@ export function FamiliesWorkspace() {
 
         <Card>
           <h2 className="text-xl font-semibold">Управление Relationship</h2>
-          <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={createRelationship}>
-            <Input value={relationshipForm.fromPersonId} onChange={(event) => setRelationshipForm({ ...relationshipForm, fromPersonId: event.target.value })} placeholder="From Person ID" required />
-            <Input value={relationshipForm.toPersonId} onChange={(event) => setRelationshipForm({ ...relationshipForm, toPersonId: event.target.value })} placeholder="To Person ID" required />
-            <Select value={relationshipForm.type} onChange={(event) => setRelationshipForm({ ...relationshipForm, type: event.target.value })}>
-              <option value="PARENT">Родитель</option>
-              <option value="CHILD">Ребёнок</option>
-              <option value="SPOUSE">Супруги</option>
-              <option value="SIBLING">Сиблинг</option>
-              <option value="PARTNER">Партнёр</option>
-              <option value="ADOPTIVE_PARENT">Приёмный родитель</option>
-              <option value="ADOPTIVE_CHILD">Приёмный ребёнок</option>
-            </Select>
-            <Input value={relationshipForm.notes} onChange={(event) => setRelationshipForm({ ...relationshipForm, notes: event.target.value })} placeholder="Заметки" />
-            <Button className="md:col-span-2" disabled={isSaving || !session} type="submit">
+          <form className="mt-5 space-y-4" onSubmit={createRelationship}>
+            <RelationshipFields families={families} draft={relationshipForm} onChange={setRelationshipForm} disabled={isSaving || !session} />
+            <Button
+              disabled={isSaving || !session || !isRelationshipDraftFilled(relationshipForm)}
+              type="submit"
+            >
               Создать связь
             </Button>
           </form>
@@ -113,6 +125,9 @@ export function FamiliesWorkspace() {
           <Card key={family.id}>
             <h3 className="text-xl font-semibold">{family.name ?? 'Без названия'}</h3>
             <p className="mt-2 text-sm text-stone-600 dark:text-slate-300">{family.notes ?? 'Заметок пока нет'}</p>
+            <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
+              Участников: {family.members?.length ?? 0}
+            </p>
             <p className="mt-4 text-xs text-stone-400">ID: {family.id}</p>
           </Card>
         ))}

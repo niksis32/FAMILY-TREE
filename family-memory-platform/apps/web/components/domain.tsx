@@ -3,8 +3,16 @@ import type { PersonSummary, RelationshipType } from '@family/shared';
 import { Badge, Button, Card, Input, Select, Textarea } from '@/components/ui';
 import type { DocumentItem, FamilySummary, MediaItem, PrivacyLevel, TimelineEvent } from '@/lib/mock-data';
 
-function fullName(person: Pick<PersonSummary, 'givenName' | 'familyName'>) {
-  return [person.givenName, person.familyName].filter(Boolean).join(' ');
+function fullName(person: Pick<PersonSummary, 'givenName' | 'patronymic' | 'familyName'>) {
+  return [person.givenName, person.patronymic, person.familyName].filter(Boolean).join(' ');
+}
+
+function apiPrivacyLevel(level?: string | null): PrivacyLevel | null {
+  const key = level?.toLowerCase();
+  if (key === 'public' || key === 'family' || key === 'private') {
+    return key;
+  }
+  return null;
 }
 
 export function PrivacyBadge({ level }: { level: PrivacyLevel }) {
@@ -23,7 +31,7 @@ export function RelationshipBadge({ type }: { type: RelationshipType }) {
     parent: 'Родитель',
     child: 'Ребёнок',
     spouse: 'Супруги',
-    sibling: 'Сиблинг',
+    sibling: 'Сестра / брат',
     partner: 'Партнёр',
     adoptive_parent: 'Приёмный родитель',
     adoptive_child: 'Приёмный ребёнок',
@@ -33,7 +41,13 @@ export function RelationshipBadge({ type }: { type: RelationshipType }) {
 }
 
 export function PersonCard({ person }: { person: PersonSummary }) {
-  const years = [person.birthDate?.slice(0, 4) ?? '?', person.deathDate?.slice(0, 4)].filter(Boolean).join(' - ');
+  const birthYear = person.birthDate?.slice(0, 4);
+  const deathYear = person.deathDate?.slice(0, 4);
+  const lifeYears =
+    birthYear || deathYear
+      ? [birthYear ? `р. ${birthYear}` : null, deathYear ? `ум. ${deathYear}` : null].filter(Boolean).join(' · ')
+      : 'Даты не указаны';
+  const privacy = apiPrivacyLevel(person.privacyLevel);
 
   return (
     <Card className="group">
@@ -51,9 +65,9 @@ export function PersonCard({ person }: { person: PersonSummary }) {
             <Link href={`/persons/${person.id}`} className="truncate text-lg font-semibold text-family-ink hover:text-family-primary dark:text-white dark:hover:text-family-accent">
               {fullName(person)}
             </Link>
-            <RelationshipBadge type="child" />
+            {privacy ? <PrivacyBadge level={privacy} /> : null}
           </div>
-          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{years}</p>
+          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{lifeYears}</p>
           {person.primaryPhotoUrl ? (
             <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">Есть аватар и медиа в архиве семьи.</p>
           ) : (

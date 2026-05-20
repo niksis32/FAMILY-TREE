@@ -3,14 +3,17 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { PersonCard } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card, EmptyState, Input, Select, Textarea } from '@/components/ui';
+import { RelationshipFields } from '@/components/relationship-fields';
+import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/components/ui';
 import { PersonAttachmentsForm } from '@/components/person-attachments-form';
-import { apiClient, ApiError, formatApiError } from '@/lib/api-client';
+import { apiClient, ApiError, formatApiError, type FamilyRecord } from '@/lib/api-client';
 import { attachAssetsToPerson, emptyPersonAttachments, type PersonAttachmentDraft } from '@/lib/person-assets';
+import { buildRelationshipCreates, emptyRelationshipDraft, type RelationshipDraft } from '@/lib/relationship-draft';
 import type { PersonSummary } from '@family/shared';
 
 const emptyForm = {
   givenName: '',
+  patronymic: '',
   familyName: '',
   gender: 'UNKNOWN',
   birthDate: '',
@@ -22,7 +25,9 @@ const emptyForm = {
 export function PersonsWorkspace() {
   const { session, logout } = useAuth();
   const [persons, setPersons] = useState<PersonSummary[]>([]);
+  const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [relationshipDraft, setRelationshipDraft] = useState<RelationshipDraft>(emptyRelationshipDraft());
   const [status, setStatus] = useState('Загружаем персон из backend...');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,8 +37,12 @@ export function PersonsWorkspace() {
     setIsLoading(true);
     setStatus('Загружаем персон из backend...');
     try {
-      const data = await apiClient.persons.list(session?.accessToken);
+      const [data, nextFamilies] = await Promise.all([
+        apiClient.persons.list(session?.accessToken),
+        apiClient.families.list(session?.accessToken),
+      ]);
       setPersons(data);
+      setFamilies(nextFamilies);
       setStatus(data.length ? `Загружено персон: ${data.length}` : 'Персон пока нет. Создайте первую запись.');
     } catch (error) {
       setStatus(formatApiError(error));
@@ -55,6 +64,7 @@ export function PersonsWorkspace() {
       const created = await apiClient.persons.create(
         {
           ...form,
+          patronymic: form.patronymic || undefined,
           familyName: form.familyName || undefined,
           birthDate: form.birthDate || undefined,
           deathDate: form.deathDate || undefined,
@@ -71,13 +81,24 @@ export function PersonsWorkspace() {
         await attachAssetsToPerson(created.id, attachments, session?.accessToken);
       }
 
+      const relationshipPayloads = buildRelationshipCreates(relationshipDraft, created.id);
+      if (relationshipPayloads.length > 0) {
+        setStatus('Сохраняем родственные связи...');
+        for (const payload of relationshipPayloads) {
+          await apiClient.relationships.create(payload, session?.accessToken);
+        }
+      }
+
       setForm(emptyForm);
+      setRelationshipDraft(emptyRelationshipDraft());
       setAttachments(emptyPersonAttachments());
       await load();
+      const relNote =
+        relationshipPayloads.length > 0 ? `, связей: ${relationshipPayloads.length}` : '';
       setStatus(
         hasFiles
-          ? 'Персона создана: аватар, медиа и документы сохранены'
-          : 'Персона создана и отправлена на индексацию поиска',
+          ? `Персона создана: аватар, медиа и документы сохранены${relNote}`
+          : `Персона создана и отправлена на индексацию поиска${relNote}`,
       );
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -95,7 +116,9 @@ export function PersonsWorkspace() {
       <div className="space-y-4">
         <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
         {isLoading ? <EmptyState title="Загрузка" description="Получаем список персон из `/persons`." /> : null}
-        {!isLoading && persons.length === 0 ? <EmptyState title="Персон нет" description="Backend вернул пустой список. Создайте первую персону через форму." /> : null}
+        {!isLoading && persons.length === 0 ? (
+          <EmptyState title="Персон нет" description="Backend вернул пустой список. Создайте первую персону через форму." />
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           {persons.map((person) => (
             <PersonCard key={person.id} person={person} />
@@ -106,31 +129,74 @@ export function PersonsWorkspace() {
       <Card>
         <h2 className="text-xl font-semibold">Новая персона</h2>
         <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={createPerson}>
-          <Input value={form.givenName} onChange={(event) => setForm({ ...form, givenName: event.target.value })} placeholder="Имя" required />
-          <Input value={form.familyName} onChange={(event) => setForm({ ...form, familyName: event.target.value })} placeholder="Фамилия" />
-          <Select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}>
-            <option value="UNKNOWN">Пол не указан</option>
-            <option value="FEMALE">Женский</option>
-            <option value="MALE">Мужской</option>
-            <option value="OTHER">Другой</option>
-          </Select>
-          <Select value={form.privacyLevel} onChange={(event) => setForm({ ...form, privacyLevel: event.target.value })}>
-            <option value="FAMILY">Только семья</option>
-            <option value="PUBLIC">Публично</option>
-            <option value="PRIVATE">Приватно</option>
-          </Select>
-          <Input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} />
-          <Input type="date" value={form.deathDate} onChange={(event) => setForm({ ...form, deathDate: event.target.value })} />
-          <Textarea
-            className="md:col-span-2"
-            value={form.biography}
-            onChange={(event) => setForm({ ...form, biography: event.target.value })}
-            placeholder="Биография, заметки, семейные истории"
-          />
+          <FormField label="Фамилия" className="md:col-span-2">
+            <Input
+              value={form.familyName}
+              onChange={(event) => setForm({ ...form, familyName: event.target.value })}
+              placeholder="Иванов"
+            />
+          </FormField>
+          <FormField label="Имя">
+            <Input
+              value={form.givenName}
+              onChange={(event) => setForm({ ...form, givenName: event.target.value })}
+              placeholder="Иван"
+              required
+            />
+          </FormField>
+          <FormField label="Отчество">
+            <Input
+              value={form.patronymic}
+              onChange={(event) => setForm({ ...form, patronymic: event.target.value })}
+              placeholder="Иванович"
+            />
+          </FormField>
+          <FormField label="Пол">
+            <Select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}>
+              <option value="UNKNOWN">Не указан</option>
+              <option value="FEMALE">Женский</option>
+              <option value="MALE">Мужской</option>
+              <option value="OTHER">Другой</option>
+            </Select>
+          </FormField>
+          <FormField label="Видимость">
+            <Select value={form.privacyLevel} onChange={(event) => setForm({ ...form, privacyLevel: event.target.value })}>
+              <option value="FAMILY">Только семья</option>
+              <option value="PUBLIC">Публично</option>
+              <option value="PRIVATE">Приватно</option>
+            </Select>
+          </FormField>
+          <FormField label="Дата рождения">
+            <Input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} />
+          </FormField>
+          <FormField label="Дата смерти">
+            <Input type="date" value={form.deathDate} onChange={(event) => setForm({ ...form, deathDate: event.target.value })} />
+          </FormField>
+          <FormField label="Биография" className="md:col-span-2">
+            <Textarea
+              value={form.biography}
+              onChange={(event) => setForm({ ...form, biography: event.target.value })}
+              placeholder="Заметки, семейные истории"
+            />
+          </FormField>
+
+          <div className="space-y-3 border-t border-stone-200 pt-4 md:col-span-2 dark:border-slate-800">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600 dark:text-slate-400">
+              Управление Relationship
+            </h3>
+            <RelationshipFields
+              families={families}
+              draft={relationshipDraft}
+              onChange={setRelationshipDraft}
+              disabled={isSaving || !session}
+              whoHint="Если «Кто» не выбран, для типа «Ребёнок» подставится только что созданная персона."
+            />
+          </div>
+
           <div className="md:col-span-2">
             <PersonAttachmentsForm draft={attachments} onChange={setAttachments} disabled={isSaving || !session} />
           </div>
-          <div className="md:col-span-2 flex justify-end gap-3">
+          <div className="flex justify-end gap-3 md:col-span-2">
             <Button type="button" variant="secondary" onClick={() => void load()}>
               Обновить
             </Button>

@@ -105,6 +105,7 @@ enum DocumentType {
 model Person {
   id           String       @id @default(cuid())
   givenName    String
+  patronymic   String?
   familyName   String?
   gender       Gender?      @default(UNKNOWN)
   birthDate    DateTime?

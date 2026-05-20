@@ -79,6 +79,7 @@ export class PersonsService {
   private toPersonCreateData(dto: CreatePersonDto): Prisma.PersonUncheckedCreateInput {
     return {
       givenName: dto.givenName,
+      patronymic: dto.patronymic,
       familyName: dto.familyName,
       gender: dto.gender,
       birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
@@ -93,6 +94,7 @@ export class PersonsService {
   private toPersonData(dto: UpdatePersonDto): Prisma.PersonUncheckedUpdateInput {
     return {
       givenName: dto.givenName,
+      patronymic: dto.patronymic,
       familyName: dto.familyName,
       gender: dto.gender,
       birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
@@ -110,10 +112,12 @@ export class PersonsService {
       createdAt: person.createdAt.toISOString(),
       updatedAt: person.updatedAt.toISOString(),
       givenName: person.givenName,
+      patronymic: person.patronymic,
       familyName: person.familyName,
       birthDate: person.birthDate?.toISOString() ?? null,
       deathDate: person.deathDate?.toISOString() ?? null,
       gender: person.gender,
+      privacyLevel: person.privacyLevel,
       primaryPhotoUrl: person.avatarMediaId ? await this.resolvePhotoUrl(person.avatarMediaId) : null,
     };
   }

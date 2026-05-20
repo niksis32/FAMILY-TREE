@@ -8,6 +8,10 @@ export class CreatePersonDto {
 
   @IsOptional()
   @IsString()
+  patronymic?: string;
+
+  @IsOptional()
+  @IsString()
   familyName?: string;
 
   @IsOptional()

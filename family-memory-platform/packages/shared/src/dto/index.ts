@@ -16,6 +16,7 @@ export interface RegisterDto {
 
 export interface CreatePersonDto {
   givenName: string;
+  patronymic?: string;
   familyName?: string;
   gender?: string;
   birthDate?: string;
