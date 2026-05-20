@@ -110,6 +110,77 @@ export interface GedcomPreview {
   imported?: boolean;
 }
 
+export type TreeViewMode = 'ancestors' | 'descendants' | 'full';
+
+export interface TreePersonNode {
+  id: string;
+  personId: string;
+  label: string;
+  givenName: string;
+  familyName?: string | null;
+  birthDate?: string | null;
+  deathDate?: string | null;
+  isLiving?: boolean;
+  generation: number;
+}
+
+export interface TreeRelationshipEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  label: string;
+}
+
+export interface TreeGraphResponse {
+  rootPersonId: string;
+  mode: TreeViewMode;
+  nodes: TreePersonNode[];
+  edges: TreeRelationshipEdge[];
+}
+
+export type TimelineEventType =
+  | 'birth'
+  | 'death'
+  | 'marriage'
+  | 'migration'
+  | 'education'
+  | 'military'
+  | 'work'
+  | 'custom';
+
+export interface TimelineRelatedAsset {
+  id: string;
+  title: string;
+  type: 'document' | 'media';
+  mimeType?: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  type: TimelineEventType;
+  title: string;
+  description?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  sortDate: string;
+  place?: string | null;
+  relatedDocuments: TimelineRelatedAsset[];
+  relatedMedia: TimelineRelatedAsset[];
+  aiSummaryInput: {
+    personId: string;
+    eventType: TimelineEventType;
+    text: string;
+  };
+}
+
+export interface PersonTimelineResponse {
+  personId: string;
+  personName: string;
+  events: TimelineEntry[];
+  availableTypes: TimelineEventType[];
+}
+
 export const apiClient = {
   login: (dto: LoginDto) => apiPost<AuthSession>('/auth/login', dto),
   persons: (token?: string | null) => apiGet<PaginatedResponse<PersonSummary>>('/persons', token),
@@ -125,5 +196,13 @@ export const apiClient = {
       apiPost<GedcomPreview>('/gedcom/preview', { gedcomText, fileName }, token),
     import: (gedcomText: string, fileName?: string, token?: string | null) =>
       apiPost<GedcomPreview>('/gedcom/import', { gedcomText, fileName }, token),
+  },
+  tree: {
+    graph: (personId: string, mode: TreeViewMode, token?: string | null) =>
+      apiGet<TreeGraphResponse>(`/tree/person/${personId}/${mode}`, token),
+  },
+  timeline: {
+    person: (personId: string, token?: string | null) =>
+      apiGet<PersonTimelineResponse>(`/timeline/person/${personId}`, token),
   },
 };

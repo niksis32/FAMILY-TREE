@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AiModule } from './modules/ai/ai.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CitationsModule } from './modules/citations/citations.module';
@@ -14,6 +15,7 @@ import { RelationshipsModule } from './modules/relationships/relationships.modul
 import { SearchModule } from './modules/search/search.module';
 import { SourcesModule } from './modules/sources/sources.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
+import { TreeModule } from './modules/tree/tree.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './common/health/health.module';
@@ -27,6 +29,7 @@ import { HealthModule } from './common/health/health.module';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
     PrismaModule,
     HealthModule,
+    AiModule,
     AuthModule,
     UsersModule,
     PersonsModule,
@@ -39,6 +42,7 @@ import { HealthModule } from './common/health/health.module';
     SourcesModule,
     CitationsModule,
     TimelineModule,
+    TreeModule,
     SearchModule,
     GedcomModule,
     AdminModule,

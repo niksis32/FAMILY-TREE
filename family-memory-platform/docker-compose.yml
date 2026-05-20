@@ -91,6 +91,20 @@ services:
     volumes:
       - neo4j_data:/data
 
+  # Optional AI layer — enable with: docker compose --profile ai up -d
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+    container_name: family_ai
+    restart: unless-stopped
+    profiles:
+      - ai
+    environment:
+      AI_SERVICE_ENABLED: "true"
+    expose:
+      - "8000"
+
 volumes:
   postgres_data:
   redis_data:

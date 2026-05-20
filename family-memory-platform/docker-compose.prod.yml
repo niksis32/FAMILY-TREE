@@ -38,6 +38,7 @@ services:
       MEILI_HOST: http://meilisearch:7700
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
+      AI_SERVICE_URL: http://ai-service:8000
     expose:
       - "4000"
     depends_on:
@@ -95,6 +96,8 @@ services:
       - ai
     expose:
       - "8000"
+    environment:
+      AI_SERVICE_ENABLED: "true"
     networks:
       - family_internal
 

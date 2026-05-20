@@ -9,6 +9,6 @@ export class TimelineController {
 
   @Get('person/:personId')
   byPerson(@Param('personId') personId: string) {
-    return this.service.skeleton('byPerson', { personId });
+    return this.service.getPersonTimeline(personId);
   }
 }

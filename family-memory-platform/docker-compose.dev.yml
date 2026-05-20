@@ -47,6 +47,7 @@ services:
       MEILI_HOST: http://meilisearch:7700
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
+      AI_SERVICE_URL: http://ai-service:8000
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:
@@ -93,3 +94,4 @@ services:
       - "${AI_PORT:-8000}:8000"
     environment:
       AI_SERVICE_ENABLED: "true"
+      PYTHON_ENV: development
