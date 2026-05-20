@@ -6,12 +6,9 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
-    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/test/**/*.test.js\""
-  },
-  "dependencies": {
-    "@family/shared": "workspace:*"
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "dev": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --watch",
+    "test": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node --test \"test/**/*.test.mjs\""
   },
   "devDependencies": {
     "typescript": "^5.7.2"

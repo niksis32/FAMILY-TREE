@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SearchService } from './search.service';
 
@@ -9,6 +9,11 @@ export class SearchController {
 
   @Get()
   search(@Query('q') q?: string) {
-    return this.service.skeleton('search', { q: q ?? '' });
+    return this.service.search(q ?? '');
+  }
+
+  @Post('reindex')
+  reindex() {
+    return this.service.reindexAll();
   }
 }

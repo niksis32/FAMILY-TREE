@@ -8,3 +8,5 @@ export * from './relationship.rules';
 export * from './tree-builder';
 export * from './privacy-rules';
 export * from './gedcom-mapper';
+export * from './timeline-builder';
+export * from './validation-rules';

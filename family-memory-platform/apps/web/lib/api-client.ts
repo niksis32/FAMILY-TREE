@@ -64,7 +64,66 @@ export interface AuthSession {
   };
 }
 
+export interface MediaUploadUrlResponse {
+  bucket: string;
+  storageKey: string;
+  uploadUrl: string;
+  expiresInSeconds: number;
+}
+
+export interface MediaMetadataInput {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+  title?: string;
+  personId?: string;
+}
+
+export interface SearchResultItem {
+  id: string;
+  category: 'people' | 'documents' | 'places' | 'sources';
+  title: string;
+  text?: string;
+  entityId: string;
+  year?: number;
+  tags?: string[];
+}
+
+export interface SearchResults {
+  q: string;
+  people: SearchResultItem[];
+  documents: SearchResultItem[];
+  places: SearchResultItem[];
+  sources: SearchResultItem[];
+}
+
+export interface GedcomPreview {
+  fileName?: string;
+  personsFound: number;
+  familiesFound: number;
+  relationshipsFound: number;
+  eventsFound: number;
+  sourcesFound: number;
+  errors: string[];
+  warnings: string[];
+  imported?: boolean;
+}
+
 export const apiClient = {
   login: (dto: LoginDto) => apiPost<AuthSession>('/auth/login', dto),
   persons: (token?: string | null) => apiGet<PaginatedResponse<PersonSummary>>('/persons', token),
+  media: {
+    list: (token?: string | null) => apiGet<unknown[]>('/media', token),
+    uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
+      apiPost<MediaUploadUrlResponse>('/media/upload-url', input, token),
+    metadata: (input: MediaMetadataInput, token?: string | null) => apiPost('/media/metadata', input, token),
+  },
+  search: (q: string, token?: string | null) => apiGet<SearchResults>(`/search?q=${encodeURIComponent(q)}`, token),
+  gedcom: {
+    preview: (gedcomText: string, fileName?: string, token?: string | null) =>
+      apiPost<GedcomPreview>('/gedcom/preview', { gedcomText, fileName }, token),
+    import: (gedcomText: string, fileName?: string, token?: string | null) =>
+      apiPost<GedcomPreview>('/gedcom/import', { gedcomText, fileName }, token),
+  },
 };

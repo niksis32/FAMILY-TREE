@@ -1,5 +1,6 @@
-import { Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { GedcomImportDto, GedcomTextDto } from './gedcom.dto';
 import { GedcomService } from './gedcom.service';
 
 @ApiTags('gedcom')
@@ -7,8 +8,13 @@ import { GedcomService } from './gedcom.service';
 export class GedcomController {
   constructor(private readonly service: GedcomService) {}
 
+  @Post('preview')
+  preview(@Body() dto: GedcomTextDto) {
+    return this.service.preview(dto);
+  }
+
   @Post('import')
-  import() {
-    return this.service.skeleton('import');
+  import(@Body() dto: GedcomImportDto) {
+    return this.service.import(dto);
   }
 }

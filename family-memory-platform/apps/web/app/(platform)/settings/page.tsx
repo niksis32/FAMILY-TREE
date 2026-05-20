@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { PrivacyBadge } from '@/components/domain';
 import { Button, Card, Input, PageHeader, Select } from '@/components/ui';
 
@@ -29,6 +30,17 @@ export default function SettingsPage() {
             <option value="family">Только семья</option>
             <option value="private">Приватно</option>
           </Select>
+        </Card>
+        <Card>
+          <h2 className="text-xl font-semibold">Импорт данных</h2>
+          <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">
+            GEDCOM import поддерживает preview перед записью в PostgreSQL и базовый mapping персон, семей, связей, событий и источников.
+          </p>
+          <Link href="/settings/import">
+            <Button className="mt-5" type="button">
+              Открыть GEDCOM import
+            </Button>
+          </Link>
         </Card>
       </div>
     </div>
