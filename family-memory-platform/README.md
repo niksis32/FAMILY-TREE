@@ -1,138 +1,211 @@
 # Family Memory Platform
 
-**AI Family Memory Platform** — self-hosted MVP для семейного древа, медиаархива, документов, timeline, источников, GEDCOM и будущих AI-функций.
+Self-hosted платформа семейной памяти: семейное древо, персоны, семьи, события, timeline, медиаархив, документы, источники, GEDCOM, поиск и optional AI-сервис.
 
-Архитектура: **monorepo** (pnpm + Turbo), модульный монолит API, отдельные инфраструктурные сервисы в Docker Compose. Путь разработки: **Cursor → GitHub → VPS** без смены архитектуры.
+Проект построен как monorepo для локальной разработки, GitHub CI и последующего deploy на VPS без смены архитектуры.
 
-## Структура репозитория
+## Возможности MVP
 
-```
+- Next.js frontend с dashboard layout, protected routes, tree, timeline, media, documents, search и settings.
+- NestJS backend с модулями genealogy, media, search, GEDCOM, timeline, tree и optional AI proxy.
+- PostgreSQL + Prisma для metadata и genealogy data.
+- MinIO для физических файлов: фото, видео, аудио, PDF.
+- Meilisearch для локального полнотекстового поиска.
+- FastAPI `ai-service` под profile `ai`, без обязательных внешних API.
+- Neo4j optional под profile `graph` для будущей graph analytics.
+
+## Архитектура репозитория
+
+```text
 family-memory-platform/
-├── apps/
-│   ├── web/              # Next.js — UI, дерево, timeline, поиск
-│   ├── api/              # NestJS — REST API, Prisma, бизнес-логика
-│   └── ai-service/       # FastAPI (optional) — OCR, AI-подсказки
-├── packages/
-│   ├── shared/           # Типы, DTO, константы (web + api)
-│   ├── genealogy-core/   # Чистая логика родства, GEDCOM, дерево
-│   └── ui/               # Общие React-компоненты
-├── infra/                # Dockerfiles, nginx, backup scripts
-├── docs/                 # Документация (итеративно)
-├── docker-compose.yml    # Базовая инфраструктура
-├── docker-compose.dev.yml
-└── docker-compose.prod.yml
+  apps/
+    web/              Next.js UI
+    api/              NestJS REST API
+    ai-service/       optional FastAPI AI layer
+  packages/
+    shared/           shared TypeScript contracts
+    genealogy-core/   pure genealogy business logic
+    ui/               shared React UI primitives
+  infra/              docker, nginx, backup scripts
+  docs/               architecture, local deploy, VPS deploy, roadmap
 ```
 
-## Стек
+Подробно: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-| Слой | Технология |
-|------|------------|
-| Frontend | Next.js 15, React 19, TypeScript, TailwindCSS |
-| Backend | NestJS 10, TypeScript |
-| Database | PostgreSQL 16 + Prisma |
-| Media | MinIO (S3-compatible) |
-| Cache/Queue | Redis 7 |
-| Search | Meilisearch |
-| Graph (optional) | Neo4j (`--profile graph`) |
-| AI (optional) | Python FastAPI (`--profile ai`) |
-| Deploy | Docker Compose (+ Nginx на prod) |
+## Требования
 
-## MVP-модули (API)
+- Node.js `>=20`
+- pnpm `>=9`
+- Docker Desktop / Docker Engine
+- PostgreSQL, Redis, MinIO, Meilisearch через Docker Compose
 
-`auth`, `users`, `persons`, `families`, `relationships`, `events`, `places`, `media`, `documents`, `sources`, `citations`, `timeline`, `search`, `gedcom`, `admin`
+Проект использует `pnpm`, но базовые команды `npm run dev`, `npm run build`, `npm run lint`, `npm run test` также доступны как стандартные npm scripts.
 
-Сейчас — **скелет**: модули зарегистрированы, эндпоинты-заглушки, Prisma-схема с сущностями. Реализация — по одному модулю за итерацию.
+## Локальный запуск
 
-## Быстрый старт (локально)
-
-### Требования
-
-- Node.js ≥ 20
-- pnpm ≥ 9
-- Docker Desktop (для инфраструктуры)
-
-### 1. Клонирование и env
+### 1. Установить зависимости
 
 ```bash
-cd family-memory-platform
-cp .env.example .env
-# Отредактируйте пароли в .env
+npm install
 ```
 
-### 2. Инфраструктура (PostgreSQL, Redis, MinIO, Meilisearch)
-
-```bash
-pnpm docker:infra
-# Опционально Neo4j:
-pnpm docker:graph
-```
-
-### 3. Зависимости и БД
+Рекомендуемый вариант для monorepo:
 
 ```bash
 pnpm install
+```
+
+### 2. Настроить `.env`
+
+```bash
+cp .env.example .env
+```
+
+Минимально замените:
+
+- `POSTGRES_PASSWORD`
+- `MINIO_ROOT_PASSWORD`
+- `MEILI_MASTER_KEY`
+- `JWT_SECRET`
+
+Для локальной разработки хосты можно оставить как в `.env.example`: `localhost`.
+
+### 3. Запустить инфраструктуру
+
+Короткая команда Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Рекомендуемый dev-вариант с overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+Или через package script:
+
+```bash
+pnpm docker:infra
+```
+
+Остановка:
+
+```bash
+docker compose down
+```
+
+Dev overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+```
+
+### 4. Prisma
+
+Сгенерировать Prisma Client:
+
+```bash
 pnpm db:generate
+```
+
+Применить миграции:
+
+```bash
 pnpm db:migrate
 ```
 
-### 4. Приложения (без Docker)
+Если запускаете через npm:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+### 5. Запустить приложения
+
+```bash
+npm run dev
+```
+
+Или:
 
 ```bash
 pnpm dev
 ```
 
-- Web: http://localhost:3000  
-- API: http://localhost:4000/api/v1  
-- Swagger: http://localhost:4000/docs  
-- MinIO Console: http://localhost:9001  
-- Meilisearch: http://localhost:7700  
+Открыть:
 
-### 5. Всё в Docker (опционально)
+| Сервис | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:4000/api/v1 |
+| Backend Swagger | http://localhost:4000/docs |
+| MinIO Console | http://localhost:9001 |
+| Meilisearch | http://localhost:7700 |
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile apps up -d
-```
+Логин MinIO берётся из `.env`: `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`.
 
-## GitHub
-
-```bash
-git init
-git add .
-git commit -m "chore: initial monorepo skeleton for Family Memory Platform"
-git remote add origin https://github.com/YOUR_ORG/family-memory-platform.git
-git push -u origin main
-```
-
-Рекомендуется добавить GitHub Secrets для VPS deploy (`DATABASE_URL`, `JWT_SECRET`, и т.д.) на этапе CI/CD.
-
-## VPS (production)
+## Команды качества
 
 ```bash
-cp .env.example .env
-# Заполните production-секреты
-
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+npm run build
+npm run lint
+npm run test
 ```
 
-Nginx проксирует `/` → web, `/api/` → api. SSL — Let's Encrypt (certbot) на хосте или в отдельном контейнере.
+Эквивалент:
 
-Бэкап PostgreSQL: `infra/scripts/backup-postgres.sh`
+```bash
+pnpm build
+pnpm lint
+pnpm test
+```
 
-## Итерации разработки (рекомендуемый порядок)
+CI workflow находится в [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-1. **auth + users** — JWT, роли  
-2. **persons + relationships** — CRUD, валидация родства  
-3. **families + events + places**  
-4. **media + documents** — MinIO presigned upload  
-5. **timeline** — агрегация событий  
-6. **sources + citations**  
-7. **search** — индексация Meilisearch  
-8. **gedcom** — импорт  
-9. **tree UI** — D3/Cytoscape  
-10. **admin + audit**  
-11. **ai-service** — OCR (optional)  
-12. **neo4j** — graph analytics (optional)  
+## Optional сервисы
 
-## Лицензия
+Neo4j:
 
-Укажите лицензию при публикации на GitHub (например MIT или AGPL — по вашему выбору для genealogy data).
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile graph up -d
+```
+
+AI service:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile ai up -d ai-service
+```
+
+## Подготовка к deploy на VPS
+
+1. Подготовить домен и DNS.
+2. Создать production `.env`.
+3. Сгенерировать сильные секреты.
+4. Проверить `docker-compose.prod.yml`.
+5. Настроить Nginx и SSL.
+6. Закрыть наружные порты инфраструктуры.
+7. Настроить backup PostgreSQL, MinIO и Meilisearch.
+8. Проверить restore.
+
+Подробно: [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
+
+## Документация
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/DEPLOY_LOCAL.md`](docs/DEPLOY_LOCAL.md)
+- [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [`docs/SECURITY.md`](docs/SECURITY.md)
+- [`docs/PRODUCTION_READINESS_WORK_PLAN.md`](docs/PRODUCTION_READINESS_WORK_PLAN.md)
+- [`docs/LOCAL_COMMANDS_REFERENCE.md`](docs/LOCAL_COMMANDS_REFERENCE.md)
+
+## Contributing
+
+См. [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## License
+
+Лицензия пока не выбрана. Перед публичной публикацией на GitHub нужно явно добавить `LICENSE`.

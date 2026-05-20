@@ -13,6 +13,9 @@ build/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.prod
+!.env.example
 
 # IDE
 .idea/
@@ -31,6 +34,8 @@ logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Test / coverage
 coverage/
@@ -44,6 +49,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.ruff_cache/
 .pytest_cache/
 .mypy_cache/
 
@@ -55,3 +61,8 @@ infra/data/
 
 # MinIO / uploads (local dev only)
 uploads/
+
+# Generated local artifacts
+dist-test/
+tmp/
+temp/

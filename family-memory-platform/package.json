@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI Family Memory Platform — self-hosted genealogy, media archive, timeline",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "docker:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
+    "docker:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
     "docker:infra": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
     "docker:infra:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
     "docker:graph": "docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile graph up -d",
