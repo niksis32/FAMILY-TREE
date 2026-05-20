@@ -13,6 +13,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@family/genealogy-core": "workspace:*",
     "@family/shared": "workspace:*",

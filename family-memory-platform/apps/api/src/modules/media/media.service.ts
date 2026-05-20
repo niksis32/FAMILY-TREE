@@ -61,6 +61,14 @@ export class MediaService {
         bucket: this.bucket,
         sizeBytes: dto.sizeBytes,
         personId: dto.personId,
+        links: dto.personId
+          ? {
+              create: {
+                ownerType: 'PERSON',
+                ownerId: dto.personId,
+              },
+            }
+          : undefined,
       },
     });
   }
@@ -93,9 +101,43 @@ export class MediaService {
       await this.ensurePersonExists(dto.entityId);
       return this.prisma.media.update({
         where: { id: mediaId },
-        data: { personId: dto.entityId },
+        data: {
+          personId: dto.entityId,
+          links: {
+            upsert: {
+              where: {
+                mediaId_ownerType_ownerId: {
+                  mediaId,
+                  ownerType: 'PERSON',
+                  ownerId: dto.entityId,
+                },
+              },
+              update: {},
+              create: {
+                ownerType: 'PERSON',
+                ownerId: dto.entityId,
+              },
+            },
+          },
+        },
       });
     }
+
+    await this.prisma.mediaLink.upsert({
+      where: {
+        mediaId_ownerType_ownerId: {
+          mediaId,
+          ownerType: toMediaOwnerType(dto.entityType),
+          ownerId: dto.entityId,
+        },
+      },
+      update: {},
+      create: {
+        mediaId,
+        ownerType: toMediaOwnerType(dto.entityType),
+        ownerId: dto.entityId,
+      },
+    });
 
     await this.prisma.auditLog.create({
       data: {
@@ -171,5 +213,20 @@ export class MediaService {
       accessKey,
       secretKey,
     });
+  }
+}
+
+function toMediaOwnerType(entityType: string): 'PERSON' | 'FAMILY' | 'EVENT' | 'DOCUMENT' | 'SOURCE' {
+  switch (entityType) {
+    case 'family':
+      return 'FAMILY';
+    case 'event':
+      return 'EVENT';
+    case 'document':
+      return 'DOCUMENT';
+    case 'source':
+      return 'SOURCE';
+    default:
+      return 'PERSON';
   }
 }

@@ -8,6 +8,7 @@ const INVERSE_MAP: Record<RelationshipType, RelationshipType> = {
   partner: 'partner',
   adoptive_parent: 'adoptive_child',
   adoptive_child: 'adoptive_parent',
+  unknown: 'unknown',
 };
 
 export function getInverseRelationship(type: RelationshipType): RelationshipType {

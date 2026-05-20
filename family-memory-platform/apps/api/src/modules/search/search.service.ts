@@ -48,7 +48,7 @@ export class SearchService {
   }
 
   async indexPerson(personId: string) {
-    const person = await this.prisma.person.findUnique({ where: { id: personId } });
+    const person = await this.prisma.person.findFirst({ where: { id: personId, deletedAt: null } });
     if (!person) return null;
 
     const document: SearchDocument = {
@@ -66,7 +66,7 @@ export class SearchService {
   }
 
   async indexDocument(documentId: string) {
-    const document = await this.prisma.document.findUnique({ where: { id: documentId } });
+    const document = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
     if (!document) return null;
 
     const searchDocument: SearchDocument = {
@@ -82,6 +82,40 @@ export class SearchService {
     return searchDocument;
   }
 
+  async indexSource(sourceId: string) {
+    const source = await this.prisma.source.findFirst({ where: { id: sourceId, deletedAt: null } });
+    if (!source) return null;
+
+    const document: SearchDocument = {
+      id: `source:${source.id}`,
+      category: 'sources',
+      entityId: source.id,
+      title: source.title,
+      text: [source.author, source.publication, source.repository, source.notes].filter(Boolean).join('\n'),
+      tags: ['source'],
+    };
+
+    await this.indexDocuments([document]);
+    return document;
+  }
+
+  async indexPlace(placeId: string) {
+    const place = await this.prisma.place.findFirst({ where: { id: placeId, deletedAt: null } });
+    if (!place) return null;
+
+    const document: SearchDocument = {
+      id: `place:${place.id}`,
+      category: 'places',
+      entityId: place.id,
+      title: place.name,
+      text: [place.country, place.region, place.city].filter(Boolean).join(', '),
+      tags: ['place'],
+    };
+
+    await this.indexDocuments([document]);
+    return document;
+  }
+
   async indexDocuments(documents: SearchDocument[]) {
     await this.ensureIndex();
     return this.meiliRequest(`/indexes/${this.indexUid}/documents`, 'POST', documents);
@@ -89,10 +123,10 @@ export class SearchService {
 
   private async buildIndexDocuments(): Promise<SearchDocument[]> {
     const [people, documents, places, sources] = await Promise.all([
-      this.prisma.person.findMany({ take: 1000 }),
-      this.prisma.document.findMany({ take: 1000 }),
-      this.prisma.place.findMany({ take: 1000 }),
-      this.prisma.source.findMany({ take: 1000 }),
+      this.prisma.person.findMany({ where: { deletedAt: null }, take: 1000 }),
+      this.prisma.document.findMany({ where: { deletedAt: null }, take: 1000 }),
+      this.prisma.place.findMany({ where: { deletedAt: null }, take: 1000 }),
+      this.prisma.source.findMany({ where: { deletedAt: null }, take: 1000 }),
     ]);
 
     return [

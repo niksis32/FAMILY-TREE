@@ -1,5 +1,6 @@
 # =============================================================================
 # Base infrastructure — shared by dev and prod overlays.
+# Keep this file without published ports; dev/prod overlays decide exposure.
 # Run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 # =============================================================================
 
@@ -12,8 +13,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-family_platform}
       POSTGRES_USER: ${POSTGRES_USER:-family_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-family_password}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +26,6 @@ services:
     container_name: family_redis
     restart: unless-stopped
     command: redis-server --appendonly yes
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -45,9 +42,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-family_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-family_password}
-    ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -65,8 +59,6 @@ services:
       MEILI_ENV: ${MEILI_ENV:-development}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-family_master_key}
       MEILI_NO_ANALYTICS: "true"
-    ports:
-      - "${MEILI_PORT:-7700}:7700"
     volumes:
       - meili_data:/meili_data
     healthcheck:
@@ -85,9 +77,6 @@ services:
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/family_password}
       NEO4J_PLUGINS: '["apoc"]'
-    ports:
-      - "7474:7474"
-      - "7687:7687"
     volumes:
       - neo4j_data:/data
 

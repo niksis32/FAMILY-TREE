@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
+import { SearchModule } from '../search/search.module';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 
 /** Archive documents (PDF, scans) — MinIO + metadata */
 @Module({
+  imports: [AuthModule, PrismaModule, SearchModule],
   controllers: [DocumentsController],
   providers: [DocumentsService],
 })

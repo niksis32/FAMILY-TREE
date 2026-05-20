@@ -7,7 +7,8 @@ export type RelationshipType =
   | 'sibling'
   | 'partner'
   | 'adoptive_parent'
-  | 'adoptive_child';
+  | 'adoptive_child'
+  | 'unknown';
 
 export interface Person {
   id: string;

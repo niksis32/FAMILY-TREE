@@ -52,15 +52,36 @@ function normalizeGedcomId(id: string): string {
 }
 
 function parseGedcomName(name?: string): Pick<Person, 'givenName' | 'familyName'> {
-  if (!name) {
+  const normalized = name?.trim();
+
+  if (!normalized) {
     return { givenName: 'Unknown', familyName: null };
   }
 
-  const surnameMatch = name.match(/\/([^/]+)\//);
+  const surnameMatch = normalized.match(/\/([^/]+)\//);
   const familyName = surnameMatch?.[1]?.trim() || null;
-  const givenName = name.replace(/\/[^/]+\//, '').trim() || 'Unknown';
 
-  return { givenName, familyName };
+  if (familyName) {
+    return {
+      givenName: normalized.replace(/\/[^/]+\//, '').replace(/\s+/g, ' ').trim() || 'Unknown',
+      familyName,
+    };
+  }
+
+  if (normalized.includes(',')) {
+    const [lastName, ...givenParts] = normalized.split(',');
+    const givenName = givenParts.join(',').trim();
+    return {
+      givenName: givenName || 'Unknown',
+      familyName: lastName.trim() || null,
+    };
+  }
+
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  const givenName = parts[0] ?? 'Unknown';
+  const fallbackFamilyName = parts.length > 1 ? parts.slice(1).join(' ') : null;
+
+  return { givenName, familyName: fallbackFamilyName };
 }
 
 function formatGedcomName(person: Pick<Person, 'givenName' | 'familyName'>): string {
@@ -68,14 +89,18 @@ function formatGedcomName(person: Pick<Person, 'givenName' | 'familyName'>): str
 }
 
 function mapGedcomSex(sex?: string): Gender {
-  if (sex === 'F') return 'female';
-  if (sex === 'M') return 'male';
+  const normalized = sex?.trim().toUpperCase();
+  if (normalized === 'F') return 'female';
+  if (normalized === 'M') return 'male';
+  if (normalized === 'X' || normalized === 'O') return 'other';
   return 'unknown';
 }
 
 function mapInternalGender(gender?: string | null): string | undefined {
-  if (gender === 'female') return 'F';
-  if (gender === 'male') return 'M';
+  const normalized = gender?.toLowerCase();
+  if (normalized === 'female') return 'F';
+  if (normalized === 'male') return 'M';
+  if (normalized === 'other') return 'X';
   return undefined;
 }
 

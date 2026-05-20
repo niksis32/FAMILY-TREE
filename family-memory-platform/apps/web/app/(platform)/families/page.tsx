@@ -1,6 +1,5 @@
-import { FamilyCard } from '@/components/domain';
+import { FamiliesWorkspace } from '@/components/families-workspace';
 import { PageHeader } from '@/components/ui';
-import { families } from '@/lib/mock-data';
 
 export default function FamiliesPage() {
   return (
@@ -9,11 +8,7 @@ export default function FamiliesPage() {
         title="Семьи"
         description="Управление семейными линиями, поколениями и политиками приватности для отдельных веток древа."
       />
-      <div className="grid gap-5 md:grid-cols-2">
-        {families.map((family) => (
-          <FamilyCard key={family.id} family={family} />
-        ))}
-      </div>
+      <FamiliesWorkspace />
     </div>
   );
 }

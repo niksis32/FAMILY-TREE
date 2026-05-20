@@ -96,7 +96,7 @@ export class GedcomService {
         data: {
           givenName: person.givenName,
           familyName: person.familyName,
-          gender: person.gender,
+          gender: toPrismaGender(person.gender),
           birthDate: parseGedcomDate(individual.birthDate),
           deathDate: parseGedcomDate(individual.deathDate),
           isLiving: !individual.deathDate,
@@ -106,8 +106,8 @@ export class GedcomService {
 
       personIdMap.set(individual.id, created.id);
 
-      await this.createLifeEvent(created.id, 'birth', individual.birthDate);
-      await this.createLifeEvent(created.id, 'death', individual.deathDate);
+      await this.createLifeEvent(created.id, 'BIRTH', individual.birthDate);
+      await this.createLifeEvent(created.id, 'DEATH', individual.deathDate);
     }
 
     for (const source of parsed.sources) {
@@ -142,7 +142,7 @@ export class GedcomService {
         await this.prisma.event.create({
           data: {
             familyId: createdFamily.id,
-            type: 'marriage',
+            type: 'MARRIAGE',
             date: parseGedcomDate(family.marriageDate),
             description: `GEDCOM marriage event ${family.id}`,
           },
@@ -265,14 +265,14 @@ export class GedcomService {
     );
   }
 
-  private async createLifeEvent(personId: string, type: 'birth' | 'death', date?: string) {
+  private async createLifeEvent(personId: string, type: 'BIRTH' | 'DEATH', date?: string) {
     if (!date) return;
     await this.prisma.event.create({
       data: {
         personId,
         type,
         date: parseGedcomDate(date),
-        description: `GEDCOM ${type}`,
+        description: `GEDCOM ${type.toLowerCase()}`,
       },
     });
   }
@@ -306,10 +306,18 @@ export class GedcomService {
       data: {
         fromPersonId,
         toPersonId,
-        type: 'parent',
+        type: 'PARENT',
       },
     });
   }
+}
+
+function toPrismaGender(gender?: string | null): 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN' {
+  const normalized = gender?.toLowerCase();
+  if (normalized === 'male' || normalized === 'm') return 'MALE';
+  if (normalized === 'female' || normalized === 'f') return 'FEMALE';
+  if (normalized === 'other') return 'OTHER';
+  return 'UNKNOWN';
 }
 
 function normalizePointer(value: string) {

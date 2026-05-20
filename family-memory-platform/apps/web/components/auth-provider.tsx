@@ -8,15 +8,6 @@ import { apiClient, type AuthSession } from '@/lib/api-client';
 const SESSION_KEY = 'family-session';
 const TOKEN_COOKIE = 'family_access_token';
 
-const fallbackSession: AuthSession = {
-  accessToken: 'local-mvp-token',
-  user: {
-    id: 'local-user',
-    email: 'demo@family.local',
-    displayName: 'Family Admin',
-  },
-};
-
 const AuthContext = createContext<{
   session: AuthSession | null;
   isReady: boolean;
@@ -49,16 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (dto: LoginDto) => {
-      let nextSession = fallbackSession;
-      try {
-        nextSession = await apiClient.login(dto);
-      } catch {
-        nextSession = {
-          ...fallbackSession,
-          user: { ...fallbackSession.user, email: dto.email || fallbackSession.user.email },
-        };
-      }
-
+      const nextSession = await apiClient.login(dto);
       persistSession(nextSession);
       setSession(nextSession);
       router.push('/dashboard');

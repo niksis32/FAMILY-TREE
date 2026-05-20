@@ -3,18 +3,38 @@
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, Input } from '@/components/ui';
+import { apiClient } from '@/lib/api-client';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('demo@family.local');
-  const [password, setPassword] = useState('family-demo');
+  const [email, setEmail] = useState('admin@example.local');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('Family Platform Admin');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState('Введите JWT-учётные данные backend. Для нового стенда сначала создайте первого admin.');
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
-    await login({ email, password });
-    setIsSubmitting(false);
+    setStatus('Входим через backend JWT...');
+    try {
+      await login({ email, password });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Не удалось войти');
+      setIsSubmitting(false);
+    }
+  }
+
+  async function registerFirstAdmin() {
+    setIsSubmitting(true);
+    setStatus('Создаём первого администратора...');
+    try {
+      await apiClient.registerFirstAdmin({ email, password, displayName });
+      await login({ email, password });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Не удалось создать первого администратора');
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -23,14 +43,19 @@ export default function LoginPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-family-accent">Family Memory</p>
         <h1 className="mt-4 text-3xl font-semibold text-family-ink dark:text-white">Вход в архив семьи</h1>
         <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">
-          MVP поддерживает локальную demo-сессию. Когда backend auth будет готов, форма начнёт использовать реальный JWT.
+          Форма работает с реальным backend JWT. Demo fallback отключён, чтобы ошибки авторизации были видны сразу.
         </p>
 
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
+          <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Имя первого администратора" />
           <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль" />
+          <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
           <Button className="w-full" disabled={isSubmitting} type="submit">
             {isSubmitting ? 'Входим...' : 'Войти'}
+          </Button>
+          <Button className="w-full" disabled={isSubmitting || !password} type="button" variant="secondary" onClick={() => void registerFirstAdmin()}>
+            Создать первого admin
           </Button>
         </form>
       </Card>

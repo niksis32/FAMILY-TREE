@@ -1,5 +1,5 @@
-import type { Person, Relationship } from './person.model';
-import { detectRelationshipCycles, validateParentChildAge } from './relationship.rules';
+import type { Gender, Person, PrivacyLevel, Relationship, RelationshipType } from './person.model';
+import { detectRelationshipCycles, isBidirectionalSymmetric, validateParentChildAge } from './relationship.rules';
 
 export interface ValidationIssue {
   code: string;
@@ -18,7 +18,39 @@ export function validatePerson(person: Person): ValidationIssue[] {
     issues.push({ code: 'person.givenName.required', message: 'Given name is required', entityId: person.id });
   }
 
-  if (person.birthDate && person.deathDate && toTime(person.deathDate) < toTime(person.birthDate)) {
+  if (person.gender && !isAllowedGender(person.gender)) {
+    issues.push({
+      code: 'person.gender.invalid',
+      message: `Unsupported gender value: ${person.gender}`,
+      entityId: person.id,
+    });
+  }
+
+  if (person.privacyLevel && !isAllowedPrivacyLevel(person.privacyLevel)) {
+    issues.push({
+      code: 'person.privacy.invalid',
+      message: `Unsupported privacy level: ${person.privacyLevel}`,
+      entityId: person.id,
+    });
+  }
+
+  if (person.birthDate && !isValidDateLike(person.birthDate)) {
+    issues.push({
+      code: 'person.birthDate.invalid',
+      message: 'Birth date is not parseable',
+      entityId: person.id,
+    });
+  }
+
+  if (person.deathDate && !isValidDateLike(person.deathDate)) {
+    issues.push({
+      code: 'person.deathDate.invalid',
+      message: 'Death date is not parseable',
+      entityId: person.id,
+    });
+  }
+
+  if (person.birthDate && person.deathDate && isValidDateLike(person.birthDate) && isValidDateLike(person.deathDate) && toTime(person.deathDate) < toTime(person.birthDate)) {
     issues.push({
       code: 'person.dates.invalid_order',
       message: 'Death date cannot be before birth date',
@@ -33,6 +65,15 @@ export function validateRelationshipSet(relationships: Relationship[], personsBy
   const issues: ValidationIssue[] = [];
 
   for (const relationship of relationships) {
+    if (!isAllowedRelationshipType(relationship.type)) {
+      issues.push({
+        code: 'relationship.type.invalid',
+        message: `Unsupported relationship type: ${relationship.type}`,
+        entityId: relationship.id,
+      });
+      continue;
+    }
+
     if (!personsById.has(relationship.fromPersonId) || !personsById.has(relationship.toPersonId)) {
       issues.push({
         code: 'relationship.person.missing',
@@ -49,6 +90,10 @@ export function validateRelationshipSet(relationships: Relationship[], personsBy
         entityId: relationship.id,
       });
     }
+  }
+
+  for (const issue of validateRelationshipDuplicates(relationships)) {
+    issues.push(issue);
   }
 
   for (const cycle of detectRelationshipCycles(relationships)) {
@@ -77,6 +122,37 @@ export function validateRelationshipSet(relationships: Relationship[], personsBy
   return issues;
 }
 
+function validateRelationshipDuplicates(relationships: Relationship[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const seen = new Map<string, Relationship>();
+
+  for (const relationship of relationships) {
+    const key = relationshipKey(relationship);
+    const existing = seen.get(key);
+
+    if (existing) {
+      issues.push({
+        code: 'relationship.duplicate',
+        message: `Duplicate relationship ${relationship.type} between the same persons`,
+        entityId: relationship.id,
+      });
+      continue;
+    }
+
+    seen.set(key, relationship);
+  }
+
+  return issues;
+}
+
+function relationshipKey(relationship: Relationship): string {
+  if (isBidirectionalSymmetric(relationship.type)) {
+    return [relationship.type, ...[relationship.fromPersonId, relationship.toPersonId].sort()].join(':');
+  }
+
+  return [relationship.type, relationship.fromPersonId, relationship.toPersonId].join(':');
+}
+
 function getParentChildPair(
   relationship: Relationship,
   personsById: Map<string, Person>,
@@ -98,4 +174,20 @@ function getParentChildPair(
 
 function toTime(value: string | Date): number {
   return value instanceof Date ? value.getTime() : Date.parse(value);
+}
+
+function isValidDateLike(value: string | Date): boolean {
+  return !Number.isNaN(toTime(value));
+}
+
+function isAllowedGender(value: string): value is Gender {
+  return ['female', 'male', 'other', 'unknown'].includes(value);
+}
+
+function isAllowedPrivacyLevel(value: string): value is PrivacyLevel {
+  return ['public', 'family', 'private'].includes(value);
+}
+
+function isAllowedRelationshipType(value: string): value is RelationshipType {
+  return ['parent', 'child', 'spouse', 'sibling', 'partner', 'adoptive_parent', 'adoptive_child', 'unknown'].includes(value);
 }

@@ -5,29 +5,12 @@ import { useAuth } from '@/components/auth-provider';
 import { TreeCanvas } from '@/components/tree-canvas';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { apiClient, type TreeGraphResponse, type TreePersonNode, type TreeViewMode } from '@/lib/api-client';
-import { persons } from '@/lib/mock-data';
 
-const fallbackGraph: TreeGraphResponse = {
-  rootPersonId: 'p3',
+const emptyGraph: TreeGraphResponse = {
+  rootPersonId: '',
   mode: 'full',
-  nodes: [
-    ...persons.map((person, index) => ({
-      id: person.id,
-      personId: person.id,
-      label: `${person.givenName} ${person.familyName ?? ''}`.trim(),
-      givenName: person.givenName,
-      familyName: person.familyName,
-      birthDate: person.birthDate,
-      deathDate: person.deathDate,
-      isLiving: true,
-      generation: index < 2 ? -1 : index === 2 ? 0 : 1,
-    })),
-  ],
-  edges: [
-    { id: 'r1', source: 'p1', target: 'p3', type: 'parent', label: 'родитель' },
-    { id: 'r2', source: 'p2', target: 'p3', type: 'parent', label: 'родитель' },
-    { id: 'r3', source: 'p3', target: 'p4', type: 'parent', label: 'родитель' },
-  ],
+  nodes: [],
+  edges: [],
 };
 
 const modes: Array<{ value: TreeViewMode; label: string }> = [
@@ -38,17 +21,22 @@ const modes: Array<{ value: TreeViewMode; label: string }> = [
 
 export function TreeExplorer() {
   const { session } = useAuth();
-  const [rootPersonId, setRootPersonId] = useState('p3');
+  const [rootPersonId, setRootPersonId] = useState('');
   const [mode, setMode] = useState<TreeViewMode>('full');
-  const [graph, setGraph] = useState<TreeGraphResponse>(fallbackGraph);
-  const [selectedPerson, setSelectedPerson] = useState<TreePersonNode | null>(fallbackGraph.nodes[2] ?? null);
-  const [status, setStatus] = useState('Demo graph loaded. Укажите реальный Person ID для данных из API.');
+  const [graph, setGraph] = useState<TreeGraphResponse>(emptyGraph);
+  const [selectedPerson, setSelectedPerson] = useState<TreePersonNode | null>(null);
+  const [status, setStatus] = useState('Укажите реальный Person ID для загрузки дерева из API.');
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadGraph() {
-      if (!rootPersonId.trim()) return;
+      if (!rootPersonId.trim()) {
+        setGraph({ ...emptyGraph, mode });
+        setSelectedPerson(null);
+        setStatus('Укажите Person ID. Demo fallback отключён.');
+        return;
+      }
       setStatus('Загружаем дерево из backend...');
 
       try {
@@ -59,9 +47,9 @@ export function TreeExplorer() {
         setStatus(`Загружено: ${nextGraph.nodes.length} nodes, ${nextGraph.edges.length} edges`);
       } catch (error) {
         if (cancelled) return;
-        setGraph({ ...fallbackGraph, mode });
-        setSelectedPerson(fallbackGraph.nodes.find((node) => node.id === fallbackGraph.rootPersonId) ?? fallbackGraph.nodes[0] ?? null);
-        setStatus(error instanceof Error ? `API недоступен, показан demo graph: ${error.message}` : 'API недоступен, показан demo graph');
+        setGraph({ ...emptyGraph, mode });
+        setSelectedPerson(null);
+        setStatus(error instanceof Error ? error.message : 'Не удалось загрузить дерево');
       }
     }
 

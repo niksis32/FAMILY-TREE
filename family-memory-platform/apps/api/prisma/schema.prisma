@@ -13,69 +13,154 @@ datasource db {
 // --- Auth & admin ---
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   displayName  String?
-  role         UserRole @default(MEMBER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole  @default(VIEWER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   auditLogs AuditLog[]
+
+  @@index([role])
+  @@index([deletedAt])
 }
 
 enum UserRole {
-  MEMBER
+  VIEWER
   EDITOR
   ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+enum RelationshipType {
+  PARENT
+  CHILD
+  SPOUSE
+  SIBLING
+  PARTNER
+  ADOPTIVE_PARENT
+  ADOPTIVE_CHILD
+  UNKNOWN
+}
+
+enum EventType {
+  BIRTH
+  DEATH
+  MARRIAGE
+  DIVORCE
+  BURIAL
+  RESIDENCE
+  MIGRATION
+  EDUCATION
+  MILITARY
+  WORK
+  OCCUPATION
+  IMMIGRATION
+  CUSTOM
+}
+
+enum PrivacyLevel {
+  PUBLIC
+  FAMILY
+  PRIVATE
+}
+
+enum MediaOwnerType {
+  PERSON
+  FAMILY
+  EVENT
+  DOCUMENT
+  SOURCE
+}
+
+enum StorageProvider {
+  MINIO
+}
+
+enum DocumentType {
+  BIRTH_CERTIFICATE
+  DEATH_CERTIFICATE
+  MARRIAGE_CERTIFICATE
+  PHOTO
+  ARCHIVE_RECORD
+  PASSPORT
+  MILITARY_RECORD
+  OTHER
 }
 
 // --- Genealogy core ---
 
 model Person {
-  id          String    @id @default(cuid())
-  givenName   String
-  familyName  String?
-  gender      String?
-  birthDate   DateTime?
-  deathDate   DateTime?
-  isLiving    Boolean   @default(true)
-  biography   String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String       @id @default(cuid())
+  givenName    String
+  familyName   String?
+  gender       Gender?      @default(UNKNOWN)
+  birthDate    DateTime?
+  deathDate    DateTime?
+  isLiving     Boolean      @default(true)
+  privacyLevel PrivacyLevel @default(FAMILY)
+  biography    String?      @db.Text
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
 
   relationshipsFrom Relationship[] @relation("fromPerson")
   relationshipsTo   Relationship[] @relation("toPerson")
-  familyMembers       FamilyMember[]
-  events              Event[]
-  media               Media[]
-  documents           Document[]
-  timelineItems       TimelineItem[]
-  citations           Citation[]
+  familyMembers     FamilyMember[]
+  events            Event[]
+  media             Media[]
+  documents         Document[]
+  timelineItems     TimelineItem[]
+  citations         Citation[]
+
+  @@index([familyName, givenName])
+  @@index([birthDate])
+  @@index([deathDate])
+  @@index([isLiving])
+  @@index([privacyLevel])
+  @@index([deletedAt])
 }
 
 model Family {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String?
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   members FamilyMember[]
   events  Event[]
+
+  @@index([name])
+  @@index([deletedAt])
 }
 
 model FamilyMember {
-  id       String           @id @default(cuid())
-  familyId String
-  personId String
-  role     FamilyMemberRole @default(CHILD)
+  id        String           @id @default(cuid())
+  familyId  String
+  personId  String
+  role      FamilyMemberRole @default(CHILD)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deletedAt DateTime?
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, personId])
+  @@index([personId, role])
+  @@index([deletedAt])
 }
 
 enum FamilyMemberRole {
@@ -86,26 +171,33 @@ enum FamilyMemberRole {
 }
 
 model Relationship {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   fromPersonId String
   toPersonId   String
-  type         String // parent, child, spouse, sibling — see @family/shared constants
+  type         RelationshipType @default(PARENT)
   startDate    DateTime?
   endDate      DateTime?
   notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  confidence   Float?           @default(1.0)
+  sourceId     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
 
-  fromPerson Person @relation("fromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
-  toPerson   Person @relation("toPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+  fromPerson Person  @relation("fromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson   Person  @relation("toPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+  source     Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@index([fromPersonId])
   @@index([toPersonId])
+  @@index([type])
+  @@index([sourceId])
+  @@index([deletedAt])
 }
 
 model Event {
   id          String    @id @default(cuid())
-  type        String
+  type        EventType @default(CUSTOM)
   date        DateTime?
   dateEnd     DateTime?
   description String?   @db.Text
@@ -114,104 +206,167 @@ model Event {
   placeId     String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   family Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
   place  Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
 
   timelineItems TimelineItem[]
+
+  @@index([personId, date])
+  @@index([familyId, date])
+  @@index([placeId])
+  @@index([type])
+  @@index([deletedAt])
 }
 
 model Place {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   latitude  Float?
   longitude Float?
   country   String?
   region    String?
   city      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   events Event[]
+
+  @@index([country, region, city])
+  @@index([name])
+  @@index([deletedAt])
 }
 
 // --- Media & documents ---
 
 model Media {
-  id          String    @id @default(cuid())
-  personId    String?
-  title       String?
-  mimeType    String
-  storageKey  String // MinIO object key
-  bucket      String
-  sizeBytes   Int?
-  takenAt     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String          @id @default(cuid())
+  personId        String?
+  title           String?
+  mimeType        String
+  storageProvider StorageProvider @default(MINIO)
+  storageKey      String // MinIO object key
+  bucket          String
+  sizeBytes       Int?
+  takenAt         DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
 
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  person    Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  documents Document[]
+  links     MediaLink[]
+
+  @@unique([bucket, storageKey])
+  @@index([personId])
+  @@index([mimeType])
+  @@index([takenAt])
+  @@index([deletedAt])
+}
+
+model MediaLink {
+  id        String         @id @default(cuid())
+  mediaId   String
+  ownerType MediaOwnerType
+  ownerId   String
+  createdAt DateTime       @default(now())
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, ownerType, ownerId])
+  @@index([ownerType, ownerId])
+  @@index([mediaId])
 }
 
 model Document {
-  id          String   @id @default(cuid())
-  personId    String?
-  title       String
-  mimeType    String
-  storageKey  String
-  bucket      String
-  description String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String       @id @default(cuid())
+  personId     String?
+  mediaId      String?
+  sourceId     String?
+  title        String
+  documentType DocumentType @default(OTHER)
+  mimeType     String
+  storageKey   String
+  bucket       String
+  description  String?      @db.Text
+  ocrText      String?      @db.Text
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
 
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  media  Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  source Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([personId])
+  @@index([mediaId])
+  @@index([sourceId])
+  @@index([documentType])
+  @@index([deletedAt])
 }
 
 // --- Sources & citations (genealogical proof standard) ---
 
 model Source {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   author      String?
   publication String?
   repository  String?
   url         String?
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  citations Citation[]
+  citations     Citation[]
+  documents     Document[]
+  relationships Relationship[]
+
+  @@index([title])
+  @@index([deletedAt])
 }
 
 model Citation {
-  id         String   @id @default(cuid())
-  sourceId   String
-  personId   String?
-  page       String?
-  detail     String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String    @id @default(cuid())
+  sourceId  String
+  personId  String?
+  page      String?
+  detail    String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   source Source  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId])
+  @@index([personId])
+  @@index([deletedAt])
 }
 
 // --- Timeline & audit ---
 
 model TimelineItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   personId    String
   eventId     String?
   title       String
-  description String?  @db.Text
+  description String?   @db.Text
   sortDate    DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
   event  Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([personId, sortDate])
+  @@index([eventId])
+  @@index([deletedAt])
 }
 
 model AuditLog {
