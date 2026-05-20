@@ -17,6 +17,25 @@ export class ApiError extends Error {
   }
 }
 
+/** Turns Nest JSON error bodies into short UI text. */
+export function formatApiError(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : 'Неизвестная ошибка';
+  }
+  try {
+    const body = JSON.parse(error.message) as { message?: string | string[] };
+    const msg = body.message;
+    if (Array.isArray(msg)) return msg.join(', ');
+    if (typeof msg === 'string') return msg;
+  } catch {
+    /* plain text */
+  }
+  if (error.status === 401) {
+    return 'Сессия истекла или токен недействителен. Нажмите «Выйти» и войдите снова.';
+  }
+  return error.message || `Ошибка API ${error.status}`;
+}
+
 type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   token?: string | null;
   body?: unknown;
@@ -293,6 +312,8 @@ export const apiClient = {
   },
   documents: {
     list: (token?: string | null) => apiGet<DocumentRecord[]>('/documents', token),
+    uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
+      apiPost<MediaUploadUrlResponse>('/documents/upload-url', input, token),
     create: (input: unknown, token?: string | null) => apiPost<DocumentRecord>('/documents', input, token),
     remove: (id: string, token?: string | null) => apiDelete<DocumentRecord>(`/documents/${id}`, token),
   },

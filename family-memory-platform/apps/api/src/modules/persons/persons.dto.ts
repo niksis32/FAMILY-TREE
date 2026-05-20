@@ -33,6 +33,10 @@ export class CreatePersonDto {
   @IsOptional()
   @IsString()
   biography?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarMediaId?: string;
 }
 
 export class UpdatePersonDto extends PartialType(CreatePersonDto) {}

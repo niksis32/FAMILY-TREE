@@ -38,8 +38,13 @@ export function PersonCard({ person }: { person: PersonSummary }) {
   return (
     <Card className="group">
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-family-primary text-lg font-semibold text-white transition group-hover:scale-105 dark:bg-family-accent dark:text-slate-950">
-          {person.givenName.slice(0, 1)}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-family-primary text-lg font-semibold text-white transition group-hover:scale-105 dark:bg-family-accent dark:text-slate-950">
+          {person.primaryPhotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={person.primaryPhotoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            person.givenName.slice(0, 1)
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
@@ -49,9 +54,13 @@ export function PersonCard({ person }: { person: PersonSummary }) {
             <RelationshipBadge type="child" />
           </div>
           <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{years}</p>
-          <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">
-            Краткая карточка персоны готова к подключению биографии, фото и связей из API.
-          </p>
+          {person.primaryPhotoUrl ? (
+            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">Есть аватар и медиа в архиве семьи.</p>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">
+              Добавьте аватар и документы при создании персоны.
+            </p>
+          )}
         </div>
       </div>
     </Card>

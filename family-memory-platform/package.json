@@ -9,6 +9,11 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:api": "pnpm --filter @family/api dev",
+    "dev:web": "pnpm --filter @family/web dev",
+    "api:build": "pnpm api:prisma && pnpm --filter @family/shared build && pnpm --filter @family/genealogy-core build && pnpm --filter @family/api build",
+    "api:prisma": "node scripts/prisma-generate-wsl.mjs",
+    "api:start": "pnpm --filter @family/api start",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
@@ -18,10 +23,10 @@
     "docker:infra": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
     "docker:infra:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
     "docker:graph": "docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile graph up -d",
-    "db:generate": "pnpm --filter @family/api exec prisma generate",
-    "db:migrate": "pnpm --filter @family/api exec prisma migrate dev",
-    "db:seed": "pnpm --filter @family/api exec prisma db seed",
-    "db:studio": "pnpm --filter @family/api exec prisma studio"
+    "db:generate": "node scripts/prisma-cli.mjs generate",
+    "db:migrate": "node scripts/prisma-cli.mjs migrate dev",
+    "db:seed": "node scripts/prisma-cli.mjs db seed",
+    "db:studio": "node scripts/prisma-cli.mjs studio"
   },
   "engines": {
     "node": ">=20.0.0",

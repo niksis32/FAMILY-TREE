@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { CreateDocumentUploadUrlDto } from './documents-upload.dto';
 import { CreateDocumentDto, UpdateDocumentDto } from './documents.dto';
 import { DocumentsService } from './documents.service';
 
@@ -15,6 +16,13 @@ export class DocumentsController {
   @Get()
   findAll() {
     return this.service.findAll();
+  }
+
+  @Post('upload-url')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'EDITOR')
+  createUploadUrl(@Body() dto: CreateDocumentUploadUrlDto) {
+    return this.service.createUploadUrl(dto);
   }
 
   @Get(':id')

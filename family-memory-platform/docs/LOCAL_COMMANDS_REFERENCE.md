@@ -421,3 +421,338 @@ StatusCode: 200
 ```
 
 После перезапуска в браузере нажмите `Ctrl + F5`, чтобы обновить страницу без старого кэша.
+
+## Prisma — `Environment variable not found: DATABASE_URL`
+
+Симптом при `pnpm db:migrate` из Ubuntu:
+
+```text
+Error: Environment variable not found: DATABASE_URL
+```
+
+Причина: Prisma запускается из `apps/api`, а файл `.env` лежит в **корне** монорепозитория. NestJS подхватывает `../../.env`, Prisma CLI — нет (до исправления скрипта).
+
+### Ubuntu / WSL: проверка и миграция
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+ls -la .env
+grep DATABASE_URL .env
+pnpm docker:infra
+pnpm db:migrate
+```
+
+Команды `pnpm db:migrate`, `db:generate`, `db:seed` читают корневой `.env` через `scripts/prisma-cli.mjs`.
+
+### После `db:migrate` — запрос имени новой миграции / `Canceled by user`
+
+После строки `Applying migration ... person_avatar_media` Prisma может спросить `Enter a name for the new migration`. Если `node scripts/prisma-cli.mjs migrate status` показывает **`Database schema is up to date!`**, новая миграция не нужна — нажмите **Ctrl+C** (код выхода 130 — нормально).
+
+Дальше **обязательно** (иначе `api:build` падает с `avatarMediaId does not exist`):
+
+```bash
+pnpm api:prisma
+pnpm api:build
+```
+
+Если `.env` нет:
+
+```bash
+cp .env.example .env
+# отредактируйте POSTGRES_PASSWORD и DATABASE_URL (должен совпадать с docker-compose)
+```
+
+Пример рабочего `DATABASE_URL` для variant A:
+
+```env
+DATABASE_URL=postgresql://family_user:local_postgres_password@localhost:5432/family_platform?schema=public
+```
+
+Пароль `family_user` / `local_postgres_password` должны совпадать с `POSTGRES_USER` / `POSTGRES_PASSWORD` в `.env` и в `docker-compose`.
+
+Обход без скрипта (вручную):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform/apps/api"
+export DATABASE_URL="postgresql://family_user:ВАШ_ПАРОЛЬ@localhost:5432/family_platform?schema=public"
+pnpm exec prisma migrate dev
+```
+
+---
+
+## UI — `401 Unauthorized` при создании персоны
+
+Симптом в браузере:
+
+```json
+{"message":"Invalid or expired token","error":"Unauthorized","statusCode":401}
+```
+
+При этом список персон **может загружаться** (GET `/persons` без JWT), а **POST** `/persons` требует роль EDITOR/ADMIN и валидный Bearer-токен.
+
+Частые причины:
+
+| Причина | Что сделать |
+|---------|-------------|
+| После перезапуска API сменился `JWT_SECRET` в `.env` | **Выйти** → **Войти** снова на http://localhost:3000/login |
+| В `localStorage` остался старый токен | DevTools → Application → Local Storage → удалить `family-session` → войти снова |
+| Не передаётся `Authorization` | Убедиться, что в Network у POST есть заголовок `Authorization: Bearer ...` |
+
+Учётные данные после seed (если пароль задавался при первом входе / register-first-admin):
+
+- Email: `admin@example.local`
+- Пароль: тот, что вы вводили при «Создать первого admin» или при входе (в seed по умолчанию **нет** рабочего пароля — только через форму login).
+
+Проверка API из Ubuntu:
+
+```bash
+curl -s -X POST http://localhost:4000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.local","password":"ВАШ_ПАРОЛЬ"}'
+```
+
+В ответе должен быть `accessToken`. Этот же пароль — в форме входа Web.
+
+---
+
+## API :4000 — `ERR_CONNECTION_REFUSED` (API не запущен)
+
+Симптом в браузере (DevTools → Network):
+
+```text
+GET/POST http://localhost:4000/api/v1/persons net::ERR_CONNECTION_REFUSED
+```
+
+Значение: на порту **4000 никто не слушает**. Web (`:3000`) работает, **API в отдельном терминале не запущен** или упал после ошибки `dist/main`.
+
+Проверка (команды **из каталога проекта**, не из `~`):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+ss -ltnp | grep ":4000"
+ls -la apps/api/dist/main.js
+```
+
+Если `ls` пишет `No such file` — вы не в папке проекта (промпт `nik@...:~$` без `family-memory-platform`).
+
+### Ubuntu / WSL: `EADDRINUSE` на порту 4000
+
+Симптом при `pnpm api:start`:
+
+```text
+Error: listen EADDRINUSE: address already in use :::4000
+```
+
+Значит API **уже запущен** в другом терминале (часто старая сборка без аватаров). Либо используйте тот терминал, либо остановите процесс и запустите заново:
+
+```bash
+pkill -f "dist/main.js" || true
+ss -ltnp | grep ":4000"
+pnpm api:start
+```
+
+### Ubuntu / WSL: собрать и запустить API (надёжный способ)
+
+Терминал 1 — оставить открытым:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:prisma
+pnpm api:build
+ls -la apps/api/dist/main.js
+pnpm api:start
+```
+
+После `api:build` файл `apps/api/dist/main.js` **обязан** существовать. Если нет — не запускайте `api:start` (будет `MODULE_NOT_FOUND`).
+
+`pnpm api:prisma` — **обязательно из Ubuntu/WSL**, если API запускаете из WSL (см. раздел Prisma ниже).
+
+Ожидаемо в терминале:
+
+```text
+API listening on http://localhost:4000/api/v1
+```
+
+Проверка:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4000/docs
+```
+
+Должно быть `200` или `301`. Терминал с API **не закрывать**.
+
+Терминал 2 — Web:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm dev:web
+```
+
+После входа в UI (`admin@example.local` / `Test12345!`) создание персоны шлёт `POST /persons` с Bearer-токеном.
+
+### Ubuntu / WSL: hot-reload API (если `pnpm dev:api` уже работает)
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm dev:api
+```
+
+---
+
+## API — Prisma `debian-openssl-3.0.x` (WSL vs Windows)
+
+Симптом при `pnpm api:start` из **Ubuntu/WSL** (маршруты уже замаплены, затем падение):
+
+```text
+PrismaClientInitializationError: Prisma Client could not locate the Query Engine for runtime "debian-openssl-3.0.x".
+This happened because Prisma Client was generated for "windows", but the actual deployment required "debian-openssl-3.0.x".
+```
+
+Причина: `pnpm db:generate` выполняли в **PowerShell/Windows**, а `node dist/main.js` — в **WSL**. Движок Prisma привязан к ОС, где запускали `generate`.
+
+### Ubuntu / WSL: перегенерировать Prisma Client
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm api:prisma
+pnpm api:start
+```
+
+### Ubuntu / WSL: `EACCES` / `EPERM` на `query_engine-windows.dll.node`
+
+Симптом:
+
+```text
+EACCES: permission denied, rename '...query_engine-windows.dll.node.tmp...' -> '...query_engine-windows.dll.node'
+```
+
+Причина: проект на диске **`/mnt/d/...`**, а файл `.dll` держит процесс **Windows** (Node, Cursor, старый API). Prisma из WSL не может перезаписать Windows-движок.
+
+**Шаг 1 — PowerShell (Windows Terminal), без `.ps1`**
+
+На многих ПК включено: `выполнение сценариев отключено` — тогда **не** запускайте `.\scripts\unlock-prisma-windows.ps1`. Вставьте команды **построчно**:
+
+```powershell
+cd "D:\CURSOR\FAMILY TREE\family-memory-platform"
+
+Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+Get-ChildItem -Path ".\node_modules" -Recurse -Directory -Filter ".prisma" -ErrorAction SilentlyContinue |
+  ForEach-Object {
+    $client = Join-Path $_.FullName "client"
+    if (Test-Path $client) {
+      Remove-Item -Path (Join-Path $client "query_engine*") -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path (Join-Path $client "*.tmp*") -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+Write-Host "OK. Перейдите в Ubuntu и выполните pnpm api:prisma"
+```
+
+Если всё же нужен файл скрипта (один раз):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\scripts\unlock-prisma-windows.ps1"
+```
+
+**Шаг 2 — снова Ubuntu/WSL:**
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pkill -f "dist/main.js" || true
+pnpm api:prisma
+pnpm api:start
+```
+
+`pnpm api:prisma` → `node scripts/prisma-generate-wsl.mjs` (очистка `.tmp` + `db:generate`). В `schema.prisma` **нет** явного target `windows`.
+
+Правило из [DOCKER_LOCAL_WINDOWS.md](./DOCKER_LOCAL_WINDOWS.md) (вариант A): **инфраструктура в Docker**, **API/Web из Ubuntu/WSL**, `pnpm install` и `pnpm db:generate` — **из Ubuntu**, не из PowerShell (иначе SWC/Prisma engines ломаются).
+
+### Полная цепочка variant A (после разблокировки Prisma)
+
+```bash
+# Ubuntu/WSL — один раз или после перезагрузки
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm docker:infra
+pnpm api:prisma
+pnpm db:migrate
+pnpm api:build
+pnpm api:start
+```
+
+Второй терминал Ubuntu: `pnpm dev:web` → http://localhost:3000
+
+---
+
+## API :4000 — CORS (если API запущен, но браузер блокирует)
+
+Симптом в браузере:
+
+```text
+blocked by CORS policy ... No 'Access-Control-Allow-Origin'
+```
+
+Частая причина: на `:4000` всё ещё крутится **старый** процесс `node apps/api/dist/.../main.js` без `enableCors` (запущен до обновления репозитория).
+
+### Ubuntu / WSL: проверить, кто слушает 4000
+
+```bash
+ss -ltnp | grep ":4000"
+ps -ef | grep "apps/api/dist" | grep -v grep
+```
+
+### Ubuntu / WSL: остановить старый API и запустить заново
+
+```bash
+pkill -f "apps/api/dist" || true
+pkill -f "nest start" || true
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+rm -rf apps/api/dist
+pnpm --filter @family/shared build
+pnpm --filter @family/genealogy-core build
+pnpm dev:api
+```
+
+Если `pnpm dev:api` падает с `Cannot find module .../dist/main` — в проекте должен быть `apps/api/tsconfig.build.json` (сборка в `dist/main.js`). Очистите старый `apps/api/dist` и перезапустите. Временный обход: `node apps/api/dist/apps/api/src/main.js` (устаревший путь).
+
+Альтернатива (два терминала, как в DOCKER_LOCAL_WINDOWS.md):
+
+```bash
+# Терминал 1 — API (hot-reload из src, с CORS)
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm dev:api
+
+# Терминал 2 — Web
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+cp apps/web/.env.local.example apps/web/.env.local   # один раз
+pnpm dev:web
+```
+
+`pnpm dev` и `cp apps/web/...` выполняйте **только из каталога проекта**, не из `~`.
+
+### Ubuntu / WSL: проверить CORS (preflight)
+
+```bash
+curl -i -X OPTIONS "http://localhost:4000/api/v1/persons" \
+  -H "Origin: http://localhost:3000" \
+  -H "Access-Control-Request-Method: GET"
+```
+
+Ожидаемо в ответе: `HTTP/1.1 204` (или 200) и заголовок `Access-Control-Allow-Origin: http://localhost:3000`.
+
+### Прочие сообщения в консоли браузера
+
+| Сообщение | Критично? | Пояснение |
+|-----------|-----------|-----------|
+| `Unable to add filesystem: <illegal path>` | Нет | DevTools Chrome + проект на `/mnt/d/...` с пробелом в пути |
+| `favicon.ico 404` | Нет | Нет файла `apps/web/public/favicon.ico` |
+| `React DevTools` | Нет | Подсказка dev-режима Next.js |

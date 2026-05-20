@@ -2,7 +2,9 @@
 // Run: pnpm db:generate && pnpm db:migrate
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // WSL: native = debian. Windows: native = windows. Do not add explicit "windows" here — generate from WSL would try to rewrite .dll on /mnt/d/ and hit EPERM.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -110,10 +112,12 @@ model Person {
   isLiving     Boolean      @default(true)
   privacyLevel PrivacyLevel @default(FAMILY)
   biography    String?      @db.Text
+  avatarMediaId String?     @unique
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   deletedAt    DateTime?
 
+  avatarMedia       Media?  @relation("PersonAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
   relationshipsFrom Relationship[] @relation("fromPerson")
   relationshipsTo   Relationship[] @relation("toPerson")
   familyMembers     FamilyMember[]
@@ -256,9 +260,10 @@ model Media {
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
 
-  person    Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
-  documents Document[]
-  links     MediaLink[]
+  person        Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  personAvatar  Person?     @relation("PersonAvatar")
+  documents     Document[]
+  links         MediaLink[]
 
   @@unique([bucket, storageKey])
   @@index([personId])

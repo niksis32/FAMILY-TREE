@@ -8,8 +8,24 @@ import { AppModule } from './app.module';
  * API entry point — modular monolith.
  * Global prefix: /api/v1 (see @family/shared API_PREFIX)
  */
+function parseCorsOrigins(): string[] {
+  const raw = process.env.CORS_ORIGINS ?? process.env.APP_URL ?? 'http://localhost:3000';
+  return raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Dev (variant A/B in DOCKER_LOCAL_WINDOWS.md): web :3000 → API :4000 — browser requires CORS.
+  app.enableCors({
+    origin: parseCorsOrigins(),
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   app.setGlobalPrefix(API_PREFIX.replace(/^\//, ''));
   app.useGlobalPipes(

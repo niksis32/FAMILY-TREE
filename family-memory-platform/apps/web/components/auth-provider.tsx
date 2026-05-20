@@ -31,11 +31,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(SESSION_KEY);
-    if (stored) {
-      setSession(JSON.parse(stored) as AuthSession);
+    let cancelled = false;
+
+    async function restoreSession() {
+      const stored = window.localStorage.getItem(SESSION_KEY);
+      if (!stored) {
+        if (!cancelled) setIsReady(true);
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as AuthSession;
+      try {
+        await apiClient.me(parsed.accessToken);
+        if (!cancelled) setSession(parsed);
+      } catch {
+        clearSession();
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setIsReady(true);
+      }
     }
-    setIsReady(true);
+
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(

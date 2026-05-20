@@ -4,7 +4,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { PersonCard } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, Input, Select, Textarea } from '@/components/ui';
-import { apiClient } from '@/lib/api-client';
+import { PersonAttachmentsForm } from '@/components/person-attachments-form';
+import { apiClient, ApiError, formatApiError } from '@/lib/api-client';
+import { attachAssetsToPerson, emptyPersonAttachments, type PersonAttachmentDraft } from '@/lib/person-assets';
 import type { PersonSummary } from '@family/shared';
 
 const emptyForm = {
@@ -18,12 +20,13 @@ const emptyForm = {
 };
 
 export function PersonsWorkspace() {
-  const { session } = useAuth();
+  const { session, logout } = useAuth();
   const [persons, setPersons] = useState<PersonSummary[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState('Загружаем персон из backend...');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [attachments, setAttachments] = useState<PersonAttachmentDraft>(emptyPersonAttachments);
 
   async function load() {
     setIsLoading(true);
@@ -33,7 +36,7 @@ export function PersonsWorkspace() {
       setPersons(data);
       setStatus(data.length ? `Загружено персон: ${data.length}` : 'Персон пока нет. Создайте первую запись.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Не удалось загрузить персон');
+      setStatus(formatApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +52,7 @@ export function PersonsWorkspace() {
     setIsSaving(true);
     setStatus('Создаём персону...');
     try {
-      await apiClient.persons.create(
+      const created = await apiClient.persons.create(
         {
           ...form,
           familyName: form.familyName || undefined,
@@ -59,18 +62,36 @@ export function PersonsWorkspace() {
         },
         session?.accessToken,
       );
+
+      const hasFiles =
+        attachments.avatarFile || attachments.mediaFiles.length > 0 || attachments.documents.length > 0;
+
+      if (hasFiles) {
+        setStatus('Загружаем фото и документы в MinIO...');
+        await attachAssetsToPerson(created.id, attachments, session?.accessToken);
+      }
+
       setForm(emptyForm);
+      setAttachments(emptyPersonAttachments());
       await load();
-      setStatus('Персона создана и отправлена на индексацию поиска');
+      setStatus(
+        hasFiles
+          ? 'Персона создана: аватар, медиа и документы сохранены'
+          : 'Персона создана и отправлена на индексацию поиска',
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Не удалось создать персону');
+      if (error instanceof ApiError && error.status === 401) {
+        logout();
+        return;
+      }
+      setStatus(formatApiError(error));
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+    <div className="grid gap-6 xl:grid-cols-[1fr_480px]">
       <div className="space-y-4">
         <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
         {isLoading ? <EmptyState title="Загрузка" description="Получаем список персон из `/persons`." /> : null}
@@ -106,6 +127,9 @@ export function PersonsWorkspace() {
             onChange={(event) => setForm({ ...form, biography: event.target.value })}
             placeholder="Биография, заметки, семейные истории"
           />
+          <div className="md:col-span-2">
+            <PersonAttachmentsForm draft={attachments} onChange={setAttachments} disabled={isSaving || !session} />
+          </div>
           <div className="md:col-span-2 flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => void load()}>
               Обновить
