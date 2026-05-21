@@ -306,7 +306,15 @@ export const apiClient = {
   },
   families: {
     list: (token?: string | null) => apiGet<FamilyRecord[]>('/families', token),
+    one: (id: string, token?: string | null) => apiGet<FamilyRecord>(`/families/${id}`, token),
     create: (input: unknown, token?: string | null) => apiPost<FamilyRecord>('/families', input, token),
+    update: (id: string, input: unknown, token?: string | null) => apiPatch<FamilyRecord>(`/families/${id}`, input, token),
+    addMember: (familyId: string, input: { personId: string; role: string }, token?: string | null) =>
+      apiPost<FamilyRecord>(`/families/${familyId}/members`, input, token),
+    updateMember: (familyId: string, memberId: string, input: { role: string }, token?: string | null) =>
+      apiPatch<FamilyRecord>(`/families/${familyId}/members/${memberId}`, input, token),
+    removeMember: (familyId: string, memberId: string, token?: string | null) =>
+      apiDelete<FamilyRecord>(`/families/${familyId}/members/${memberId}`, token),
     remove: (id: string, token?: string | null) => apiDelete<FamilyRecord>(`/families/${id}`, token),
   },
   relationships: {

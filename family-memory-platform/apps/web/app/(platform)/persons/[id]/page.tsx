@@ -1,17 +1,11 @@
 import { PersonDetailsWorkspace } from '@/components/person-details-workspace';
-import { Button, Card, PageHeader } from '@/components/ui';
+import { Card } from '@/components/ui';
 
 export default async function PersonDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Профиль персоны"
-        description="Профиль персоны: ключевые данные, приватность, связи, документы, медиа и timeline жизни."
-        action={<Button variant="secondary">Редактировать</Button>}
-      />
-
       <PersonDetailsWorkspace id={id} />
 
       <Card>

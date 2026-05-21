@@ -3,12 +3,10 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { PersonCard } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
-import { RelationshipFields } from '@/components/relationship-fields';
 import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/components/ui';
 import { PersonAttachmentsForm } from '@/components/person-attachments-form';
-import { apiClient, ApiError, formatApiError, type FamilyRecord } from '@/lib/api-client';
+import { apiClient, ApiError, formatApiError } from '@/lib/api-client';
 import { attachAssetsToPerson, emptyPersonAttachments, type PersonAttachmentDraft } from '@/lib/person-assets';
-import { buildRelationshipCreates, emptyRelationshipDraft, type RelationshipDraft } from '@/lib/relationship-draft';
 import type { PersonSummary } from '@family/shared';
 
 const emptyForm = {
@@ -25,9 +23,7 @@ const emptyForm = {
 export function PersonsWorkspace() {
   const { session, logout } = useAuth();
   const [persons, setPersons] = useState<PersonSummary[]>([]);
-  const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [form, setForm] = useState(emptyForm);
-  const [relationshipDraft, setRelationshipDraft] = useState<RelationshipDraft>(emptyRelationshipDraft());
   const [status, setStatus] = useState('Загружаем персон из backend...');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,12 +33,8 @@ export function PersonsWorkspace() {
     setIsLoading(true);
     setStatus('Загружаем персон из backend...');
     try {
-      const [data, nextFamilies] = await Promise.all([
-        apiClient.persons.list(session?.accessToken),
-        apiClient.families.list(session?.accessToken),
-      ]);
+      const data = await apiClient.persons.list(session?.accessToken);
       setPersons(data);
-      setFamilies(nextFamilies);
       setStatus(data.length ? `Загружено персон: ${data.length}` : 'Персон пока нет. Создайте первую запись.');
     } catch (error) {
       setStatus(formatApiError(error));
@@ -81,24 +73,13 @@ export function PersonsWorkspace() {
         await attachAssetsToPerson(created.id, attachments, session?.accessToken);
       }
 
-      const relationshipPayloads = buildRelationshipCreates(relationshipDraft, created.id);
-      if (relationshipPayloads.length > 0) {
-        setStatus('Сохраняем родственные связи...');
-        for (const payload of relationshipPayloads) {
-          await apiClient.relationships.create(payload, session?.accessToken);
-        }
-      }
-
       setForm(emptyForm);
-      setRelationshipDraft(emptyRelationshipDraft());
       setAttachments(emptyPersonAttachments());
       await load();
-      const relNote =
-        relationshipPayloads.length > 0 ? `, связей: ${relationshipPayloads.length}` : '';
       setStatus(
         hasFiles
-          ? `Персона создана: аватар, медиа и документы сохранены${relNote}`
-          : `Персона создана и отправлена на индексацию поиска${relNote}`,
+          ? 'Персона создана: аватар, медиа и документы сохранены'
+          : 'Персона создана и отправлена на индексацию поиска',
       );
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -179,20 +160,6 @@ export function PersonsWorkspace() {
               placeholder="Заметки, семейные истории"
             />
           </FormField>
-
-          <div className="space-y-3 border-t border-stone-200 pt-4 md:col-span-2 dark:border-slate-800">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600 dark:text-slate-400">
-              Управление Relationship
-            </h3>
-            <RelationshipFields
-              families={families}
-              draft={relationshipDraft}
-              onChange={setRelationshipDraft}
-              disabled={isSaving || !session}
-              whoHint="Если «Кто» не выбран, для типа «Ребёнок» подставится только что созданная персона."
-            />
-          </div>
-
           <div className="md:col-span-2">
             <PersonAttachmentsForm draft={attachments} onChange={setAttachments} disabled={isSaving || !session} />
           </div>
