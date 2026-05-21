@@ -6,6 +6,11 @@
   },
   "placePicker": {
     "century": "Siècle",
+    "centuryNotSet": "Siècle non précisé",
+    "century18": "XVIIIe siècle (1701–1800)",
+    "century19": "XIXe siècle (1801–1900)",
+    "century20": "XXe siècle (1901–2000)",
+    "century21": "XXIe siècle (2001–2100)",
     "country": "Pays / État",
     "countryHistorical": "Pays (période historique)",
     "region": "Région",

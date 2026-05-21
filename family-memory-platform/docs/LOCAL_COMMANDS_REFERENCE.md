@@ -835,7 +835,10 @@ pnpm geography:import:ru-cities:rebuild
 pnpm geography:backfill:regions
 pnpm geography:import:regions-admin1
 pnpm geography:import:i18n
+pnpm geography:import:country-i18n
 ```
+
+`geography:import:country-i18n` — русские названия seed-стран (Россия, СССР, империя…) на en/de/fr/es/ru.
 
 `geography:import:regions-admin1` — все субъекты РФ из admin1 (~80+), не только те, где есть города с min population.
 
@@ -861,7 +864,82 @@ node scripts/geography/import-alternate-names-v2.mjs --dry-run
 Done.
 ```
 
-### Ubuntu / WSL: перезапуск API + Web
+## Перезапуск после обновления кода (git pull / правки i18n)
+
+Всегда из каталога проекта (не из `~`):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+```
+
+### 1) Зависимости (если менялся package.json / lockfile)
+
+```bash
+pnpm install
+# не используйте: CI=true pnpm install --frozen-lockfile
+# пока lockfile не закоммичен после добавления пакетов
+```
+
+### 2) БД и география (после pull с i18n / регионы для всех стран)
+
+```bash
+pnpm docker:infra
+pnpm db:migrate
+
+# Переводы seed-стран и губерний (RU/СССР/империя…)
+pnpm geography:import:country-i18n
+pnpm geography:import:region-i18n
+
+# Регионы и города для ВСЕХ стран из countryInfo (не только RU)
+pnpm geography:import:countries
+pnpm geography:import:regions-admin1:all
+
+# Города: скачать cities15000.zip → распаковать в cities/cities15000.txt
+# https://download.geonames.org/export/dump/cities15000.zip
+pnpm geography:import:cities:world
+
+# Переводы названий из alternateNamesV2 (долго)
+pnpm geography:import:i18n
+```
+
+Одна страна (например Польша): скачать `PL.zip` → `cities/PL.txt`, затем:
+
+```bash
+pnpm geography:import:regions-admin1 -- --country=PL
+pnpm geography:import:cities -- --country=PL --min-population=0
+pnpm geography:import:i18n:regions
+```
+
+### 3) API — терминал A
+
+```bash
+pkill -f "nest start" 2>/dev/null || true
+pkill -f "dist/main.js" 2>/dev/null || true
+
+pnpm api:prisma
+pnpm --filter @family/shared build
+pnpm api:build && pnpm api:start
+```
+
+Проверка: `ss -ltnp | grep ":4000"` и в логе `API listening on http://localhost:4000/api/v1`.
+
+### 4) Web — терминал B
+
+```bash
+pkill -f "next dev --port 3000" 2>/dev/null || true
+pnpm --filter @family/web dev
+```
+
+Проверка: `http://localhost:3000/en/timeline` — в «Персона» по умолчанию **Not selected** / «Не выбрано»; век и страны на выбранном языке.
+
+### 5) Браузер
+
+`Ctrl + F5` на странице хронологии.
+
+---
+
+### Ubuntu / WSL: перезапуск API + Web (кратко)
 
 ```bash
 pkill -f "dist/main.js" 2>/dev/null || true
@@ -905,6 +983,15 @@ curl -sI "http://localhost:3000/timeline" | head -5
 | `next-intl` / module not found | `pnpm install` из **WSL** |
 | Регионы на латинице | `pnpm geography:backfill:regions` затем `pnpm geography:import:i18n:regions` |
 | CORS на `:4000` | пересобрать и перезапустить API (см. раздел CORS выше) |
+
+### Регион на английском остаётся по-русски
+
+Причины: seed-губерния без перевода или не выполнен `geography:import:region-i18n` / `geography:import:i18n`.
+
+```bash
+pnpm geography:import:region-i18n
+pnpm geography:import:i18n:regions
+```
 
 ### Ограничения (MVP)
 

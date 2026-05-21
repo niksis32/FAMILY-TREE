@@ -1,0 +1,72 @@
+{
+  "geo-country-ru-empire": {
+    "en": { "name": "Russian Empire", "historical": "Russia" },
+    "de": { "name": "Russisches Kaiserreich", "historical": "Russland" },
+    "fr": { "name": "Empire russe", "historical": "Russie" },
+    "es": { "name": "Imperio ruso", "historical": "Rusia" },
+    "ru": { "name": "Российская империя", "historical": "Россия" }
+  },
+  "geo-country-ussr": {
+    "en": { "name": "Soviet Union", "historical": "Union of Soviet Socialist Republics" },
+    "de": { "name": "Sowjetunion", "historical": "Union der Sozialistischen Sowjetrepubliken" },
+    "fr": { "name": "Union soviétique", "historical": "Union des républiques socialistes soviétiques" },
+    "es": { "name": "Unión Soviética", "historical": "Unión de Repúblicas Socialistas Soviéticas" },
+    "ru": { "name": "СССР", "historical": "Союз Советских Социалистических Республик" }
+  },
+  "geo-country-ru": {
+    "en": { "name": "Russia", "historical": "Russian Federation" },
+    "de": { "name": "Russland", "historical": "Russische Föderation" },
+    "fr": { "name": "Russie", "historical": "Fédération de Russie" },
+    "es": { "name": "Rusia", "historical": "Federación Rusa" },
+    "ru": { "name": "Россия", "historical": "Российская Федерация" }
+  },
+  "geo-country-kz": {
+    "en": { "name": "Kazakhstan" },
+    "de": { "name": "Kasachstan" },
+    "fr": { "name": "Kazakhstan" },
+    "es": { "name": "Kazajistán" },
+    "ru": { "name": "Казахстан" }
+  },
+  "geo-country-ua": {
+    "en": { "name": "Ukraine" },
+    "de": { "name": "Ukraine" },
+    "fr": { "name": "Ukraine" },
+    "es": { "name": "Ucrania" },
+    "ru": { "name": "Украина" }
+  },
+  "geo-country-by": {
+    "en": { "name": "Belarus" },
+    "de": { "name": "Belarus" },
+    "fr": { "name": "Biélorussie" },
+    "es": { "name": "Bielorrusia" },
+    "ru": { "name": "Беларусь" }
+  },
+  "geo-country-pl-19": {
+    "en": { "name": "Congress Poland", "historical": "Poland" },
+    "de": { "name": "Kongresspolen", "historical": "Polen" },
+    "fr": { "name": "Royaume du Congrès", "historical": "Pologne" },
+    "es": { "name": "Reino de Polonia", "historical": "Polonia" },
+    "ru": { "name": "Царство Польское", "historical": "Польша" }
+  },
+  "geo-country-de": {
+    "en": { "name": "Germany" },
+    "de": { "name": "Deutschland" },
+    "fr": { "name": "Allemagne" },
+    "es": { "name": "Alemania" },
+    "ru": { "name": "Германия" }
+  },
+  "geo-country-us": {
+    "en": { "name": "United States", "historical": "United States of America" },
+    "de": { "name": "Vereinigte Staaten", "historical": "Vereinigte Staaten von Amerika" },
+    "fr": { "name": "États-Unis", "historical": "États-Unis d'Amérique" },
+    "es": { "name": "Estados Unidos", "historical": "Estados Unidos de América" },
+    "ru": { "name": "США", "historical": "Соединённые Штаты Америки" }
+  },
+  "geo-country-il": {
+    "en": { "name": "Israel" },
+    "de": { "name": "Israel" },
+    "fr": { "name": "Israël" },
+    "es": { "name": "Israel" },
+    "ru": { "name": "Израиль" }
+  }
+}

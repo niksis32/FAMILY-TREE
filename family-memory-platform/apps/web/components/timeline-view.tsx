@@ -44,9 +44,6 @@ export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
       try {
         const list = await apiClient.persons.list(session?.accessToken);
         setPersons(list);
-        if (list.length > 0 && !personId) {
-          setPersonId(list[0].id);
-        }
       } catch (error) {
         setStatus(formatApiError(error));
       }

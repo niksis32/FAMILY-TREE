@@ -6,6 +6,11 @@
   },
   "placePicker": {
     "century": "Век",
+    "centuryNotSet": "Век не указан",
+    "century18": "XVIII век (1701–1800)",
+    "century19": "XIX век (1801–1900)",
+    "century20": "XX век (1901–2000)",
+    "century21": "XXI век (2001–2100)",
     "country": "Страна / государство",
     "countryHistorical": "Страна (исторический период)",
     "region": "Регион",

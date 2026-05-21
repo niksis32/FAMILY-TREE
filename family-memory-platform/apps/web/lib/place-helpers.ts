@@ -12,14 +12,6 @@ export function centuryToApiParam(century: string): string | undefined {
   return map[century.trim().toUpperCase()] ?? century.trim();
 }
 
-export const CENTURY_OPTIONS = [
-  { value: '', label: 'Век не указан' },
-  { value: 'XVIII', label: 'XVIII век (1701–1800)' },
-  { value: 'XIX', label: 'XIX век (1801–1900)' },
-  { value: 'XX', label: 'XX век (1901–2000)' },
-  { value: 'XXI', label: 'XXI век (2001–2100)' },
-] as const;
-
 export const DEFAULT_COUNTRIES = [
   'Россия',
   'Казахстан',

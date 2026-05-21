@@ -47,13 +47,13 @@ export class GeographyService {
       take: 500,
     });
 
-    const resolve = await buildNameResolver(
-      this.prisma,
-      GeoEntityType.COUNTRY,
-      rows.map((r) => r.id),
-      locale,
-    );
-    return applyCountryNames(rows, resolve);
+    const countryIds = rows.map((r) => r.id);
+    const historicalIds = rows.filter((r) => r.historicalName).map((r) => `${r.id}#historical`);
+    const [resolveName, resolveHistorical] = await Promise.all([
+      buildNameResolver(this.prisma, GeoEntityType.COUNTRY, countryIds, locale),
+      buildNameResolver(this.prisma, GeoEntityType.COUNTRY, historicalIds, locale),
+    ]);
+    return applyCountryNames(rows, resolveName, resolveHistorical);
   }
 
   async listRegions(countryId: string, century?: string, locale: AppLocale = DEFAULT_APP_LOCALE) {
@@ -224,13 +224,11 @@ export class GeographyService {
       return [countryRows, regionRows, cityRows];
     });
 
-    const [resolveCountry, resolveRegion, resolveCity] = await Promise.all([
-      buildNameResolver(
-        this.prisma,
-        GeoEntityType.COUNTRY,
-        [...countries.map((c) => c.id), ...regions.map((r) => r.country?.id).filter(Boolean) as string[]],
-        locale,
-      ),
+    const countryIdList = countries.map((c) => c.id);
+    const countryHistIds = countries.filter((c) => c.historicalName).map((c) => `${c.id}#historical`);
+    const [resolveCountry, resolveCountryHist, resolveRegion, resolveCity] = await Promise.all([
+      buildNameResolver(this.prisma, GeoEntityType.COUNTRY, countryIdList, locale),
+      buildNameResolver(this.prisma, GeoEntityType.COUNTRY, countryHistIds, locale),
       buildNameResolver(
         this.prisma,
         GeoEntityType.REGION,
@@ -245,13 +243,24 @@ export class GeographyService {
       ),
     ]);
 
+    const nestedCountryIds = regions.map((r) => r.country?.id).filter(Boolean) as string[];
+    const [resolveNestedCountry, resolveNestedCountryHist] = await Promise.all([
+      buildNameResolver(this.prisma, GeoEntityType.COUNTRY, nestedCountryIds, locale),
+      buildNameResolver(
+        this.prisma,
+        GeoEntityType.COUNTRY,
+        regions.filter((r) => r.country?.id).map((r) => `${r.country!.id}#historical`),
+        locale,
+      ),
+    ]);
+
     return {
-      countries: applyCountryNames(countries, resolveCountry),
+      countries: applyCountryNames(countries, resolveCountry, resolveCountryHist),
       regions: applyRegionNames(
         regions.map((r) => ({
           ...r,
           country: r.country
-            ? { ...r.country, name: resolveCountry(r.country.id, r.country.name) }
+            ? applyCountryNames([r.country], resolveNestedCountry, resolveNestedCountryHist)[0]
             : r.country,
         })),
         resolveRegion,

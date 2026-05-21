@@ -1,0 +1,72 @@
+{
+  "geo-region-ru-central": {
+    "en": "Central Federal District",
+    "de": "Zentraler Föderationskreis",
+    "fr": "District fédéral central",
+    "es": "Distrito Federal Central",
+    "ru": "Центральный федеральный округ"
+  },
+  "geo-region-ru-volga": {
+    "en": "Volga Federal District",
+    "de": "Wolga-Föderationskreis",
+    "fr": "District fédéral de la Volga",
+    "es": "Distrito Federal del Volga",
+    "ru": "Приволжский федеральный округ"
+  },
+  "geo-region-ru-empire-kazan": {
+    "en": "Kazan Governorate",
+    "de": "Gouvernement Kasan",
+    "fr": "Gouvernement de Kazan",
+    "es": "Gobernación de Kazán",
+    "ru": "Казанская губерния"
+  },
+  "geo-region-ru-empire-moscow": {
+    "en": "Moscow Governorate",
+    "de": "Gouvernement Moskau",
+    "fr": "Gouvernement de Moscou",
+    "es": "Gobernación de Moscú",
+    "ru": "Московская губерния"
+  },
+  "geo-region-ru-empire-spb": {
+    "en": "Saint Petersburg Governorate",
+    "de": "Gouvernement Sankt Petersburg",
+    "fr": "Gouvernement de Saint-Pétersbourg",
+    "es": "Gobernación de San Petersburgo",
+    "ru": "Санкт-Петербургская губерния"
+  },
+  "geo-region-ru-empire-kiev": {
+    "en": "Kiev Governorate",
+    "de": "Gouvernement Kiew",
+    "fr": "Gouvernement de Kiev",
+    "es": "Gobernación de Kiev",
+    "ru": "Киевская губерния"
+  },
+  "geo-region-ru-empire-novgorod": {
+    "en": "Novgorod Governorate",
+    "de": "Gouvernement Nowgorod",
+    "fr": "Gouvernement de Novgorod",
+    "es": "Gobernación de Nóvgorod",
+    "ru": "Новгородская губерния"
+  },
+  "geo-region-ussr-leningrad": {
+    "en": "Leningrad Oblast",
+    "de": "Oblast Leningrad",
+    "fr": "Oblast de Léningrad",
+    "es": "Óblast de Leningrado",
+    "ru": "Ленинградская область"
+  },
+  "geo-region-kz-almaty": {
+    "en": "Almaty Region",
+    "de": "Region Almaty",
+    "fr": "Région d'Almaty",
+    "es": "Región de Almaty",
+    "ru": "Алматинская область"
+  },
+  "geo-region-ua-kyiv": {
+    "en": "Kyiv Oblast",
+    "de": "Oblast Kiew",
+    "fr": "Oblast de Kiev",
+    "es": "Óblast de Kiev",
+    "ru": "Киевская область"
+  }
+}

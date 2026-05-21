@@ -12,7 +12,7 @@ import {
 } from '@/lib/api-client';
 import { useLocale, useTranslations } from 'next-intl';
 import type { AppLocale } from '@family/shared';
-import { CENTURY_OPTIONS, centuryToApiParam } from '@/lib/place-helpers';
+import { centuryToApiParam } from '@/lib/place-helpers';
 
 export type PlaceGeographyValue = {
   century: string;
@@ -38,6 +38,13 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
   const { session } = useAuth();
   const locale = useLocale() as AppLocale;
   const t = useTranslations('placePicker');
+  const centuryOptions = [
+    { value: '', label: t('centuryNotSet') },
+    { value: 'XVIII', label: t('century18') },
+    { value: 'XIX', label: t('century19') },
+    { value: 'XX', label: t('century20') },
+    { value: 'XXI', label: t('century21') },
+  ];
   const [countries, setCountries] = useState<GeoCountryRecord[]>([]);
   const [regions, setRegions] = useState<GeoRegionRecord[]>([]);
   const [cities, setCities] = useState<GeoCityRecord[]>([]);
@@ -222,7 +229,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     <div className="grid gap-4 md:grid-cols-2">
       <FormField label={t('century')}>
         <Select value={value.century} onChange={(event) => onCenturyChange(event.target.value)} disabled={disabled}>
-          {CENTURY_OPTIONS.map((option) => (
+          {centuryOptions.map((option) => (
             <option key={option.value || 'none'} value={option.value}>
               {option.label}
             </option>

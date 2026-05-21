@@ -50,11 +50,18 @@ export async function buildNameResolver(
   };
 }
 
-export function applyCountryNames<T extends { id: string; name: string }>(
+export function applyCountryNames<T extends { id: string; name: string; historicalName?: string | null }>(
   rows: T[],
-  resolve: NameResolver,
+  resolveName: NameResolver,
+  resolveHistorical?: NameResolver,
 ): T[] {
-  return rows.map((row) => ({ ...row, name: resolve(row.id, row.name) }));
+  return rows.map((row) => ({
+    ...row,
+    name: resolveName(row.id, row.name),
+    historicalName: row.historicalName
+      ? resolveHistorical?.(`${row.id}#historical`, row.historicalName) ?? row.historicalName
+      : row.historicalName,
+  }));
 }
 
 export function applyRegionNames<T extends { id: string; name: string }>(

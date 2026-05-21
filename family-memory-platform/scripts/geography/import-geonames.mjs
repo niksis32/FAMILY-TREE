@@ -15,26 +15,52 @@ import { loadGeonamesRuNamesMap } from './lib/geonames-ru-names-map.mjs';
 import { loadAdmin1Meta } from './lib/load-admin1-meta.mjs';
 import { loadRootEnv } from './lib/load-env.mjs';
 import { createPrismaClient } from './lib/prisma-client.mjs';
+import { loadIso2SetFromDb, resolveCountryIdForIso2 } from './lib/resolve-country-id.mjs';
 
 loadRootEnv();
 const prisma = createPrismaClient();
 const root = join(process.cwd(), 'data/imports/geonames');
 
+function resolveCitiesFilePath(countryFilter, fileArg) {
+  if (fileArg) return fileArg;
+
+  const citiesDir = join(process.cwd(), 'cities');
+  if (countryFilter) {
+    const perCountry = join(citiesDir, `${countryFilter}.txt`);
+    if (existsSync(perCountry)) return perCountry;
+    if (countryFilter === 'RU') {
+      const ruLocalized = join(citiesDir, 'ru/RU.ru.txt');
+      if (existsSync(ruLocalized)) return ruLocalized;
+      const ru = join(citiesDir, 'RU.txt');
+      if (existsSync(ru)) return ru;
+    }
+  }
+
+  const candidates = [
+    join(citiesDir, 'cities15000.txt'),
+    join(root, 'cities15000.txt'),
+    join(citiesDir, 'RU.txt'),
+  ];
+  for (const path of candidates) {
+    if (existsSync(path)) return path;
+  }
+  return null;
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
   const fileArg = args.find((a) => a.startsWith('--file='))?.split('=')[1];
+  const world = args.includes('--world') || args.includes('--all-countries');
   const countryFilter = args.find((a) => a.startsWith('--country='))?.split('=')[1]?.toUpperCase();
   const minPopArg = args.find((a) => a.startsWith('--min-population='))?.split('=')[1];
-  const ruLocalized = join(process.cwd(), 'cities/ru/RU.ru.txt');
-  const citiesDir = join(process.cwd(), 'cities/RU.txt');
-  const defaultFile = existsSync(ruLocalized)
-    ? ruLocalized
-    : existsSync(citiesDir)
-      ? citiesDir
-      : join(root, 'cities15000.txt');
+
+  const resolvedCountry = world ? undefined : (countryFilter ?? 'RU');
+  const file = resolveCitiesFilePath(resolvedCountry, fileArg);
+
   return {
-    file: fileArg ?? defaultFile,
-    countryFilter: countryFilter ?? (existsSync(citiesDir) ? 'RU' : undefined),
+    file,
+    world,
+    countryFilter: resolvedCountry,
     minPopulation: minPopArg ? Number.parseInt(minPopArg, 10) : 0,
   };
 }
@@ -69,35 +95,6 @@ function parseGeonamesCityLine(line) {
   return { geonamesId, name, alternatenames, countryCode, admin1Code, population, latitude, longitude, timezone };
 }
 
-async function resolveCountryIdForImport(iso2, cache) {
-  if (cache.has(iso2)) return cache.get(iso2);
-
-  const related = await prisma.country.findMany({ where: { iso2 }, orderBy: { periodFrom: 'asc' } });
-  const preferred =
-    related.find((c) => c.id === 'geo-country-ru') ??
-    related.find((c) => c.id.startsWith('geo-geonames-country-')) ??
-    related.find((c) => c.id === 'geo-country-ru-empire') ??
-    related[0];
-
-  if (preferred) {
-    cache.set(iso2, preferred.id);
-    return preferred.id;
-  }
-
-  const created = await prisma.country.create({
-    data: {
-      id: `geo-geonames-country-${iso2.toLowerCase()}`,
-      name: iso2,
-      iso2,
-      iso3: iso2,
-      periodFrom: null,
-      periodTo: null,
-    },
-  });
-  cache.set(iso2, created.id);
-  return created.id;
-}
-
 async function ensureRegion(countryId, iso2, admin1Code, admin1Names, admin1Meta, cache) {
   if (!admin1Code) return null;
 
@@ -106,7 +103,7 @@ async function ensureRegion(countryId, iso2, admin1Code, admin1Names, admin1Meta
 
   const regionId = `geo-geonames-region-${iso2.toLowerCase()}-${admin1Code}`;
   const meta = admin1Meta.get(mapKey);
-  const regionName = admin1Names.get(mapKey) ?? meta?.name ?? `Регион ${admin1Code}`;
+  const regionName = admin1Names.get(mapKey) ?? meta?.name ?? `Region ${admin1Code}`;
   const geonamesId = meta?.geonamesId ?? null;
 
   await prisma.region.upsert({
@@ -132,9 +129,13 @@ async function ensureRegion(countryId, iso2, admin1Code, admin1Names, admin1Meta
   return regionId;
 }
 
-async function importCities(filePath, countryFilter, minPopulation, admin1Names, admin1Meta, ruNamesMap) {
-  if (!existsSync(filePath)) {
-    console.error(`File not found: ${filePath}`);
+async function importCities(filePath, countryFilter, allowedIso2, minPopulation, admin1Names, admin1Meta, ruNamesMap) {
+  if (!filePath || !existsSync(filePath)) {
+    console.error(`Cities file not found.`);
+    console.error(`  For one country: download https://download.geonames.org/export/dump/XX.zip → cities/XX.txt`);
+    console.error(`  For all countries: download cities15000.zip → cities/cities15000.txt`);
+    console.error(`  Then: pnpm geography:import:cities -- --country=PL`);
+    console.error(`       pnpm geography:import:cities:world`);
     process.exitCode = 1;
     return;
   }
@@ -144,6 +145,10 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names,
   let imported = 0;
   let skipped = 0;
 
+  console.log(`Cities file: ${filePath}`);
+  if (countryFilter) console.log(`Country filter: ${countryFilter}`);
+  else if (allowedIso2) console.log(`World import, iso2 in DB: ${allowedIso2.size}`);
+
   const stream = createReadStream(filePath, { encoding: 'utf8' });
   const rl = createInterface({ input: stream, crlfDelay: true });
 
@@ -152,9 +157,14 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names,
     const row = parseGeonamesCityLine(line);
     if (!row) continue;
     if (countryFilter && row.countryCode !== countryFilter) continue;
+    if (allowedIso2 && !allowedIso2.has(row.countryCode)) continue;
     if (minPopulation > 0 && row.population < minPopulation) continue;
 
-    const countryId = await resolveCountryIdForImport(row.countryCode, countryCache);
+    const countryId = await resolveCountryIdForIso2(prisma, row.countryCode, countryCache);
+    if (!countryId) {
+      skipped += 1;
+      continue;
+    }
     const regionId = await ensureRegion(
       countryId,
       row.countryCode,
@@ -165,7 +175,10 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names,
     );
     const yearNow = new Date().getFullYear();
 
-    const displayName = resolveRussianPlaceName(row.name, row.alternatenames, row.geonamesId, ruNamesMap);
+    const displayName =
+      row.countryCode === 'RU'
+        ? resolveRussianPlaceName(row.name, row.alternatenames, row.geonamesId, ruNamesMap)
+        : row.name;
 
     try {
       await prisma.city.upsert({
@@ -204,14 +217,15 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names,
 }
 
 async function main() {
-  const { file, countryFilter, minPopulation } = parseArgs();
+  const { file, world, countryFilter, minPopulation } = parseArgs();
   const admin1Path = existsSync(join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt'))
     ? join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt')
     : join(process.cwd(), 'cities/admin1CodesASCII.txt');
   const admin1Meta = loadAdmin1Meta(admin1Path);
   const admin1Names = loadAdmin1Names(admin1Path);
-  const ruNamesMap = await loadGeonamesRuNamesMap();
-  await importCities(file, countryFilter, minPopulation, admin1Names, admin1Meta, ruNamesMap);
+  const ruNamesMap = countryFilter === 'RU' || world ? await loadGeonamesRuNamesMap() : new Map();
+  const allowedIso2 = world ? await loadIso2SetFromDb(prisma) : null;
+  await importCities(file, countryFilter, allowedIso2, minPopulation, admin1Names, admin1Meta, ruNamesMap);
 }
 
 main()

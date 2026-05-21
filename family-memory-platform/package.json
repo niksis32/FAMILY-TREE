@@ -40,11 +40,18 @@
     "geography:import:osm": "node scripts/geography/import-osm.mjs",
     "geography:backfill:regions": "node scripts/geography/backfill-region-geonames.mjs",
     "geography:import:regions-admin1": "node scripts/geography/import-regions-admin1.mjs --country=RU",
+    "geography:import:regions-admin1:all": "node scripts/geography/import-regions-admin1.mjs --all",
+    "geography:import:cities": "node scripts/geography/import-geonames.mjs",
+    "geography:import:cities:world": "node scripts/geography/import-geonames.mjs --world --min-population=1000",
+    "geography:import:region-i18n": "node scripts/geography/import-geography-region-i18n.mjs",
+    "geography:import:geo-world": "pnpm geography:import:countries && pnpm geography:import:regions-admin1:all && pnpm geography:import:cities:world && pnpm geography:import:country-i18n && pnpm geography:import:region-i18n && pnpm geography:import:i18n",
     "geography:import:i18n": "node scripts/geography/import-alternate-names-v2.mjs",
     "geography:import:i18n:ru": "node scripts/geography/import-alternate-names-v2.mjs --locale=ru",
     "geography:import:i18n:cities": "node scripts/geography/import-alternate-names-v2.mjs --entity=city",
     "geography:import:i18n:regions": "node scripts/geography/import-alternate-names-v2.mjs --entity=region",
-    "geography:import:multilang": "pnpm geography:import:ru-full && pnpm geography:import:regions-admin1 && pnpm geography:backfill:regions && pnpm geography:import:i18n"
+    "geography:import:country-i18n": "node scripts/geography/import-geography-country-i18n.mjs",
+    "geography:import:multilang": "pnpm geography:import:ru-full && pnpm geography:import:regions-admin1 && pnpm geography:backfill:regions && pnpm geography:import:i18n && pnpm geography:import:country-i18n && pnpm geography:import:region-i18n",
+    "geography:import:multilang:world": "pnpm geography:import:geo-world"
   },
   "engines": {
     "node": ">=20.0.0",
