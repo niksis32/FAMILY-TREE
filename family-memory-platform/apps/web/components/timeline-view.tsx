@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { Badge, Button, Card, EmptyState, FormField, Select } from '@/components/ui';
 import { apiClient, formatApiError, type PersonTimelineResponse, type TimelineEntry, type TimelineEventType } from '@/lib/api-client';
+import { sortTimelineFilterTypes } from '@/lib/event-type-labels';
 import { formatPersonLabel } from '@/lib/person-display';
 import type { PersonSummary } from '@family/shared';
 
@@ -134,7 +135,7 @@ export function TimelineView() {
 
       {timeline.availableTypes.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {timeline.availableTypes.map((type) => (
+          {sortTimelineFilterTypes(timeline.availableTypes).map((type) => (
             <Button
               key={type}
               type="button"
