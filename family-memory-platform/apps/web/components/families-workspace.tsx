@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { RelationshipFields } from '@/components/relationship-fields';
 import { Button, Card, EmptyState, FormField, Input, Textarea } from '@/components/ui';

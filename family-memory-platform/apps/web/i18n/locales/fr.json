@@ -1,0 +1,35 @@
+{
+  "common": {
+    "language": "Langue",
+    "loading": "Chargement…",
+    "error": "Une erreur s'est produite"
+  },
+  "placePicker": {
+    "century": "Siècle",
+    "country": "Pays / État",
+    "countryHistorical": "Pays (période historique)",
+    "region": "Région",
+    "city": "Ville",
+    "placeName": "Nom du lieu",
+    "placeNamePlaceholder": "ex. Kazan, centre-ville",
+    "citySearch": "Rechercher une ville",
+    "citySearchPlaceholder": "Rechercher (2+ lettres) ou choisir dans la liste",
+    "notSelected": "Non sélectionné",
+    "notSelectedOptional": "Non sélectionné (optionnel)",
+    "selectCenturyFirst": "Choisir d'abord le siècle",
+    "selectCountryFirst": "Choisir d'abord le pays",
+    "historicalHint": "Gouvernements seed : villes démo uniquement. Pour GeoNames, laisser vide ou région type « Moscow Oblast ».",
+    "cityListHint": "Jusqu'à {count} localités majeures. La recherche parcourt toute la base GeoNames.",
+    "selectCountryAndCentury": "Choisir d'abord le pays et le siècle.",
+    "autofillTitle": "Rempli depuis les données de référence",
+    "countryLabel": "Pays :",
+    "regionLabel": "Région :",
+    "cityLabel": "Ville :",
+    "coordinatesLabel": "Coordonnées :",
+    "historicalNamesLabel": "Noms historiques :"
+  },
+  "timeline": {
+    "aiSummaryDone": "Résumé IA généré",
+    "deathBadge": "Décès"
+  }
+}

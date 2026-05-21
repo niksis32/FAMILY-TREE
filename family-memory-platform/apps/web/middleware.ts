@@ -1,4 +1,8 @@
+import createIntlMiddleware from 'next-intl/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
+import { routing } from './i18n/routing';
+
+const intlMiddleware = createIntlMiddleware(routing);
 
 const protectedPrefixes = [
   '/dashboard',
@@ -12,22 +16,38 @@ const protectedPrefixes = [
   '/settings',
 ];
 
-export function middleware(request: NextRequest) {
+function stripLocale(pathname: string) {
+  const match = pathname.match(/^\/(en|de|fr|es|ru)(?=\/|$)/);
+  if (!match) return pathname;
+  const rest = pathname.slice(match[0].length);
+  return rest || '/';
+}
+
+export default function middleware(request: NextRequest) {
+  const intlResponse = intlMiddleware(request);
+  if (intlResponse.status >= 300 && intlResponse.status < 400) {
+    return intlResponse;
+  }
+
   const pathname = request.nextUrl.pathname;
-  const isProtected = protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const pathWithoutLocale = stripLocale(pathname);
+  const isProtected = protectedPrefixes.some(
+    (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`),
+  );
 
   if (!isProtected) {
-    return NextResponse.next();
+    return intlResponse;
   }
 
   const token = request.cookies.get('family_access_token')?.value;
   if (token) {
-    return NextResponse.next();
+    return intlResponse;
   }
 
+  const locale = pathname.match(/^\/(en|de|fr|es|ru)/)?.[1] ?? routing.defaultLocale;
   const url = request.nextUrl.clone();
-  url.pathname = '/login';
-  url.searchParams.set('next', pathname);
+  url.pathname = `/${locale}/login`;
+  url.searchParams.set('next', pathWithoutLocale);
   return NextResponse.redirect(url);
 }
 

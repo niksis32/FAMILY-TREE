@@ -1,4 +1,4 @@
-import { API_PREFIX, type LoginDto, type PersonSummary } from '@family/shared';
+import { API_PREFIX, type AppLocale, type LoginDto, type PersonSummary } from '@family/shared';
 
 /**
  * Thin API client for NestJS. It already carries auth/error semantics, while
@@ -40,6 +40,10 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   token?: string | null;
   body?: unknown;
 };
+
+function appendLang(params: URLSearchParams, locale?: AppLocale | string | null) {
+  if (locale) params.set('lang', locale);
+}
 
 async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { token, body, headers, ...init } = options;
@@ -384,24 +388,36 @@ export const apiClient = {
   },
   places: {
     list: (token?: string | null) => apiGet<PlaceRecord[]>('/places', token),
-    countries: (century?: string, token?: string | null) => {
-      const query = century ? `?century=${encodeURIComponent(century)}` : '';
+    countries: (century?: string, token?: string | null, locale?: AppLocale | null) => {
+      const params = new URLSearchParams();
+      if (century) params.set('century', century);
+      appendLang(params, locale);
+      const query = params.toString() ? `?${params}` : '';
       return apiGet<GeoCountryRecord[]>(`/places/countries${query}`, token);
     },
-    regions: (countryId: string, century?: string, token?: string | null) => {
+    regions: (countryId: string, century?: string, token?: string | null, locale?: AppLocale | null) => {
       const params = new URLSearchParams({ countryId });
       if (century) params.set('century', century);
+      appendLang(params, locale);
       return apiGet<GeoRegionRecord[]>(`/places/regions?${params}`, token);
     },
-    cities: (countryId: string, regionId?: string, century?: string, token?: string | null) => {
+    cities: (
+      countryId: string,
+      regionId?: string,
+      century?: string,
+      token?: string | null,
+      locale?: AppLocale | null,
+    ) => {
       const params = new URLSearchParams({ countryId });
       if (regionId) params.set('regionId', regionId);
       if (century) params.set('century', century);
+      appendLang(params, locale);
       return apiGet<GeoCityRecord[]>(`/places/cities?${params}`, token);
     },
-    search: (q: string, century?: string, token?: string | null) => {
+    search: (q: string, century?: string, token?: string | null, locale?: AppLocale | null) => {
       const params = new URLSearchParams({ q });
       if (century) params.set('century', century);
+      appendLang(params, locale);
       return apiGet<GeoSearchResult>(`/places/search?${params}`, token);
     },
     create: (input: unknown, token?: string | null) => apiPost<PlaceRecord>('/places', input, token),

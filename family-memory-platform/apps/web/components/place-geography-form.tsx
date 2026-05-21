@@ -10,6 +10,8 @@ import {
   type GeoCountryRecord,
   type GeoRegionRecord,
 } from '@/lib/api-client';
+import { useLocale, useTranslations } from 'next-intl';
+import type { AppLocale } from '@family/shared';
 import { CENTURY_OPTIONS, centuryToApiParam } from '@/lib/place-helpers';
 
 export type PlaceGeographyValue = {
@@ -34,6 +36,8 @@ type PlaceGeographyFormProps = {
 
 export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeographyFormProps) {
   const { session } = useAuth();
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('placePicker');
   const [countries, setCountries] = useState<GeoCountryRecord[]>([]);
   const [regions, setRegions] = useState<GeoRegionRecord[]>([]);
   const [cities, setCities] = useState<GeoCityRecord[]>([]);
@@ -52,7 +56,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         return;
       }
       try {
-        const list = await apiClient.places.countries(centuryApi, session?.accessToken);
+        const list = await apiClient.places.countries(centuryApi, session?.accessToken, locale);
         if (!cancelled) {
           setCountries(list);
           setLoadError('');
@@ -66,7 +70,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     return () => {
       cancelled = true;
     };
-  }, [value.century, centuryApi, session?.accessToken]);
+  }, [value.century, centuryApi, session?.accessToken, locale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +81,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         return;
       }
       try {
-        const list = await apiClient.places.regions(value.countryId, centuryApi, session?.accessToken);
+        const list = await apiClient.places.regions(value.countryId, centuryApi, session?.accessToken, locale);
         if (!cancelled) setRegions(list);
       } catch (error) {
         if (!cancelled) setLoadError(formatApiError(error));
@@ -88,7 +92,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     return () => {
       cancelled = true;
     };
-  }, [value.countryId, centuryApi, session?.accessToken]);
+  }, [value.countryId, centuryApi, session?.accessToken, locale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +108,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
           value.regionId || undefined,
           centuryApi,
           session?.accessToken,
+          locale,
         );
         if (!cancelled) setCities(list);
       } catch (error) {
@@ -115,7 +120,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     return () => {
       cancelled = true;
     };
-  }, [value.countryId, value.regionId, centuryApi, session?.accessToken]);
+  }, [value.countryId, value.regionId, centuryApi, session?.accessToken, locale]);
 
   useEffect(() => {
     const query = citySearch.trim();
@@ -127,7 +132,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const result = await apiClient.places.search(query, centuryApi, session?.accessToken);
+        const result = await apiClient.places.search(query, centuryApi, session?.accessToken, locale);
         if (!cancelled) setSearchHits(result.cities);
       } catch {
         if (!cancelled) setSearchHits([]);
@@ -138,7 +143,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [citySearch, value.countryId, centuryApi, session?.accessToken]);
+  }, [citySearch, value.countryId, centuryApi, session?.accessToken, locale]);
 
   const cityOptions = citySearch.trim().length >= 2 ? searchHits : cities;
 
@@ -215,7 +220,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <FormField label="Век">
+      <FormField label={t('century')}>
         <Select value={value.century} onChange={(event) => onCenturyChange(event.target.value)} disabled={disabled}>
           {CENTURY_OPTIONS.map((option) => (
             <option key={option.value || 'none'} value={option.value}>
@@ -225,13 +230,15 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         </Select>
       </FormField>
 
-      <FormField label="Страна (исторический период)">
+      <FormField label={t('countryHistorical')}>
         <Select
           value={value.countryId}
           onChange={(event) => onCountryChange(event.target.value)}
           disabled={disabled || !value.century || countries.length === 0}
         >
-          <option value="">{value.century ? 'Не выбрано' : 'Сначала выберите век'}</option>
+          <option value="">
+            {value.century ? t('notSelected') : t('selectCenturyFirst')}
+          </option>
           {countries.map((country) => (
             <option key={country.id} value={country.id}>
               {formatCountryLabel(country)}
@@ -243,29 +250,29 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         </Select>
       </FormField>
 
-      <FormField label="Регион">
+      <FormField label={t('region')}>
         <Select
           value={value.regionId}
           onChange={(event) => onRegionChange(event.target.value)}
           disabled={disabled || !value.countryId}
         >
-          <option value="">{value.countryId ? 'Не выбрано (опционально)' : 'Сначала выберите страну'}</option>
+          <option value="">
+            {value.countryId ? t('notSelectedOptional') : t('selectCountryFirst')}
+          </option>
           {regions.map((region) => (
             <option key={region.id} value={region.id}>
               {region.name}
             </option>
           ))}
         </Select>
-        <p className="mt-1 text-xs text-stone-500 dark:text-slate-400">
-          Губернии из seed — только демо-города. Для GeoNames оставьте «Не выбрано» или выберите регион вида «Moscow Oblast».
-        </p>
+        <p className="mt-1 text-xs text-stone-500 dark:text-slate-400">{t('historicalHint')}</p>
       </FormField>
 
-      <FormField label="Город" className="md:col-span-2">
+      <FormField label={t('city')} className="md:col-span-2">
         <Input
           value={citySearch}
           onChange={(event) => setCitySearch(event.target.value)}
-          placeholder="Поиск города (от 2 букв) или выберите из списка"
+          placeholder={t('citySearchPlaceholder')}
           disabled={disabled || !value.countryId}
         />
         <Select
@@ -274,7 +281,9 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
           onChange={(event) => onCityChange(event.target.value)}
           disabled={disabled || !value.countryId}
         >
-          <option value="">{value.countryId ? 'Не выбрано' : 'Сначала выберите страну'}</option>
+          <option value="">
+            {value.countryId ? t('notSelected') : t('selectCountryFirst')}
+          </option>
           {cityOptions.map((city) => (
             <option key={city.id} value={city.id}>
               {city.name}
@@ -285,16 +294,16 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         </Select>
         <p className="mt-1 text-xs text-stone-500 dark:text-slate-400">
           {value.countryId
-            ? `В списке до ${cities.length} крупных населённых пунктов. Поиск — по всей базе GeoNames.`
-            : 'Сначала выберите страну и век.'}
+            ? t('cityListHint', { count: cities.length })
+            : t('selectCountryAndCentury')}
         </p>
       </FormField>
 
-      <FormField label="Название места" className="md:col-span-2">
+      <FormField label={t('placeName')} className="md:col-span-2">
         <Input
           value={value.name}
           onChange={(event) => onChange({ ...value, name: event.target.value })}
-          placeholder="Например: Казань, центр"
+          placeholder={t('placeNamePlaceholder')}
           required
           disabled={disabled}
         />
@@ -302,35 +311,35 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
 
       {value.cityId ? (
         <div className="md:col-span-2 rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
-          <p className="font-semibold text-stone-700 dark:text-slate-200">Автозаполнение по справочнику</p>
+          <p className="font-semibold text-stone-700 dark:text-slate-200">{t('autofillTitle')}</p>
           <dl className="mt-2 grid gap-1 text-stone-600 dark:text-slate-300">
             {value.country ? (
               <div>
-                <dt className="inline font-medium">Страна: </dt>
+                <dt className="inline font-medium">{t('countryLabel')} </dt>
                 <dd className="inline">{value.country}</dd>
               </div>
             ) : null}
             {value.region ? (
               <div>
-                <dt className="inline font-medium">Регион: </dt>
+                <dt className="inline font-medium">{t('regionLabel')} </dt>
                 <dd className="inline">{value.region}</dd>
               </div>
             ) : null}
             {value.city ? (
               <div>
-                <dt className="inline font-medium">Город: </dt>
+                <dt className="inline font-medium">{t('cityLabel')} </dt>
                 <dd className="inline">{value.city}</dd>
               </div>
             ) : null}
             {value.historicalLabel ? (
               <div>
-                <dt className="inline font-medium">Исторические названия: </dt>
+                <dt className="inline font-medium">{t('historicalNamesLabel')} </dt>
                 <dd className="inline">{value.historicalLabel}</dd>
               </div>
             ) : null}
             {value.latitude != null && value.longitude != null ? (
               <div>
-                <dt className="inline font-medium">Координаты: </dt>
+                <dt className="inline font-medium">{t('coordinatesLabel')} </dt>
                 <dd className="inline">
                   {value.latitude.toFixed(4)}, {value.longitude.toFixed(4)}
                 </dd>

@@ -19,7 +19,8 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { admin1NameRu } from './lib/ru-admin1-names.mjs';
 import { countryNameRu } from './lib/ru-country-names.mjs';
-import { pickRussianName } from './lib/extract-russian-name.mjs';
+import { loadGeonamesRuNamesMap } from './lib/geonames-ru-names-map.mjs';
+import { resolveRussianPlaceName } from './lib/extract-russian-name.mjs';
 
 const srcDir = join(process.cwd(), 'cities');
 const outDir = join(process.cwd(), 'cities/ru');
@@ -36,8 +37,10 @@ async function prepareRuCities() {
     return;
   }
 
+  const ruNamesMap = await loadGeonamesRuNamesMap();
   let processed = 0;
   let withRu = 0;
+  let transliterated = 0;
   const out = createWriteStream(output, { encoding: 'utf8' });
   const rl = createInterface({ input: createReadStream(input, { encoding: 'utf8' }), crlfDelay: true });
 
@@ -49,9 +52,13 @@ async function prepareRuCities() {
       continue;
     }
 
+    const geonameId = Number.parseInt(parts[0], 10);
     const ascii = parts[1];
-    const ru = pickRussianName(ascii, parts[3]);
-    if (ru !== ascii) withRu += 1;
+    const ru = resolveRussianPlaceName(ascii, parts[3], geonameId, ruNamesMap);
+    if (ru !== ascii) {
+      withRu += 1;
+      if (!/[А-Яа-яЁё]/.test(ascii) && /[А-Яа-яЁё]/.test(ru)) transliterated += 1;
+    }
     parts[1] = ru;
     out.write(`${parts.join('\t')}\n`);
 
@@ -67,7 +74,9 @@ async function prepareRuCities() {
     out.on('error', reject);
   });
 
-  console.log(`RU.ru.txt готов: всего ${processed}, русских имён: ${withRu}`);
+  console.log(
+    `RU.ru.txt готов: всего ${processed}, кириллица: ${withRu}, из них транслит: ${transliterated}`,
+  );
 }
 
 function prepareAdmin1() {

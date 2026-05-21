@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useTheme } from '@/components/theme-provider';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -63,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <LocaleSwitcher />
               <Button variant="secondary" onClick={toggleTheme}>
                 {theme === 'dark' ? 'Светлая' : 'Тёмная'} тема
               </Button>

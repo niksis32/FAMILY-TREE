@@ -10,6 +10,9 @@
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { resolveRussianPlaceName } from './lib/extract-russian-name.mjs';
+import { loadGeonamesRuNamesMap } from './lib/geonames-ru-names-map.mjs';
+import { loadAdmin1Meta } from './lib/load-admin1-meta.mjs';
 import { loadRootEnv } from './lib/load-env.mjs';
 import { createPrismaClient } from './lib/prisma-client.mjs';
 
@@ -38,20 +41,9 @@ function parseArgs() {
 
 /** @param {string} filePath */
 function loadAdmin1Names(filePath) {
+  const meta = loadAdmin1Meta(filePath);
   const map = new Map();
-  if (!existsSync(filePath)) {
-    console.warn(`admin1CodesASCII.txt not found (${filePath}). Regions will use codes.`);
-    return map;
-  }
-
-  for (const line of readFileSync(filePath, 'utf8').split('\n')) {
-    if (!line || line.startsWith('#')) continue;
-    const parts = line.split('\t');
-    const key = parts[0]?.trim();
-    const name = parts[1]?.trim();
-    if (key && name) map.set(key, name);
-  }
-
+  for (const [key, value] of meta) map.set(key, value.name);
   console.log(`Loaded admin1 names: ${map.size}`);
   return map;
 }
@@ -72,8 +64,9 @@ function parseGeonamesCityLine(line) {
   const latitude = Number.parseFloat(parts[4]);
   const longitude = Number.parseFloat(parts[5]);
   const timezone = parts[17] || null;
+  const alternatenames = parts[3] || '';
 
-  return { geonamesId, name, countryCode, admin1Code, population, latitude, longitude, timezone };
+  return { geonamesId, name, alternatenames, countryCode, admin1Code, population, latitude, longitude, timezone };
 }
 
 async function resolveCountryIdForImport(iso2, cache) {
@@ -81,8 +74,9 @@ async function resolveCountryIdForImport(iso2, cache) {
 
   const related = await prisma.country.findMany({ where: { iso2 }, orderBy: { periodFrom: 'asc' } });
   const preferred =
+    related.find((c) => c.id === 'geo-country-ru') ??
+    related.find((c) => c.id.startsWith('geo-geonames-country-')) ??
     related.find((c) => c.id === 'geo-country-ru-empire') ??
-    related.find((c) => c.name.toLowerCase().includes('империя')) ??
     related[0];
 
   if (preferred) {
@@ -104,22 +98,31 @@ async function resolveCountryIdForImport(iso2, cache) {
   return created.id;
 }
 
-async function ensureRegion(countryId, iso2, admin1Code, admin1Names, cache) {
+async function ensureRegion(countryId, iso2, admin1Code, admin1Names, admin1Meta, cache) {
   if (!admin1Code) return null;
 
   const mapKey = `${iso2}.${admin1Code}`;
   if (cache.has(mapKey)) return cache.get(mapKey);
 
   const regionId = `geo-geonames-region-${iso2.toLowerCase()}-${admin1Code}`;
-  const regionName = admin1Names.get(mapKey) ?? `Регион ${admin1Code}`;
+  const meta = admin1Meta.get(mapKey);
+  const regionName = admin1Names.get(mapKey) ?? meta?.name ?? `Регион ${admin1Code}`;
+  const geonamesId = meta?.geonamesId ?? null;
 
   await prisma.region.upsert({
     where: { id: regionId },
-    update: { name: regionName, countryId },
+    update: {
+      name: regionName,
+      countryId,
+      admin1Key: mapKey,
+      ...(geonamesId != null ? { geonamesId } : {}),
+    },
     create: {
       id: regionId,
       name: regionName,
       countryId,
+      admin1Key: mapKey,
+      geonamesId,
       periodFrom: null,
       periodTo: null,
     },
@@ -129,7 +132,7 @@ async function ensureRegion(countryId, iso2, admin1Code, admin1Names, cache) {
   return regionId;
 }
 
-async function importCities(filePath, countryFilter, minPopulation, admin1Names) {
+async function importCities(filePath, countryFilter, minPopulation, admin1Names, admin1Meta, ruNamesMap) {
   if (!existsSync(filePath)) {
     console.error(`File not found: ${filePath}`);
     process.exitCode = 1;
@@ -157,15 +160,18 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names)
       row.countryCode,
       row.admin1Code,
       admin1Names,
+      admin1Meta,
       regionCache,
     );
     const yearNow = new Date().getFullYear();
+
+    const displayName = resolveRussianPlaceName(row.name, row.alternatenames, row.geonamesId, ruNamesMap);
 
     try {
       await prisma.city.upsert({
         where: { geonamesId: row.geonamesId },
         update: {
-          name: row.name,
+          name: displayName,
           latitude: row.latitude,
           longitude: row.longitude,
           population: row.population || null,
@@ -177,7 +183,7 @@ async function importCities(filePath, countryFilter, minPopulation, admin1Names)
           id: `geo-geonames-city-${row.geonamesId}`,
           countryId,
           regionId,
-          name: row.name,
+          name: displayName,
           latitude: row.latitude,
           longitude: row.longitude,
           population: row.population || null,
@@ -202,8 +208,10 @@ async function main() {
   const admin1Path = existsSync(join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt'))
     ? join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt')
     : join(process.cwd(), 'cities/admin1CodesASCII.txt');
+  const admin1Meta = loadAdmin1Meta(admin1Path);
   const admin1Names = loadAdmin1Names(admin1Path);
-  await importCities(file, countryFilter, minPopulation, admin1Names);
+  const ruNamesMap = await loadGeonamesRuNamesMap();
+  await importCities(file, countryFilter, minPopulation, admin1Names, admin1Meta, ruNamesMap);
 }
 
 main()

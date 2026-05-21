@@ -28,3 +28,10 @@ export function periodOverlapFilter(yearFrom: number, yearTo: number) {
     ],
   };
 }
+
+/** Империя / СССР / РФ / GeoNames-RU — одна географическая зона для списков регионов и городов. */
+export const RU_GEO_ZONE_ISO2 = ['RU', 'SU'] as const;
+
+export function isRuGeoZone(iso2: string | null | undefined): boolean {
+  return iso2 != null && (RU_GEO_ZONE_ISO2 as readonly string[]).includes(iso2);
+}

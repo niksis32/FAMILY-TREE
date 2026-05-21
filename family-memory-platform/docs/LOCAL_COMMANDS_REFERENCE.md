@@ -758,3 +758,156 @@ curl -i -X OPTIONS "http://localhost:4000/api/v1/persons" \
 | `Unable to add filesystem: <illegal path>` | Нет | DevTools Chrome + проект на `/mnt/d/...` с пробелом в пути |
 | `favicon.ico 404` | Нет | Нет файла `apps/web/public/favicon.ico` |
 | `React DevTools` | Нет | Подсказка dev-режима Next.js |
+
+## Многоязычность: UI (next-intl) + география (GeographicName)
+
+Контекст:
+
+- UI-локали: `en`, `de`, `fr`, `es`, `ru` — URL с префиксом: `http://localhost:3000/ru/timeline`, `http://localhost:3000/de/dashboard`.
+- Переключатель языка в шапке меняет сегмент URL (`next-intl`).
+- Названия стран/регионов/городов в API: таблица `GeographicName`, импорт из `cities/alternateNamesV2/alternateNamesV2.txt`.
+- Регионы: `admin1CodesASCII.txt` (4-й столбец = `geonamesId`) → `Region.geonamesId` → переводы из alternateNamesV2.
+- **СССР в UI** (`iso2=SU`) — та же зона, что RU: иначе в списке только seed «Ленинградская область». Полный список: `pnpm geography:import:regions-admin1`.
+- Параметр API: `?lang=ru` (синхронизируется с локалью из URL на фронте).
+
+### Файлы данных (скачать с GeoNames, положить в репозиторий)
+
+| Файл | Назначение |
+|------|------------|
+| `cities/RU.txt` | населённые пункты РФ |
+| `cities/countryInfo.txt` | страны |
+| `cities/admin1CodesASCII.txt` | регионы (admin1) |
+| `cities/alternateNamesV2/alternateNamesV2.txt` | переводы названий (большой файл, ~часы импорта) |
+
+### Ubuntu / WSL: после `git pull` — зависимости Web (next-intl)
+
+Если Web не стартует (`next-intl` not found / SWC linux):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm install
+```
+
+Важно:
+
+- После добавления пакетов (например `next-intl`) **не** используйте `CI=true pnpm install --frozen-lockfile` — lockfile должен обновиться; иначе `ERR_PNPM_OUTDATED_LOCKFILE`.
+- Устанавливать **из Ubuntu/WSL**, не из Windows PowerShell (иначе нет `@next/swc-linux-x64-gnu`).
+- Если pnpm спрашивает «modules will be removed» — ответьте `Y` или: `pnpm install --config.confirmModulesPurge=false`.
+- Если ошибка `Unexpected store location` (WSL vs Windows store) — один раз из WSL: `pnpm install --no-frozen-lockfile` (не смешивать install из двух ОС подряд).
+
+### Ubuntu / WSL: миграции БД (география + регионы)
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm docker:infra
+pnpm db:migrate
+pnpm api:prisma
+```
+
+Ожидаемые миграции:
+
+- `20260522180000_geographic_i18n` — `GeographicName`
+- `20260523100000_region_geonames_id` — `Region.geonamesId`, `Region.admin1Key`
+
+### Ubuntu / WSL: полный цикл справочника + переводы (без ошибок)
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+
+# 1) Справочник RU + привязка geonamesId к регионам
+pnpm geography:import:multilang
+# внутри: seed → countries → ru-cities:rebuild → backfill:regions → import:i18n
+
+# 2) Если регионы уже были в БД до обновления — отдельно:
+pnpm geography:backfill:regions
+pnpm geography:import:i18n:regions
+```
+
+Пошагово (если что-то упало на середине):
+
+```bash
+pnpm geography:seed
+pnpm geography:import:countries
+pnpm geography:import:ru-cities:rebuild
+pnpm geography:backfill:regions
+pnpm geography:import:regions-admin1
+pnpm geography:import:i18n
+```
+
+`geography:import:regions-admin1` — все субъекты РФ из admin1 (~80+), не только те, где есть города с min population.
+
+`geography:import:i18n` импортирует **country + region + city**, только для `geonameId`, уже есть в БД.
+
+### Отдельные команды i18n
+
+```bash
+pnpm geography:backfill:regions
+pnpm geography:import:i18n
+pnpm geography:import:i18n:ru
+pnpm geography:import:i18n:cities
+pnpm geography:import:i18n:regions
+
+node scripts/geography/import-alternate-names-v2.mjs --locale=de
+node scripts/geography/import-alternate-names-v2.mjs --dry-run
+```
+
+Ожидаемый лог (каждые 500k строк):
+
+```text
+… 500,000 lines | matched 12345 | upserted 12000
+Done.
+```
+
+### Ubuntu / WSL: перезапуск API + Web
+
+```bash
+pkill -f "dist/main.js" 2>/dev/null || true
+pkill -f "next dev" 2>/dev/null || true
+
+pnpm api:prisma
+pnpm --filter @family/shared build
+pnpm api:build && pnpm api:start
+```
+
+Второй терминал:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm --filter @family/web dev
+```
+
+### Проверка
+
+```bash
+# API
+curl -s "http://localhost:4000/api/v1/places/search?q=Mosk&lang=ru" | head -c 400
+
+# Web (редирект на локаль по умолчанию en)
+curl -sI "http://localhost:3000/timeline" | head -5
+```
+
+В браузере:
+
+- `http://localhost:3000/en/timeline` — английский UI + названия из API
+- `http://localhost:3000/ru/timeline` — русский
+- Старые URL без префикса (`/timeline`) — middleware перенаправит на `/en/timeline`
+
+### Типичные ошибки
+
+| Симптом | Решение |
+|---------|---------|
+| `Environment variable not found: DATABASE_URL` | `pnpm docker:infra`, проверить `.env` в корне, `pnpm db:migrate` |
+| `EADDRINUSE :::4000` | `pkill -f "dist/main.js"` затем `pnpm api:start` |
+| `next-intl` / module not found | `pnpm install` из **WSL** |
+| Регионы на латинице | `pnpm geography:backfill:regions` затем `pnpm geography:import:i18n:regions` |
+| CORS на `:4000` | пересобрать и перезапустить API (см. раздел CORS выше) |
+
+### Ограничения (MVP)
+
+- Меню сайдбара («Люди», «Древо») пока частично на русском — словари в `apps/web/i18n/locales/*.json` дополняются постепенно.
+- Полный `alternateNamesV2.txt` очень большой; импорт 30–120+ минут.
+- `City.name` / `Region.name` в БД — канон; отображение — `GeographicName` + `?lang=`.

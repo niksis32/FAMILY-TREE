@@ -1,0 +1,35 @@
+{
+  "common": {
+    "language": "Язык",
+    "loading": "Загрузка…",
+    "error": "Произошла ошибка"
+  },
+  "placePicker": {
+    "century": "Век",
+    "country": "Страна / государство",
+    "countryHistorical": "Страна (исторический период)",
+    "region": "Регион",
+    "city": "Город",
+    "placeName": "Название места",
+    "placeNamePlaceholder": "Например: Казань, центр",
+    "citySearch": "Поиск города",
+    "citySearchPlaceholder": "Поиск города (от 2 букв) или выберите из списка",
+    "notSelected": "Не выбрано",
+    "notSelectedOptional": "Не выбрано (опционально)",
+    "selectCenturyFirst": "Сначала выберите век",
+    "selectCountryFirst": "Сначала выберите страну",
+    "historicalHint": "Губернии из seed — только демо-города. Для GeoNames оставьте «Не выбрано» или выберите регион вида «Moscow Oblast».",
+    "cityListHint": "В списке до {count} крупных населённых пунктов. Поиск — по всей базе GeoNames.",
+    "selectCountryAndCentury": "Сначала выберите страну и век.",
+    "autofillTitle": "Автозаполнение по справочнику",
+    "countryLabel": "Страна:",
+    "regionLabel": "Регион:",
+    "cityLabel": "Город:",
+    "coordinatesLabel": "Координаты:",
+    "historicalNamesLabel": "Исторические названия:"
+  },
+  "timeline": {
+    "aiSummaryDone": "ИИ выполнило краткое изложение",
+    "deathBadge": "Смерть"
+  }
+}

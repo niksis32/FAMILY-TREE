@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { AuthProvider } from '@/components/auth-provider';
-import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,14 +6,7 @@ export const metadata: Metadata = {
   description: 'Self-hosted family tree, media archive, and timeline',
 };
 
+/** Locale segment supplies `<html lang>` — see `app/[locale]/layout.tsx`. */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="ru" suppressHydrationWarning>
-      <body>
-        <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+  return children;
 }

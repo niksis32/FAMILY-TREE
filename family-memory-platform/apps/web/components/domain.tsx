@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import type { PersonSummary, RelationshipType } from '@family/shared';
 import { Badge, Button, Card, Input, Select, Textarea } from '@/components/ui';
 import type { DocumentItem, FamilySummary, MediaItem, PrivacyLevel, TimelineEvent } from '@/lib/mock-data';

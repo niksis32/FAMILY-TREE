@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, FormField, Input, PageHeader, Select, Textarea } from '@/components/ui';

@@ -284,8 +284,10 @@ model Region {
   id         String   @id @default(cuid())
   countryId  String
   name       String
+  admin1Key  String?
   periodFrom Int?
   periodTo   Int?
+  geonamesId Int?     @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -296,6 +298,7 @@ model Region {
   @@index([countryId])
   @@index([periodFrom, periodTo])
   @@index([name])
+  @@index([admin1Key])
 }
 
 model City {
@@ -338,6 +341,29 @@ model HistoricalPlaceAlias {
 
   @@index([cityId])
   @@index([oldName])
+}
+
+/// Localized display names (GeoNames alternateNamesV2: en, de, fr, es, ru).
+enum GeoEntityType {
+  COUNTRY
+  REGION
+  CITY
+}
+
+model GeographicName {
+  id          String        @id @default(cuid())
+  entityType  GeoEntityType
+  entityId    String
+  locale      String
+  name        String
+  isPreferred Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([entityType, entityId, locale])
+  @@index([entityType, entityId])
+  @@index([locale, name])
+  @@index([entityType, locale, name])
 }
 
 // --- Media & documents ---

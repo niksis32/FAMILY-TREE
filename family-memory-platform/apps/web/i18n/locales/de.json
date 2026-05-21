@@ -1,0 +1,35 @@
+{
+  "common": {
+    "language": "Sprache",
+    "loading": "Laden…",
+    "error": "Ein Fehler ist aufgetreten"
+  },
+  "placePicker": {
+    "century": "Jahrhundert",
+    "country": "Land / Staat",
+    "countryHistorical": "Land (historischer Zeitraum)",
+    "region": "Region",
+    "city": "Ort",
+    "placeName": "Ortsname",
+    "placeNamePlaceholder": "z. B. Kasan, Stadtzentrum",
+    "citySearch": "Stadt suchen",
+    "citySearchPlaceholder": "Stadt suchen (mind. 2 Zeichen) oder aus Liste wählen",
+    "notSelected": "Nicht ausgewählt",
+    "notSelectedOptional": "Nicht ausgewählt (optional)",
+    "selectCenturyFirst": "Zuerst Jahrhundert wählen",
+    "selectCountryFirst": "Zuerst Land wählen",
+    "historicalHint": "Seed-Gouvernements nur mit Demo-Städten. Für GeoNames leer lassen oder Region wie «Moscow Oblast».",
+    "cityListHint": "Bis zu {count} große Orte in der Liste. Suche durchsucht alle GeoNames-Daten.",
+    "selectCountryAndCentury": "Zuerst Land und Jahrhundert wählen.",
+    "autofillTitle": "Aus Referenzdaten übernommen",
+    "countryLabel": "Land:",
+    "regionLabel": "Region:",
+    "cityLabel": "Ort:",
+    "coordinatesLabel": "Koordinaten:",
+    "historicalNamesLabel": "Historische Namen:"
+  },
+  "timeline": {
+    "aiSummaryDone": "KI-Zusammenfassung erstellt",
+    "deathBadge": "Tod"
+  }
+}

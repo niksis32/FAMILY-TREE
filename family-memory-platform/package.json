@@ -37,7 +37,14 @@
     "geography:import:local": "pnpm geography:prepare:ru && pnpm geography:import:ru-full",
     "geography:import:geonames": "node scripts/geography/import-geonames.mjs",
     "geography:import:wikidata": "node scripts/geography/import-wikidata.mjs",
-    "geography:import:osm": "node scripts/geography/import-osm.mjs"
+    "geography:import:osm": "node scripts/geography/import-osm.mjs",
+    "geography:backfill:regions": "node scripts/geography/backfill-region-geonames.mjs",
+    "geography:import:regions-admin1": "node scripts/geography/import-regions-admin1.mjs --country=RU",
+    "geography:import:i18n": "node scripts/geography/import-alternate-names-v2.mjs",
+    "geography:import:i18n:ru": "node scripts/geography/import-alternate-names-v2.mjs --locale=ru",
+    "geography:import:i18n:cities": "node scripts/geography/import-alternate-names-v2.mjs --entity=city",
+    "geography:import:i18n:regions": "node scripts/geography/import-alternate-names-v2.mjs --entity=region",
+    "geography:import:multilang": "pnpm geography:import:ru-full && pnpm geography:import:regions-admin1 && pnpm geography:backfill:regions && pnpm geography:import:i18n"
   },
   "engines": {
     "node": ">=20.0.0",

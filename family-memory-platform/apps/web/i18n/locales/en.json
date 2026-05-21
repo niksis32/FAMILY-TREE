@@ -1,0 +1,35 @@
+{
+  "common": {
+    "language": "Language",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  },
+  "placePicker": {
+    "century": "Century",
+    "country": "Country / state",
+    "countryHistorical": "Country (historical period)",
+    "region": "Region",
+    "city": "City",
+    "placeName": "Place name",
+    "placeNamePlaceholder": "e.g. Kazan, city center",
+    "citySearch": "Search city",
+    "citySearchPlaceholder": "Search city (2+ letters) or pick from list",
+    "notSelected": "Not selected",
+    "notSelectedOptional": "Not selected (optional)",
+    "selectCenturyFirst": "Select century first",
+    "selectCountryFirst": "Select country first",
+    "historicalHint": "Seed governorates only include demo cities. For GeoNames leave empty or pick a region like «Moscow Oblast».",
+    "cityListHint": "Up to {count} major settlements in list. Search scans full GeoNames data.",
+    "selectCountryAndCentury": "Select country and century first.",
+    "autofillTitle": "Filled from reference data",
+    "countryLabel": "Country:",
+    "regionLabel": "Region:",
+    "cityLabel": "City:",
+    "coordinatesLabel": "Coordinates:",
+    "historicalNamesLabel": "Historical names:"
+  },
+  "timeline": {
+    "aiSummaryDone": "AI summary generated",
+    "deathBadge": "Death"
+  }
+}
