@@ -1,5 +1,17 @@
 import type { PlaceRecord } from '@/lib/api-client';
 
+/** Roman century label → API query param (19, 20, …). */
+export function centuryToApiParam(century: string): string | undefined {
+  if (!century.trim()) return undefined;
+  const map: Record<string, string> = {
+    XVIII: '18',
+    XIX: '19',
+    XX: '20',
+    XXI: '21',
+  };
+  return map[century.trim().toUpperCase()] ?? century.trim();
+}
+
 export const CENTURY_OPTIONS = [
   { value: '', label: 'Век не указан' },
   { value: 'XVIII', label: 'XVIII век (1701–1800)' },
@@ -18,6 +30,18 @@ export const DEFAULT_COUNTRIES = [
   'США',
   'Израиль',
 ] as const;
+
+/** Города по умолчанию, если в БД ещё нет мест с city для страны. */
+export const DEFAULT_CITIES_BY_COUNTRY: Record<string, string[]> = {
+  Россия: ['Москва', 'Санкт-Петербург', 'Казань', 'Новосибирск', 'Екатеринбург', 'Самара', 'Уфа'],
+  Казахстан: ['Алматы', 'Астана', 'Шымкент', 'Караганда'],
+  Украина: ['Киев', 'Харьков', 'Одесса', 'Львов', 'Днепр'],
+  Беларусь: ['Минск', 'Гомель', 'Брест', 'Витебск'],
+  Германия: ['Берлин', 'Мюнхен', 'Гамбург', 'Кёльн'],
+  Польша: ['Варшава', 'Краков', 'Гданьск', 'Вроцлав'],
+  США: ['Нью-Йорк', 'Лос-Анджелес', 'Чикаго', 'Хьюстон'],
+  Израиль: ['Тель-Авив', 'Иерусалим', 'Хайфа', 'Беэр-Шева'],
+};
 
 /** Убирает суффикс «(XIX век)» для сравнения стран. */
 export function baseCountryName(country?: string | null) {
@@ -78,22 +102,32 @@ function extractCenturyFromCountry(country?: string | null) {
 
 export function citiesForCountry(places: PlaceRecord[], countryPeriod: string) {
   const base = baseCountryName(countryPeriod);
-  const century = extractCenturyFromCountry(countryPeriod);
+  if (!base) return [];
 
+  const century = extractCenturyFromCountry(countryPeriod);
   const cities = new Set<string>();
+
   for (const place of places) {
-    if (!place.city) continue;
+    if (!place.city?.trim()) continue;
     if (baseCountryName(place.country) !== base) continue;
-    if (century) {
-      const placeCentury = extractCenturyFromCountry(place.country);
-      if (placeCentury && placeCentury !== century) continue;
-    }
-    cities.add(place.city);
+
+    const placeCentury = extractCenturyFromCountry(place.country);
+    if (placeCentury && century && placeCentury !== century) continue;
+
+    cities.add(place.city.trim());
   }
+
+  for (const city of DEFAULT_CITIES_BY_COUNTRY[base] ?? []) {
+    cities.add(city);
+  }
+
   return [...cities].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
 export function formatPlaceOption(place: PlaceRecord) {
-  const parts = [place.name, place.country, place.city].filter(Boolean);
+  const country = place.geoCountry?.name ?? place.country;
+  const region = place.geoRegion?.name ?? place.region;
+  const city = place.geoCity?.name ?? place.city;
+  const parts = [place.name, country, region, city].filter(Boolean);
   return parts.join(' · ');
 }

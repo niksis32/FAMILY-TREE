@@ -88,7 +88,13 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   );
 }
 
-export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'gold' | 'green' | 'blue' | 'red' }) {
+export function Badge({
+  children,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  tone?: 'neutral' | 'gold' | 'green' | 'blue' | 'red' | 'muted';
+}) {
   return (
     <span
       className={cn(
@@ -98,6 +104,7 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
         tone === 'green' && 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200',
         tone === 'blue' && 'border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-200',
         tone === 'red' && 'border-rose-300 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200',
+        tone === 'muted' && 'border-stone-400 bg-stone-200 text-stone-700 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300',
       )}
     >
       {children}

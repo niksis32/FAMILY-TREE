@@ -141,9 +141,64 @@ export interface EventRecord {
 export interface PlaceRecord {
   id: string;
   name: string;
+  latitude?: number | null;
+  longitude?: number | null;
   country?: string | null;
   region?: string | null;
   city?: string | null;
+  geoCountryId?: string | null;
+  geoRegionId?: string | null;
+  geoCityId?: string | null;
+  geoCountry?: { id: string; name: string; historicalName?: string | null } | null;
+  geoRegion?: { id: string; name: string } | null;
+  geoCity?: { id: string; name: string; historicalName?: string | null } | null;
+}
+
+export interface GeoCountryRecord {
+  id: string;
+  name: string;
+  historicalName?: string | null;
+  iso2?: string | null;
+  iso3?: string | null;
+  periodFrom?: number | null;
+  periodTo?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  geonamesId?: number | null;
+  wikidataId?: string | null;
+}
+
+export interface GeoRegionRecord {
+  id: string;
+  countryId: string;
+  name: string;
+  periodFrom?: number | null;
+  periodTo?: number | null;
+}
+
+export interface GeoCityRecord {
+  id: string;
+  countryId: string;
+  regionId?: string | null;
+  name: string;
+  historicalName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  population?: number | null;
+  timezone?: string | null;
+  periodFrom?: number | null;
+  periodTo?: number | null;
+  geonamesId?: number | null;
+  wikidataId?: string | null;
+  aliases?: { id: string; oldName: string; fromYear?: number | null; toYear?: number | null }[];
+  country?: { id: string; name: string; historicalName?: string | null; iso2?: string | null };
+  region?: { id: string; name: string } | null;
+}
+
+export interface GeoSearchResult {
+  countries: GeoCountryRecord[];
+  regions: (GeoRegionRecord & { country?: { id: string; name: string } })[];
+  cities: GeoCityRecord[];
 }
 
 export interface DocumentRecord {
@@ -329,6 +384,26 @@ export const apiClient = {
   },
   places: {
     list: (token?: string | null) => apiGet<PlaceRecord[]>('/places', token),
+    countries: (century?: string, token?: string | null) => {
+      const query = century ? `?century=${encodeURIComponent(century)}` : '';
+      return apiGet<GeoCountryRecord[]>(`/places/countries${query}`, token);
+    },
+    regions: (countryId: string, century?: string, token?: string | null) => {
+      const params = new URLSearchParams({ countryId });
+      if (century) params.set('century', century);
+      return apiGet<GeoRegionRecord[]>(`/places/regions?${params}`, token);
+    },
+    cities: (countryId: string, regionId?: string, century?: string, token?: string | null) => {
+      const params = new URLSearchParams({ countryId });
+      if (regionId) params.set('regionId', regionId);
+      if (century) params.set('century', century);
+      return apiGet<GeoCityRecord[]>(`/places/cities?${params}`, token);
+    },
+    search: (q: string, century?: string, token?: string | null) => {
+      const params = new URLSearchParams({ q });
+      if (century) params.set('century', century);
+      return apiGet<GeoSearchResult>(`/places/search?${params}`, token);
+    },
     create: (input: unknown, token?: string | null) => apiPost<PlaceRecord>('/places', input, token),
     remove: (id: string, token?: string | null) => apiDelete<PlaceRecord>(`/places/${id}`, token),
   },

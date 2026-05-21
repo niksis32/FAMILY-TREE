@@ -100,15 +100,30 @@ export class SearchService {
   }
 
   async indexPlace(placeId: string) {
-    const place = await this.prisma.place.findFirst({ where: { id: placeId, deletedAt: null } });
+    const place = await this.prisma.place.findFirst({
+      where: { id: placeId, deletedAt: null },
+      include: {
+        geoCountry: { select: { name: true, historicalName: true } },
+        geoRegion: { select: { name: true } },
+        geoCity: { select: { name: true, historicalName: true } },
+      },
+    });
     if (!place) return null;
+
+    const geoParts = [
+      place.geoCountry?.name,
+      place.geoCountry?.historicalName,
+      place.geoRegion?.name,
+      place.geoCity?.name,
+      place.geoCity?.historicalName,
+    ].filter(Boolean);
 
     const document: SearchDocument = {
       id: `place:${place.id}`,
       category: 'places',
       entityId: place.id,
       title: place.name,
-      text: [place.country, place.region, place.city].filter(Boolean).join(', '),
+      text: [...geoParts, place.country, place.region, place.city].filter(Boolean).join(', '),
       tags: ['place'],
     };
 

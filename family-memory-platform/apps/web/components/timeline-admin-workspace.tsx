@@ -6,10 +6,15 @@ import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/
 import { apiClient, formatApiError, type EventRecord, type FamilyRecord, type PlaceRecord } from '@/lib/api-client';
 import { API_EVENT_TYPE_OPTIONS, apiEventTypeLabel } from '@/lib/event-type-labels';
 import { formatPersonLabel } from '@/lib/person-display';
-import { buildCountryPeriodOptions, CENTURY_OPTIONS, citiesForCountry, formatPlaceOption } from '@/lib/place-helpers';
+import { PlaceGeographyForm, type PlaceGeographyValue } from '@/components/place-geography-form';
+import { formatPlaceOption } from '@/lib/place-helpers';
 import type { PersonSummary } from '@family/shared';
 
-export function TimelineAdminWorkspace() {
+type TimelineAdminWorkspaceProps = {
+  activePersonId?: string;
+};
+
+export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWorkspaceProps) {
   const { session } = useAuth();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
@@ -23,12 +28,14 @@ export function TimelineAdminWorkspace() {
     placeId: '',
     description: '',
   });
-  const [placeForm, setPlaceForm] = useState({
-    name: '',
+  const emptyGeoForm = (): PlaceGeographyValue => ({
     century: '',
-    countryPeriod: '',
-    city: '',
+    countryId: '',
+    regionId: '',
+    cityId: '',
+    name: '',
   });
+  const [placeForm, setPlaceForm] = useState<PlaceGeographyValue>(emptyGeoForm);
   const [status, setStatus] = useState('Загружаем события и места...');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -40,16 +47,6 @@ export function TimelineAdminWorkspace() {
     }
     return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
   }, [persons]);
-
-  const countryPeriodOptions = useMemo(
-    () => buildCountryPeriodOptions(places, placeForm.century),
-    [places, placeForm.century],
-  );
-
-  const cityOptions = useMemo(
-    () => citiesForCountry(places, placeForm.countryPeriod),
-    [places, placeForm.countryPeriod],
-  );
 
   async function load() {
     try {
@@ -74,6 +71,11 @@ export function TimelineAdminWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken]);
 
+  useEffect(() => {
+    if (!activePersonId) return;
+    setEventForm((current) => ({ ...current, personId: activePersonId }));
+  }, [activePersonId]);
+
   async function createEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
@@ -89,7 +91,14 @@ export function TimelineAdminWorkspace() {
         },
         session?.accessToken,
       );
-      setEventForm({ type: 'BIRTH', date: '', personId: '', familyId: '', placeId: '', description: '' });
+      setEventForm({
+        type: 'BIRTH',
+        date: '',
+        personId: activePersonId || '',
+        familyId: '',
+        placeId: '',
+        description: '',
+      });
       await load();
       setStatus('Событие создано');
     } catch (error) {
@@ -103,16 +112,21 @@ export function TimelineAdminWorkspace() {
     event.preventDefault();
     setIsSaving(true);
     try {
-      const countryStored = placeForm.countryPeriod || undefined;
       await apiClient.places.create(
         {
           name: placeForm.name,
-          country: countryStored,
-          city: placeForm.city || undefined,
+          latitude: placeForm.latitude,
+          longitude: placeForm.longitude,
+          country: placeForm.country,
+          region: placeForm.region,
+          city: placeForm.city,
+          geoCountryId: placeForm.countryId || undefined,
+          geoRegionId: placeForm.regionId || undefined,
+          geoCityId: placeForm.cityId || undefined,
         },
         session?.accessToken,
       );
-      setPlaceForm({ name: '', century: '', countryPeriod: '', city: '' });
+      setPlaceForm(emptyGeoForm());
       await load();
       setStatus('Место создано и отправлено на индексацию поиска');
     } catch (error) {
@@ -120,23 +134,6 @@ export function TimelineAdminWorkspace() {
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function onCenturyChange(century: string) {
-    setPlaceForm((current) => ({
-      ...current,
-      century,
-      countryPeriod: '',
-      city: '',
-    }));
-  }
-
-  function onCountryPeriodChange(countryPeriod: string) {
-    setPlaceForm((current) => ({
-      ...current,
-      countryPeriod,
-      city: '',
-    }));
   }
 
   return (
@@ -210,60 +207,9 @@ export function TimelineAdminWorkspace() {
 
         <Card>
           <h2 className="text-xl font-semibold">Место</h2>
-          <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={createPlace}>
-            <FormField label="Название" className="md:col-span-2">
-              <Input
-                value={placeForm.name}
-                onChange={(event) => setPlaceForm({ ...placeForm, name: event.target.value })}
-                placeholder="Например: Казань, центр"
-                required
-              />
-            </FormField>
-            <FormField label="Век">
-              <Select value={placeForm.century} onChange={(event) => onCenturyChange(event.target.value)}>
-                {CENTURY_OPTIONS.map((option) => (
-                  <option key={option.value || 'none'} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Страна (с периодом)">
-              <Select
-                value={placeForm.countryPeriod}
-                onChange={(event) => onCountryPeriodChange(event.target.value)}
-                disabled={countryPeriodOptions.length === 0}
-              >
-                <option value="">Не выбрано</option>
-                {countryPeriodOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Город" className="md:col-span-2">
-              <Select
-                value={placeForm.city}
-                onChange={(event) => setPlaceForm({ ...placeForm, city: event.target.value })}
-                disabled={!placeForm.countryPeriod}
-              >
-                <option value="">{placeForm.countryPeriod ? 'Не выбрано или новый город' : 'Сначала выберите страну'}</option>
-                {cityOptions.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </Select>
-              <Input
-                className="mt-2"
-                value={placeForm.city}
-                onChange={(event) => setPlaceForm({ ...placeForm, city: event.target.value })}
-                placeholder="Или введите новый город"
-                disabled={!placeForm.countryPeriod}
-              />
-            </FormField>
-            <Button className="md:col-span-2" disabled={isSaving || !session} type="submit">
+          <form className="mt-5" onSubmit={createPlace}>
+            <PlaceGeographyForm value={placeForm} onChange={setPlaceForm} disabled={isSaving || !session} />
+            <Button className="mt-4 w-full" disabled={isSaving || !session || !placeForm.name.trim()} type="submit">
               Создать место
             </Button>
           </form>

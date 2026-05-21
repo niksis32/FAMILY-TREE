@@ -27,7 +27,11 @@ const emptyTimeline: PersonTimelineResponse = {
   events: [],
 };
 
-export function TimelineView() {
+type TimelineViewProps = {
+  onActivePersonChange?: (personId: string) => void;
+};
+
+export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
   const { session } = useAuth();
   const [persons, setPersons] = useState<PersonSummary[]>([]);
   const [personId, setPersonId] = useState('');
@@ -81,6 +85,10 @@ export function TimelineView() {
       cancelled = true;
     };
   }, [personId, session?.accessToken]);
+
+  useEffect(() => {
+    onActivePersonChange?.(personId);
+  }, [personId, onActivePersonChange]);
 
   const visibleEvents = useMemo(() => {
     if (selectedTypes.size === 0) return timeline.events;
@@ -162,13 +170,15 @@ export function TimelineView() {
 }
 
 function TimelineCard({ event }: { event: TimelineEntry }) {
+  const typeBadgeTone = event.type === 'death' ? 'muted' : 'blue';
+
   return (
     <div className="relative pl-14">
       <div className="absolute left-2 top-2 h-6 w-6 rounded-full border-4 border-white bg-family-accent shadow dark:border-slate-950" />
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone="gold">{formatDateRange(event.dateFrom, event.dateTo)}</Badge>
-          <Badge tone="blue">{labels[event.type]}</Badge>
+          <Badge tone={typeBadgeTone}>{labels[event.type]}</Badge>
           {event.place ? <Badge>{event.place}</Badge> : null}
         </div>
         <h3 className="mt-4 text-lg font-semibold">{event.title}</h3>
@@ -180,7 +190,7 @@ function TimelineCard({ event }: { event: TimelineEntry }) {
         </div>
 
         <p className="mt-5 rounded-2xl border bg-stone-50 p-3 text-xs text-stone-500 dark:bg-slate-950 dark:text-slate-400">
-          AI summary ready: {event.aiSummaryInput.text.slice(0, 120)}
+          ИИ выполнило краткое изложение: {formatAiSummaryText(event.aiSummaryInput.text).slice(0, 160)}
         </p>
       </Card>
     </div>
@@ -217,4 +227,8 @@ function formatDateRange(dateFrom?: string | null, dateTo?: string | null) {
 function formatDate(value?: string | null) {
   if (!value) return 'без даты';
   return new Intl.DateTimeFormat('ru-RU', { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(value));
+}
+
+function formatAiSummaryText(text: string) {
+  return text.replace(/(\d{4}-\d{2}-\d{2})T[\d:.]+Z?/gi, '$1');
 }

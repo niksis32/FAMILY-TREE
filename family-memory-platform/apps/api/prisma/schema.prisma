@@ -234,15 +234,110 @@ model Place {
   country   String?
   region    String?
   city      String?
+  geoCountryId String?
+  geoRegionId  String?
+  geoCityId    String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  events Event[]
+  geoCountry Country? @relation(fields: [geoCountryId], references: [id], onDelete: SetNull)
+  geoRegion  Region?  @relation(fields: [geoRegionId], references: [id], onDelete: SetNull)
+  geoCity    City?    @relation(fields: [geoCityId], references: [id], onDelete: SetNull)
+  events     Event[]
 
   @@index([country, region, city])
+  @@index([geoCountryId])
+  @@index([geoRegionId])
+  @@index([geoCityId])
   @@index([name])
   @@index([deletedAt])
+}
+
+// --- Historical geography (local reference data) ---
+
+model Country {
+  id             String   @id @default(cuid())
+  name           String
+  historicalName String?
+  iso2           String?
+  iso3           String?
+  periodFrom     Int?
+  periodTo       Int?
+  latitude       Float?
+  longitude      Float?
+  geonamesId     Int?     @unique
+  wikidataId     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  regions Region[]
+  cities  City[]
+  places  Place[]
+
+  @@index([periodFrom, periodTo])
+  @@index([iso2])
+  @@index([name])
+}
+
+model Region {
+  id         String   @id @default(cuid())
+  countryId  String
+  name       String
+  periodFrom Int?
+  periodTo   Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities  City[]
+  places  Place[]
+
+  @@index([countryId])
+  @@index([periodFrom, periodTo])
+  @@index([name])
+}
+
+model City {
+  id             String   @id @default(cuid())
+  countryId      String
+  regionId       String?
+  name           String
+  historicalName String?
+  latitude       Float?
+  longitude      Float?
+  population     Int?
+  timezone       String?
+  periodFrom     Int?
+  periodTo       Int?
+  geonamesId     Int?     @unique
+  wikidataId     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  country Country              @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  region  Region?              @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  aliases HistoricalPlaceAlias[]
+  places  Place[]
+
+  @@index([countryId])
+  @@index([regionId])
+  @@index([periodFrom, periodTo])
+  @@index([name])
+}
+
+model HistoricalPlaceAlias {
+  id       String   @id @default(cuid())
+  cityId   String
+  oldName  String
+  fromYear Int?
+  toYear   Int?
+  createdAt DateTime @default(now())
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId])
+  @@index([oldName])
 }
 
 // --- Media & documents ---

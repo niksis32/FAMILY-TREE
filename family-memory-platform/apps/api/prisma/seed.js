@@ -3,6 +3,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
+  const { loadGeographySeed } = await import('../../../scripts/geography/seed-loader.mjs');
+  const geoCounts = await loadGeographySeed(prisma);
+  console.log('Geography seed:', geoCounts);
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.local' },
     update: {

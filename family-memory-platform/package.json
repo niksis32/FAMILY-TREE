@@ -26,7 +26,18 @@
     "db:generate": "node scripts/prisma-cli.mjs generate",
     "db:migrate": "node scripts/prisma-cli.mjs migrate dev",
     "db:seed": "node scripts/prisma-cli.mjs db seed",
-    "db:studio": "node scripts/prisma-cli.mjs studio"
+    "db:studio": "node scripts/prisma-cli.mjs studio",
+    "geography:seed": "node scripts/geography/seed-loader.mjs",
+    "seed:geo": "pnpm geography:seed",
+    "geography:prepare:ru": "node scripts/geography/prepare-russian-geodata.mjs",
+    "geography:import:countries": "node scripts/geography/import-countries.mjs",
+    "geography:import:ru-cities": "node scripts/geography/import-geonames.mjs --country=RU",
+    "geography:import:ru-cities:rebuild": "node scripts/geography/import-geonames.mjs --country=RU --min-population=1000",
+    "geography:import:ru-full": "pnpm geography:seed && pnpm geography:import:countries && pnpm geography:import:ru-cities:rebuild",
+    "geography:import:local": "pnpm geography:prepare:ru && pnpm geography:import:ru-full",
+    "geography:import:geonames": "node scripts/geography/import-geonames.mjs",
+    "geography:import:wikidata": "node scripts/geography/import-wikidata.mjs",
+    "geography:import:osm": "node scripts/geography/import-osm.mjs"
   },
   "engines": {
     "node": ">=20.0.0",
