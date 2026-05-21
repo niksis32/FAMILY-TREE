@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { Badge, Button, Card, Input } from '@/components/ui';
-import { apiClient, type PersonTimelineResponse, type TimelineEntry, type TimelineEventType } from '@/lib/api-client';
+import { Badge, Button, Card, EmptyState, FormField, Select } from '@/components/ui';
+import { apiClient, formatApiError, type PersonTimelineResponse, type TimelineEntry, type TimelineEventType } from '@/lib/api-client';
+import { formatPersonLabel } from '@/lib/person-display';
+import type { PersonSummary } from '@family/shared';
 
 const labels: Record<TimelineEventType, string> = {
   birth: 'Рождение',
@@ -17,64 +19,58 @@ const labels: Record<TimelineEventType, string> = {
   custom: 'Другое',
 };
 
-const fallbackTimeline: PersonTimelineResponse = {
-  personId: 'p3',
-  personName: 'Елена Орлова',
-  availableTypes: ['birth', 'marriage', 'migration', 'education', 'military', 'work', 'custom'],
-  events: [
-    {
-      id: 'demo-birth',
-      type: 'birth',
-      title: 'Рождение',
-      description: 'Первая запись в timeline человека.',
-      dateFrom: '1984-02-20T00:00:00.000Z',
-      dateTo: null,
-      sortDate: '1984-02-20T00:00:00.000Z',
-      place: 'Казань',
-      relatedDocuments: [{ id: 'd1', title: 'Свидетельство о рождении', type: 'document', mimeType: 'application/pdf' }],
-      relatedMedia: [],
-      aiSummaryInput: { personId: 'p3', eventType: 'birth', text: 'Рождение\nКазань\n1984' },
-    },
-    {
-      id: 'demo-migration',
-      type: 'migration',
-      title: 'Переезд семьи',
-      description: 'Смена города и новая ветка семейной истории.',
-      dateFrom: '2002-01-01T00:00:00.000Z',
-      dateTo: '2003-01-01T00:00:00.000Z',
-      sortDate: '2002-01-01T00:00:00.000Z',
-      place: 'Москва',
-      relatedDocuments: [],
-      relatedMedia: [{ id: 'm1', title: 'Семейный альбом 2000-х', type: 'media', mimeType: 'image/jpeg' }],
-      aiSummaryInput: { personId: 'p3', eventType: 'migration', text: 'Переезд семьи\nМосква\n2002' },
-    },
-  ],
+const emptyTimeline: PersonTimelineResponse = {
+  personId: '',
+  personName: '',
+  availableTypes: [],
+  events: [],
 };
 
 export function TimelineView() {
   const { session } = useAuth();
-  const [personId, setPersonId] = useState('p3');
+  const [persons, setPersons] = useState<PersonSummary[]>([]);
+  const [personId, setPersonId] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Set<TimelineEventType>>(new Set());
-  const [timeline, setTimeline] = useState<PersonTimelineResponse>(fallbackTimeline);
-  const [status, setStatus] = useState('Demo timeline loaded. Укажите реальный Person ID для данных из API.');
+  const [timeline, setTimeline] = useState<PersonTimelineResponse>(emptyTimeline);
+  const [status, setStatus] = useState('Выберите персону для загрузки хронологии.');
+
+  useEffect(() => {
+    async function loadPersons() {
+      try {
+        const list = await apiClient.persons.list(session?.accessToken);
+        setPersons(list);
+        if (list.length > 0 && !personId) {
+          setPersonId(list[0].id);
+        }
+      } catch (error) {
+        setStatus(formatApiError(error));
+      }
+    }
+    void loadPersons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.accessToken]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadTimeline() {
-      if (!personId.trim()) return;
-      setStatus('Загружаем timeline из backend...');
+      if (!personId.trim()) {
+        setTimeline(emptyTimeline);
+        setStatus('Выберите персону.');
+        return;
+      }
+      setStatus('Загружаем хронологию жизни...');
 
       try {
         const data = await apiClient.timeline.person(personId.trim(), session?.accessToken);
         if (cancelled) return;
         setTimeline(data);
         setSelectedTypes(new Set());
-        setStatus(`Загружено событий: ${data.events.length}`);
+        setStatus(`Событий: ${data.events.length}`);
       } catch (error) {
         if (cancelled) return;
-        setTimeline(fallbackTimeline);
-        setStatus(error instanceof Error ? `API недоступен, показан demo timeline: ${error.message}` : 'API недоступен, показан demo timeline');
+        setTimeline(emptyTimeline);
+        setStatus(formatApiError(error));
       }
     }
 
@@ -104,11 +100,26 @@ export function TimelineView() {
       <Card className="p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm text-stone-500 dark:text-slate-400">Timeline person</p>
-            <p className="font-semibold text-family-primary dark:text-family-accent">{timeline.personName}</p>
+            <p className="text-sm text-stone-500 dark:text-slate-400">Хронология жизни</p>
+            <p className="font-semibold text-family-primary dark:text-family-accent">
+              {timeline.personName || 'Персона не выбрана'}
+            </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input className="sm:w-72" value={personId} onChange={(event) => setPersonId(event.target.value)} placeholder="Person ID" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <FormField label="Персона" className="sm:w-72">
+              <Select
+                value={personId}
+                onChange={(event) => setPersonId(event.target.value)}
+                disabled={persons.length === 0}
+              >
+                <option value="">Не выбрано</option>
+                {persons.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {formatPersonLabel(person)}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
             <Button type="button" variant="secondary" onClick={() => setSelectedTypes(new Set())}>
               Сбросить фильтр
             </Button>
@@ -117,18 +128,28 @@ export function TimelineView() {
         <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">{status}</p>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        {timeline.availableTypes.map((type) => (
-          <Button
-            key={type}
-            type="button"
-            variant={selectedTypes.has(type) ? 'primary' : 'secondary'}
-            onClick={() => toggleType(type)}
-          >
-            {labels[type]}
-          </Button>
-        ))}
-      </div>
+      {persons.length === 0 ? (
+        <EmptyState title="Персон нет" description="Сначала создайте персону на странице «Люди»." />
+      ) : null}
+
+      {timeline.availableTypes.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {timeline.availableTypes.map((type) => (
+            <Button
+              key={type}
+              type="button"
+              variant={selectedTypes.has(type) ? 'primary' : 'secondary'}
+              onClick={() => toggleType(type)}
+            >
+              {labels[type]}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      {visibleEvents.length === 0 && personId ? (
+        <EmptyState title="Событий пока нет" description="Добавьте события в блоке администрирования ниже или через API." />
+      ) : null}
 
       <div className="relative space-y-5 before:absolute before:left-5 before:top-3 before:h-[calc(100%-24px)] before:w-px before:bg-family-accent/40">
         {visibleEvents.map((event) => (

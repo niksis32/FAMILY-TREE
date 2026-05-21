@@ -136,11 +136,13 @@ export class TreeService {
   }
 
   private parentChildDirection(relationship: DbRelationship) {
-    if (relationship.type === 'parent' || relationship.type === 'adoptive_parent') {
+    const type = relationship.type.toLowerCase();
+
+    if (type === 'parent' || type === 'adoptive_parent') {
       return { parentId: relationship.fromPersonId, childId: relationship.toPersonId };
     }
 
-    if (relationship.type === 'child' || relationship.type === 'adoptive_child') {
+    if (type === 'child' || type === 'adoptive_child') {
       return { parentId: relationship.toPersonId, childId: relationship.fromPersonId };
     }
 
@@ -178,13 +180,13 @@ export class TreeService {
       parent: 'родитель',
       child: 'ребёнок',
       spouse: 'супруги',
-      sibling: 'сиблинг',
+      sibling: 'сестра / брат',
       partner: 'партнёры',
       adoptive_parent: 'приёмный родитель',
       adoptive_child: 'приёмный ребёнок',
     };
 
-    return labels[type] ?? type;
+    return labels[type.toLowerCase()] ?? type;
   }
 
   private push(adjacency: Map<string, string[]>, from: string, to: string) {

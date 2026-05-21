@@ -6,7 +6,7 @@ export default function TreePage() {
     <div className="space-y-8">
       <PageHeader
         title="Семейное древо"
-        description="Интерактивное дерево: ancestors, descendants и full family graph. React Flow используется как MVP renderer с pan, zoom и кликом по человеку."
+        description="Выберите фамилию и основную персону — дерево перестроится от неё. Справа: все с этой фамилией и участники на выбранном режиме (предки / потомки / полное)."
       />
       <TreeExplorer />
       <Card>

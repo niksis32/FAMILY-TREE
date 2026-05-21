@@ -6,8 +6,8 @@ export default function TimelinePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Timeline"
-        description="Хронология жизни человека: birth, death, marriage, migration, education, military, work и custom events с готовностью к будущему AI summary."
+        title="Хронология жизни"
+        description="Выберите персону — отобразятся события её жизни: рождение, брак, миграция, образование, служба, работа и другие."
       />
       <TimelineView />
       <TimelineAdminWorkspace />

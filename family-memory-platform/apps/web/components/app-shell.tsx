@@ -12,7 +12,7 @@ const navItems = [
   { href: '/persons', label: 'Люди', icon: '◎' },
   { href: '/families', label: 'Семьи', icon: '⌘' },
   { href: '/tree', label: 'Древо', icon: '⌁' },
-  { href: '/timeline', label: 'Timeline', icon: '↦' },
+  { href: '/timeline', label: 'Хронология', icon: '↦' },
   { href: '/media', label: 'Медиа', icon: '▣' },
   { href: '/documents', label: 'Документы', icon: '◇' },
   { href: '/search', label: 'Поиск', icon: '⌕' },

@@ -5,6 +5,8 @@ import type { FamilyRecord } from '@/lib/api-client';
 import { formatPersonLabel, type PersonNameFields } from '@/lib/person-display';
 import type { RelationshipDraft, RelationshipUiType } from '@/lib/relationship-draft';
 
+const EMPTY_PERSON_OPTION = 'Не выбрано';
+
 type FamilyMemberRecord = {
   person: PersonNameFields;
 };
@@ -19,20 +21,18 @@ function PersonSelect({
   value,
   onChange,
   people,
-  placeholder,
   required,
   disabled,
 }: {
   value: string;
   onChange: (id: string) => void;
   people: PersonNameFields[];
-  placeholder: string;
   required?: boolean;
   disabled?: boolean;
 }) {
   return (
     <Select value={value} onChange={(event) => onChange(event.target.value)} required={required} disabled={disabled}>
-      <option value="">{placeholder}</option>
+      <option value="">{EMPTY_PERSON_OPTION}</option>
       {people.map((person) => (
         <option key={person.id} value={person.id}>
           {formatPersonLabel(person)}
@@ -90,7 +90,7 @@ export function RelationshipFields({
     <div className="grid gap-4 md:grid-cols-2">
       <FormField label="Семья">
         <Select value={draft.familyId} onChange={(event) => onFamilyChange(event.target.value)} disabled={disabled}>
-          <option value="">Выберите семью</option>
+          <option value="">Не выбрано</option>
           {families.map((family) => (
             <option key={family.id} value={family.id}>
               {family.name?.trim() || `Семья ${family.id.slice(0, 8)}`}
@@ -126,7 +126,6 @@ export function RelationshipFields({
               value={draft.husbandId}
               onChange={(husbandId) => patch({ husbandId })}
               people={people}
-              placeholder="Выберите мужа"
               disabled={disabled || !draft.familyId}
             />
           </FormField>
@@ -135,19 +134,17 @@ export function RelationshipFields({
               value={draft.wifeId}
               onChange={(wifeId) => patch({ wifeId })}
               people={people}
-              placeholder="Выберите жену"
               disabled={disabled || !draft.familyId}
             />
           </FormField>
         </>
       ) : draft.type === 'CHILD' ? (
         <>
-          <FormField label="Кто">
+          <FormField label="Кто (ребёнок)">
             <PersonSelect
               value={draft.whoId}
               onChange={(whoId) => patch({ whoId })}
               people={people}
-              placeholder="Ребёнок"
               disabled={disabled || !draft.familyId}
             />
             {whoHint ? <p className="text-xs text-stone-500 dark:text-slate-400">{whoHint}</p> : null}
@@ -157,7 +154,6 @@ export function RelationshipFields({
               value={draft.fatherId}
               onChange={(fatherId) => patch({ fatherId })}
               people={people}
-              placeholder="Выберите отца"
               disabled={disabled || !draft.familyId}
             />
           </FormField>
@@ -166,7 +162,6 @@ export function RelationshipFields({
               value={draft.motherId}
               onChange={(motherId) => patch({ motherId })}
               people={people}
-              placeholder="Выберите мать"
               disabled={disabled || !draft.familyId}
             />
           </FormField>
@@ -178,18 +173,24 @@ export function RelationshipFields({
               value={draft.whoId}
               onChange={(whoId) => patch({ whoId })}
               people={people}
-              placeholder="Выберите персону"
               required
               disabled={disabled || !draft.familyId}
             />
             {whoHint ? <p className="text-xs text-stone-500 dark:text-slate-400">{whoHint}</p> : null}
           </FormField>
-          <FormField label={draft.type === 'SIBLING' ? 'Сестра / брат' : draft.type === 'PARENT' ? 'Ребёнок' : 'Связан с'}>
+          <FormField
+            label={
+              draft.type === 'SIBLING'
+                ? 'Сестра / брат'
+                : draft.type === 'PARENT'
+                  ? 'Ребёнок'
+                  : 'Вторая персона'
+            }
+          >
             <PersonSelect
               value={draft.toPersonId}
               onChange={(toPersonId) => patch({ toPersonId })}
               people={people.filter((person) => person.id !== draft.whoId)}
-              placeholder="Выберите вторую персону"
               required
               disabled={disabled || !draft.familyId}
             />
