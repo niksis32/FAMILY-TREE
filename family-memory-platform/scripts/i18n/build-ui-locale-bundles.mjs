@@ -5,6 +5,7 @@
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workspaceI18n } from './workspace-i18n-data.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dir = join(root, 'apps/web/i18n/locales');
@@ -295,6 +296,13 @@ const locales = {
 };
 
 for (const [code, data] of Object.entries(locales)) {
-  writeFileSync(join(dir, `${code}.json`), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  const ws = workspaceI18n[code] ?? workspaceI18n.en;
+  const merged = {
+    ...data,
+    ...ws,
+    common: { ...data.common, ...ws.common },
+    privacy: data.privacy ?? ws.privacy,
+  };
+  writeFileSync(join(dir, `${code}.json`), `${JSON.stringify(merged, null, 2)}\n`, 'utf8');
   console.log('wrote', code);
 }

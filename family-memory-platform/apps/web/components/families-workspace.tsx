@@ -1,30 +1,35 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { RelationshipFields } from '@/components/relationship-fields';
 import { Button, Card, EmptyState, FormField, Input, Textarea } from '@/components/ui';
-import { apiClient, formatApiError, type FamilyRecord, type RelationshipRecord } from '@/lib/api-client';
+import { apiClient, type FamilyRecord, type RelationshipRecord } from '@/lib/api-client';
 import {
   buildRelationshipCreates,
   emptyRelationshipDraft,
   isRelationshipDraftFilled,
   type RelationshipDraft,
 } from '@/lib/relationship-draft';
+import { useFormatApiError } from '@/lib/use-format-api-error';
 
 export function FamiliesWorkspace() {
   const router = useRouter();
   const { session } = useAuth();
+  const t = useTranslations('familiesWorkspace');
+  const tCommon = useTranslations('common');
+  const formatApiError = useFormatApiError();
   const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [relationships, setRelationships] = useState<RelationshipRecord[]>([]);
   const [familyForm, setFamilyForm] = useState({ name: '', notes: '' });
   const [relationshipForm, setRelationshipForm] = useState<RelationshipDraft>(emptyRelationshipDraft());
-  const [status, setStatus] = useState('Загружаем семьи и связи...');
+  const [status, setStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   async function load() {
-    setStatus('Загружаем семьи и связи из backend...');
+    setStatus(t('loadingBackend'));
     try {
       const [nextFamilies, nextRelationships] = await Promise.all([
         apiClient.families.list(session?.accessToken),
@@ -32,7 +37,7 @@ export function FamiliesWorkspace() {
       ]);
       setFamilies(nextFamilies);
       setRelationships(nextRelationships);
-      setStatus(`Семей: ${nextFamilies.length}, связей: ${nextRelationships.length}`);
+      setStatus(t('stats', { families: nextFamilies.length, relationships: nextRelationships.length }));
     } catch (error) {
       setStatus(formatApiError(error));
     }
@@ -52,7 +57,7 @@ export function FamiliesWorkspace() {
         session?.accessToken,
       );
       setFamilyForm({ name: '', notes: '' });
-      setStatus('Семья создана');
+      setStatus(t('familyCreated'));
       router.push(`/families/${created.id}`);
     } catch (error) {
       setStatus(formatApiError(error));
@@ -67,7 +72,7 @@ export function FamiliesWorkspace() {
     try {
       const payloads = buildRelationshipCreates(relationshipForm);
       if (payloads.length === 0) {
-        setStatus('Заполните поля связи: семья, тип и участники');
+        setStatus(t('fillRelationship'));
         return;
       }
       for (const payload of payloads) {
@@ -75,7 +80,7 @@ export function FamiliesWorkspace() {
       }
       setRelationshipForm(emptyRelationshipDraft());
       await load();
-      setStatus(payloads.length > 1 ? `Создано связей: ${payloads.length}` : 'Родственная связь создана');
+      setStatus(payloads.length > 1 ? t('relationshipsCreated', { count: payloads.length }) : t('relationshipCreated'));
     } catch (error) {
       setStatus(formatApiError(error));
     } finally {
@@ -88,59 +93,61 @@ export function FamiliesWorkspace() {
       <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="text-xl font-semibold">Создать семью</h2>
+          <h2 className="text-xl font-semibold">{t('createFamily')}</h2>
           <form className="mt-5 space-y-4" onSubmit={createFamily}>
-            <FormField label="Название">
+            <FormField label={t('name')}>
               <Input
                 value={familyForm.name}
                 onChange={(event) => setFamilyForm({ ...familyForm, name: event.target.value })}
-                placeholder="Семья Ивановых"
+                placeholder={t('namePh')}
               />
             </FormField>
-            <FormField label="Заметки">
+            <FormField label={t('notes')}>
               <Textarea
                 value={familyForm.notes}
                 onChange={(event) => setFamilyForm({ ...familyForm, notes: event.target.value })}
-                placeholder="Комментарий к семье"
+                placeholder={t('notesPh')}
               />
             </FormField>
             <Button disabled={isSaving || !session} type="submit">
-              Создать семью
+              {t('createFamilyBtn')}
             </Button>
           </form>
         </Card>
 
         <Card>
-          <h2 className="text-xl font-semibold">Управление Relationship</h2>
+          <h2 className="text-xl font-semibold">{t('relationshipTitle')}</h2>
           <form className="mt-5 space-y-4" onSubmit={createRelationship}>
             <RelationshipFields families={families} draft={relationshipForm} onChange={setRelationshipForm} disabled={isSaving || !session} />
             <Button disabled={isSaving || !session || !isRelationshipDraftFilled(relationshipForm)} type="submit">
-              Создать связь
+              {t('createRelationship')}
             </Button>
           </form>
         </Card>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        {families.length === 0 ? <EmptyState title="Семей нет" description="Создайте первую семью через форму." /> : null}
+        {families.length === 0 ? <EmptyState title={t('noFamiliesTitle')} description={t('noFamiliesDesc')} /> : null}
         {families.map((family) => (
           <Link
             key={family.id}
             href={`/families/${family.id}`}
             className="block rounded-3xl border bg-white/85 p-6 shadow-premium transition hover:-translate-y-0.5 hover:border-family-accent dark:bg-slate-900/80"
           >
-            <h3 className="text-xl font-semibold">{family.name ?? 'Без названия'}</h3>
-            <p className="mt-2 text-sm text-stone-600 dark:text-slate-300">{family.notes ?? 'Заметок пока нет'}</p>
-            <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">Участников: {family.members?.length ?? 0}</p>
-            <p className="mt-4 text-xs font-semibold text-family-primary dark:text-family-accent">Открыть профиль семьи →</p>
+            <h3 className="text-xl font-semibold">{family.name ?? tCommon('noTitle')}</h3>
+            <p className="mt-2 text-sm text-stone-600 dark:text-slate-300">{family.notes ?? t('noNotes')}</p>
+            <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
+              {tCommon('membersCount', { count: family.members?.length ?? 0 })}
+            </p>
+            <p className="mt-4 text-xs font-semibold text-family-primary dark:text-family-accent">{t('openProfile')}</p>
           </Link>
         ))}
       </div>
 
       <Card>
-        <h2 className="text-xl font-semibold">Текущие связи</h2>
+        <h2 className="text-xl font-semibold">{t('currentRelationships')}</h2>
         <div className="mt-4 grid gap-3">
-          {relationships.length === 0 ? <p className="text-sm text-stone-500 dark:text-slate-400">Связей пока нет</p> : null}
+          {relationships.length === 0 ? <p className="text-sm text-stone-500 dark:text-slate-400">{t('noRelationships')}</p> : null}
           {relationships.map((relationship) => (
             <div key={relationship.id} className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
               <p className="font-semibold">{relationship.type}</p>

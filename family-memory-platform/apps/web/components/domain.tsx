@@ -25,26 +25,34 @@ export function PrivacyBadge({ level }: { level: PrivacyLevel }) {
 }
 
 export function RelationshipBadge({ type }: { type: RelationshipType }) {
+  const t = useTranslations('relationshipBadge');
   const label: Record<RelationshipType, string> = {
-    parent: 'Родитель',
-    child: 'Ребёнок',
-    spouse: 'Супруги',
-    sibling: 'Сестра / брат',
-    partner: 'Партнёр',
-    adoptive_parent: 'Приёмный родитель',
-    adoptive_child: 'Приёмный ребёнок',
+    parent: t('parent'),
+    child: t('child'),
+    spouse: t('spouse'),
+    sibling: t('sibling'),
+    partner: t('partner'),
+    adoptive_parent: t('adoptive_parent'),
+    adoptive_child: t('adoptive_child'),
   };
 
   return <Badge tone="blue">{label[type]}</Badge>;
 }
 
 export function PersonCard({ person }: { person: PersonSummary }) {
+  const t = useTranslations('personCard');
+  const tCommon = useTranslations('common');
   const birthYear = person.birthDate?.slice(0, 4);
   const deathYear = person.deathDate?.slice(0, 4);
   const lifeYears =
     birthYear || deathYear
-      ? [birthYear ? `р. ${birthYear}` : null, deathYear ? `ум. ${deathYear}` : null].filter(Boolean).join(' · ')
-      : 'Даты не указаны';
+      ? [
+          birthYear ? t('born', { year: birthYear }) : null,
+          deathYear ? t('died', { year: deathYear }) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : tCommon('noDate');
   const privacy = apiPrivacyLevel(person.privacyLevel);
 
   return (
@@ -67,11 +75,9 @@ export function PersonCard({ person }: { person: PersonSummary }) {
           </div>
           <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{lifeYears}</p>
           {person.primaryPhotoUrl ? (
-            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">Есть аватар и медиа в архиве семьи.</p>
+            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">{t('hasAvatar')}</p>
           ) : (
-            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">
-              Добавьте аватар и документы при создании персоны.
-            </p>
+            <p className="mt-4 text-sm leading-6 text-stone-600 dark:text-slate-300">{t('addAvatarHint')}</p>
           )}
         </div>
       </div>

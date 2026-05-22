@@ -1,11 +1,20 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { FormField, Select } from '@/components/ui';
 import type { FamilyRecord } from '@/lib/api-client';
 import { formatPersonLabel, type PersonNameFields } from '@/lib/person-display';
 import type { RelationshipDraft, RelationshipUiType } from '@/lib/relationship-draft';
 
-const EMPTY_PERSON_OPTION = 'Не выбрано';
+const RELATIONSHIP_TYPE_KEYS: RelationshipUiType[] = [
+  'PARENT',
+  'CHILD',
+  'SPOUSE',
+  'SIBLING',
+  'PARTNER',
+  'ADOPTIVE_PARENT',
+  'ADOPTIVE_CHILD',
+];
 
 type FamilyMemberRecord = {
   person: PersonNameFields;
@@ -30,9 +39,11 @@ function PersonSelect({
   required?: boolean;
   disabled?: boolean;
 }) {
+  const tCommon = useTranslations('common');
+
   return (
     <Select value={value} onChange={(event) => onChange(event.target.value)} required={required} disabled={disabled}>
-      <option value="">{EMPTY_PERSON_OPTION}</option>
+      <option value="">{tCommon('notSelected')}</option>
       {people.map((person) => (
         <option key={person.id} value={person.id}>
           {formatPersonLabel(person)}
@@ -41,16 +52,6 @@ function PersonSelect({
     </Select>
   );
 }
-
-const RELATIONSHIP_TYPE_OPTIONS: { value: RelationshipUiType; label: string }[] = [
-  { value: 'PARENT', label: 'Родитель' },
-  { value: 'CHILD', label: 'Ребёнок' },
-  { value: 'SPOUSE', label: 'Супруги' },
-  { value: 'SIBLING', label: 'Сестра / брат' },
-  { value: 'PARTNER', label: 'Партнёр' },
-  { value: 'ADOPTIVE_PARENT', label: 'Приёмный родитель' },
-  { value: 'ADOPTIVE_CHILD', label: 'Приёмный ребёнок' },
-];
 
 export function RelationshipFields({
   families,
@@ -65,6 +66,9 @@ export function RelationshipFields({
   disabled?: boolean;
   whoHint?: string;
 }) {
+  const t = useTranslations('relationshipFields');
+  const tCommon = useTranslations('common');
+  const tRel = useTranslations('relationshipTypes');
   const selectedFamily = families.find((family) => family.id === draft.familyId);
   const people = familyMembers(selectedFamily);
   const noMembers = Boolean(draft.familyId) && people.length === 0;
@@ -88,40 +92,36 @@ export function RelationshipFields({
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <FormField label="Семья">
+      <FormField label={t('family')}>
         <Select value={draft.familyId} onChange={(event) => onFamilyChange(event.target.value)} disabled={disabled}>
-          <option value="">Не выбрано</option>
+          <option value="">{tCommon('notSelected')}</option>
           {families.map((family) => (
             <option key={family.id} value={family.id}>
-              {family.name?.trim() || `Семья ${family.id.slice(0, 8)}`}
+              {family.name?.trim() || tCommon('familyFallback', { id: family.id.slice(0, 8) })}
             </option>
           ))}
         </Select>
       </FormField>
 
-      <FormField label="Тип связи">
+      <FormField label={t('linkType')}>
         <Select
           value={draft.type}
           onChange={(event) => patch({ type: event.target.value as RelationshipUiType })}
           disabled={disabled || !draft.familyId}
         >
-          {RELATIONSHIP_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          {RELATIONSHIP_TYPE_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {tRel(key)}
             </option>
           ))}
         </Select>
       </FormField>
 
-      {noMembers ? (
-        <p className="text-xs text-amber-700 md:col-span-2 dark:text-amber-300">
-          В выбранной семье пока нет участников. Добавьте персон в семью на странице «Семьи» или выберите другую семью.
-        </p>
-      ) : null}
+      {noMembers ? <p className="text-xs text-amber-700 md:col-span-2 dark:text-amber-300">{t('noMembers')}</p> : null}
 
       {draft.type === 'SPOUSE' ? (
         <>
-          <FormField label="Муж">
+          <FormField label={t('husband')}>
             <PersonSelect
               value={draft.husbandId}
               onChange={(husbandId) => patch({ husbandId })}
@@ -129,7 +129,7 @@ export function RelationshipFields({
               disabled={disabled || !draft.familyId}
             />
           </FormField>
-          <FormField label="Жена">
+          <FormField label={t('wife')}>
             <PersonSelect
               value={draft.wifeId}
               onChange={(wifeId) => patch({ wifeId })}
@@ -140,7 +140,7 @@ export function RelationshipFields({
         </>
       ) : draft.type === 'CHILD' ? (
         <>
-          <FormField label="Кто (ребёнок)">
+          <FormField label={t('whoChild')}>
             <PersonSelect
               value={draft.whoId}
               onChange={(whoId) => patch({ whoId })}
@@ -149,7 +149,7 @@ export function RelationshipFields({
             />
             {whoHint ? <p className="text-xs text-stone-500 dark:text-slate-400">{whoHint}</p> : null}
           </FormField>
-          <FormField label="Отец">
+          <FormField label={t('father')}>
             <PersonSelect
               value={draft.fatherId}
               onChange={(fatherId) => patch({ fatherId })}
@@ -157,7 +157,7 @@ export function RelationshipFields({
               disabled={disabled || !draft.familyId}
             />
           </FormField>
-          <FormField label="Мать" className="md:col-span-2">
+          <FormField label={t('mother')} className="md:col-span-2">
             <PersonSelect
               value={draft.motherId}
               onChange={(motherId) => patch({ motherId })}
@@ -168,7 +168,7 @@ export function RelationshipFields({
         </>
       ) : (
         <>
-          <FormField label="Кто">
+          <FormField label={t('who')}>
             <PersonSelect
               value={draft.whoId}
               onChange={(whoId) => patch({ whoId })}
@@ -181,10 +181,10 @@ export function RelationshipFields({
           <FormField
             label={
               draft.type === 'SIBLING'
-                ? 'Сестра / брат'
+                ? t('sibling')
                 : draft.type === 'PARENT'
-                  ? 'Ребёнок'
-                  : 'Вторая персона'
+                  ? t('childLabel')
+                  : t('secondPerson')
             }
           >
             <PersonSelect

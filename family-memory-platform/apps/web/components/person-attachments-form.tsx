@@ -1,12 +1,19 @@
 'use client';
 
 import { useRef, useState, type RefObject } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button, Select } from '@/components/ui';
-import {
-  DOCUMENT_TYPE_LABELS,
-  type DocumentTypeOption,
-  type PersonAttachmentDraft,
-} from '@/lib/person-assets';
+import { type DocumentTypeOption, type PersonAttachmentDraft } from '@/lib/person-assets';
+
+const DOCUMENT_TYPE_KEYS: DocumentTypeOption[] = [
+  'PASSPORT',
+  'BIRTH_CERTIFICATE',
+  'DEATH_CERTIFICATE',
+  'MARRIAGE_CERTIFICATE',
+  'MILITARY_RECORD',
+  'ARCHIVE_RECORD',
+  'OTHER',
+];
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -16,6 +23,8 @@ type Props = {
 };
 
 export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
+  const t = useTranslations('personAttachments');
+  const tDoc = useTranslations('documentTypes');
   const avatarRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
@@ -45,10 +54,10 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
 
   return (
     <div className="space-y-5 border-t border-stone-200 pt-5 dark:border-slate-800">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-500 dark:text-slate-400">Фото и документы</h3>
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-500 dark:text-slate-400">{t('title')}</h3>
 
       <section className="space-y-3">
-        <p className="text-sm font-medium">Аватар</p>
+        <p className="text-sm font-medium">{t('avatar')}</p>
         <div className="flex items-center gap-4">
           <div
             className={cn(
@@ -60,7 +69,7 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={draft.avatarPreview} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-xs text-stone-400">Нет фото</span>
+              <span className="text-xs text-stone-400">{t('noPhoto')}</span>
             )}
           </div>
           <div className="flex flex-col gap-2">
@@ -73,7 +82,7 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
               onChange={(e) => setAvatar(e.target.files?.[0] ?? null)}
             />
             <Button type="button" variant="secondary" disabled={disabled} onClick={() => avatarRef.current?.click()}>
-              Выбрать аватар
+              {t('pickAvatar')}
             </Button>
             {draft.avatarFile ? (
               <button
@@ -81,7 +90,7 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
                 className="text-left text-xs text-red-600 hover:underline dark:text-red-400"
                 onClick={() => setAvatar(null)}
               >
-                Убрать
+                {t('remove')}
               </button>
             ) : null}
           </div>
@@ -89,8 +98,8 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
       </section>
 
       <section className="space-y-3">
-        <p className="text-sm font-medium">Фото и видео человека</p>
-        <p className="text-xs text-stone-500 dark:text-slate-400">JPEG, PNG, WebP, MP4, MP3 — сохраняются в медиаархив.</p>
+        <p className="text-sm font-medium">{t('mediaTitle')}</p>
+        <p className="text-xs text-stone-500 dark:text-slate-400">{t('mediaHint')}</p>
         <input
           ref={mediaRef}
           type="file"
@@ -104,7 +113,7 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
           }}
         />
         <Button type="button" variant="secondary" disabled={disabled} onClick={() => mediaRef.current?.click()}>
-          Добавить файлы
+          {t('addFiles')}
         </Button>
         {draft.mediaFiles.length > 0 ? (
           <ul className="space-y-1 text-sm text-stone-600 dark:text-slate-300">
@@ -127,13 +136,9 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
       </section>
 
       <section className="space-y-3">
-        <p className="text-sm font-medium">Официальные документы</p>
-        <p className="text-xs text-stone-500 dark:text-slate-400">Паспорт, свидетельства, PDF — в архив документов.</p>
-        <DocumentAddRow
-          disabled={disabled}
-          onPick={(file, type) => addDocument(file, type)}
-          inputRef={docRef}
-        />
+        <p className="text-sm font-medium">{t('documentsTitle')}</p>
+        <p className="text-xs text-stone-500 dark:text-slate-400">{t('documentsHint')}</p>
+        <DocumentAddRow disabled={disabled} onPick={(file, type) => addDocument(file, type)} inputRef={docRef} />
         {draft.documents.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {draft.documents.map((d, i) => (
@@ -142,7 +147,7 @@ export function PersonAttachmentsForm({ draft, onChange, disabled }: Props) {
                 className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-slate-900"
               >
                 <span className="truncate">
-                  {DOCUMENT_TYPE_LABELS[d.documentType]} — {d.file.name}
+                  {tDoc(d.documentType)} — {d.file.name}
                 </span>
                 <button
                   type="button"
@@ -171,6 +176,8 @@ function DocumentAddRow({
   onPick: (file: File, type: DocumentTypeOption) => void;
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
+  const t = useTranslations('personAttachments');
+  const tDoc = useTranslations('documentTypes');
   const [documentType, setDocumentType] = useState<DocumentTypeOption>('PASSPORT');
 
   return (
@@ -183,9 +190,9 @@ function DocumentAddRow({
           setDocumentType(e.target.value as DocumentTypeOption);
         }}
       >
-        {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentTypeOption[]).map((key) => (
+        {DOCUMENT_TYPE_KEYS.map((key) => (
           <option key={key} value={key}>
-            {DOCUMENT_TYPE_LABELS[key]}
+            {tDoc(key)}
           </option>
         ))}
       </Select>
@@ -202,7 +209,7 @@ function DocumentAddRow({
         }}
       />
       <Button type="button" variant="secondary" disabled={disabled} onClick={() => inputRef.current?.click()}>
-        Прикрепить документ
+        {t('attachDocument')}
       </Button>
     </div>
   );
