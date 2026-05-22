@@ -1,5 +1,7 @@
 /** Workspace UI strings — merged into locale JSON by build-ui-locale-bundles.mjs */
 
+import { arWorkspace } from './workspace-i18n-ar.mjs';
+
 const relationshipTypes = {
   PARENT: 'Parent',
   CHILD: 'Child',
@@ -8,6 +10,7 @@ const relationshipTypes = {
   PARTNER: 'Partner',
   ADOPTIVE_PARENT: 'Adoptive parent',
   ADOPTIVE_CHILD: 'Adoptive child',
+  UNKNOWN: 'Unknown',
 };
 
 const relationshipTypesDe = {
@@ -18,6 +21,7 @@ const relationshipTypesDe = {
   PARTNER: 'Partner',
   ADOPTIVE_PARENT: 'Adoptiveltern',
   ADOPTIVE_CHILD: 'Adoptivkind',
+  UNKNOWN: 'Unbekannt',
 };
 
 const relationshipTypesRu = {
@@ -28,6 +32,7 @@ const relationshipTypesRu = {
   PARTNER: 'Партнёр',
   ADOPTIVE_PARENT: 'Приёмный родитель',
   ADOPTIVE_CHILD: 'Приёмный ребёнок',
+  UNKNOWN: 'Неизвестно',
 };
 
 const documentTypes = {
@@ -175,6 +180,10 @@ export const workspaceI18n = {
       attachDocument: 'Attach document',
     },
     documentTypes,
+    settingsPage: {
+      displayNamePh: 'Family Admin',
+      emailPh: 'demo@family.local',
+    },
     treeWorkspace: {
       pickSurnameAndRoot: 'Choose a surname and root person.',
       buildingTree: 'Building tree from root person…',
@@ -693,10 +702,11 @@ export const workspaceI18n = {
   },
 };
 
-// fr, es, ar — copy en structure with translated workspace (reuse de-style for fr/es where similar)
-for (const code of ['fr', 'es', 'ar']) {
+// fr, es — copy en; ar — full workspace translations
+for (const code of ['fr', 'es']) {
   workspaceI18n[code] = structuredClone(workspaceI18n.en);
 }
+workspaceI18n.ar = { ...structuredClone(workspaceI18n.en), ...arWorkspace };
 
 workspaceI18n.fr.dashboardOverview = {
   ...workspaceI18n.fr.dashboardOverview,
@@ -758,32 +768,3 @@ workspaceI18n.es.familiesWorkspace = {
   currentRelationships: 'Relaciones actuales',
 };
 
-workspaceI18n.ar.dashboardOverview = {
-  ...workspaceI18n.ar.dashboardOverview,
-  loading: 'جاري تحميل مؤشرات لوحة التحكم…',
-  loaded: 'تم تحميل المؤشرات من API',
-  statPersons: 'الأشخاص',
-  statFamilies: 'العائلات',
-  statMedia: 'الوسائط',
-  statDocuments: 'المستندات',
-  runtimeChecksTitle: 'فحوصات التشغيل التالية',
-};
-workspaceI18n.ar.personsWorkspace = {
-  ...workspaceI18n.ar.personsWorkspace,
-  newPerson: 'شخص جديد',
-  familyName: 'اسم العائلة',
-  givenName: 'الاسم',
-  patronymic: 'اسم الأب',
-  gender: 'الجنس',
-  visibility: 'الظهور',
-  birthDate: 'تاريخ الميلاد',
-  deathDate: 'تاريخ الوفاة',
-  biography: 'السيرة',
-};
-workspaceI18n.ar.familiesWorkspace = {
-  ...workspaceI18n.ar.familiesWorkspace,
-  createFamily: 'إنشاء عائلة',
-  relationshipTitle: 'إدارة العلاقات',
-  createRelationship: 'إنشاء علاقة',
-  currentRelationships: 'العلاقات الحالية',
-};

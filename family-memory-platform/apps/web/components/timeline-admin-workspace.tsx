@@ -8,6 +8,7 @@ import { apiClient, type EventRecord, type FamilyRecord, type PlaceRecord } from
 import { useApiEventTypeLabel, useApiEventTypeOptions } from '@/lib/use-event-type-labels';
 import { useFormatApiError } from '@/lib/use-format-api-error';
 import { formatPersonLabel } from '@/lib/person-display';
+import { LocaleDateInput } from '@/components/locale-date-input';
 import { PlaceGeographyForm, type PlaceGeographyValue } from '@/components/place-geography-form';
 import { formatPlaceOption } from '@/lib/place-helpers';
 import type { PersonSummary } from '@family/shared';
@@ -164,7 +165,10 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
               </Select>
             </FormField>
             <FormField label={t('date')}>
-              <Input type="date" value={eventForm.date} onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })} />
+              <LocaleDateInput
+                value={eventForm.date}
+                onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })}
+              />
             </FormField>
             <FormField label={t('person')}>
               <Select value={eventForm.personId} onChange={(event) => setEventForm({ ...eventForm, personId: event.target.value })}>

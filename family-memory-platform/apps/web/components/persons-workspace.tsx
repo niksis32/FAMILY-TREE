@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { PersonCard } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/components/ui';
+import { LocaleDateInput } from '@/components/locale-date-input';
 import { PersonAttachmentsForm } from '@/components/person-attachments-form';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { attachAssetsToPerson, emptyPersonAttachments, type PersonAttachmentDraft } from '@/lib/person-assets';
@@ -151,10 +152,16 @@ export function PersonsWorkspace() {
             </Select>
           </FormField>
           <FormField label={t('birthDate')}>
-            <Input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} />
+            <LocaleDateInput
+              value={form.birthDate}
+              onChange={(event) => setForm({ ...form, birthDate: event.target.value })}
+            />
           </FormField>
           <FormField label={t('deathDate')}>
-            <Input type="date" value={form.deathDate} onChange={(event) => setForm({ ...form, deathDate: event.target.value })} />
+            <LocaleDateInput
+              value={form.deathDate}
+              onChange={(event) => setForm({ ...form, deathDate: event.target.value })}
+            />
           </FormField>
           <FormField label={t('biography')} className="md:col-span-2">
             <Textarea

@@ -14,6 +14,7 @@ import {
   type RelationshipDraft,
 } from '@/lib/relationship-draft';
 import { useFormatApiError } from '@/lib/use-format-api-error';
+import { useRelationshipTypeLabel } from '@/lib/use-relationship-type-label';
 
 export function FamiliesWorkspace() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export function FamiliesWorkspace() {
   const t = useTranslations('familiesWorkspace');
   const tCommon = useTranslations('common');
   const formatApiError = useFormatApiError();
+  const relationshipTypeLabel = useRelationshipTypeLabel();
   const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [relationships, setRelationships] = useState<RelationshipRecord[]>([]);
   const [familyForm, setFamilyForm] = useState({ name: '', notes: '' });
@@ -150,7 +152,7 @@ export function FamiliesWorkspace() {
           {relationships.length === 0 ? <p className="text-sm text-stone-500 dark:text-slate-400">{t('noRelationships')}</p> : null}
           {relationships.map((relationship) => (
             <div key={relationship.id} className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
-              <p className="font-semibold">{relationship.type}</p>
+              <p className="font-semibold">{relationshipTypeLabel(relationship.type)}</p>
               <p className="mt-1 text-stone-500 dark:text-slate-400">
                 {relationship.fromPersonId} {'->'} {relationship.toPersonId}
               </p>

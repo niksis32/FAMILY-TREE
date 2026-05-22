@@ -39,6 +39,22 @@
     "darkTheme": "Dunkles Design",
     "logout": "Abmelden"
   },
+  "localeNames": {
+    "en": "Englisch",
+    "de": "Deutsch",
+    "fr": "Französisch",
+    "es": "Spanisch",
+    "ru": "Russisch",
+    "ar": "Arabisch"
+  },
+  "localeGroups": {
+    "popular": "Beliebt",
+    "all": "Alle Sprachen"
+  },
+  "formHints": {
+    "dateFormat": "Format: JJJJ-MM-TT",
+    "datePlaceholder": "JJJJ-MM-TT"
+  },
   "errors": {
     "unknown": "Unbekannter Fehler",
     "sessionExpired": "Sitzung abgelaufen. Melden Sie sich erneut an.",
@@ -211,7 +227,8 @@
     "SIBLING": "Geschwister",
     "PARTNER": "Partner",
     "ADOPTIVE_PARENT": "Adoptiveltern",
-    "ADOPTIVE_CHILD": "Adoptivkind"
+    "ADOPTIVE_CHILD": "Adoptivkind",
+    "UNKNOWN": "Unbekannt"
   },
   "relationshipBadge": {
     "parent": "Elternteil",

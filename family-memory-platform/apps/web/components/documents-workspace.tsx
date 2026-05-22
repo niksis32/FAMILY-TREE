@@ -18,10 +18,21 @@ const DOCUMENT_TYPE_KEYS = [
   'OTHER',
 ] as const;
 
+function useArchiveDocumentTypeLabel() {
+  const t = useTranslations('archiveDocumentTypes');
+  return (type: string) => {
+    if ((DOCUMENT_TYPE_KEYS as readonly string[]).includes(type)) {
+      return t(type as (typeof DOCUMENT_TYPE_KEYS)[number]);
+    }
+    return type;
+  };
+}
+
 export function DocumentsWorkspace() {
   const { session } = useAuth();
   const t = useTranslations('documentsWorkspace');
   const tDocType = useTranslations('archiveDocumentTypes');
+  const documentTypeLabel = useArchiveDocumentTypeLabel();
   const formatApiError = useFormatApiError();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
@@ -269,7 +280,11 @@ export function DocumentsWorkspace() {
           title={t('listDocuments')}
           empty={t('noDocuments')}
           backendEmpty={t('backendEmpty')}
-          items={documents.map((item) => ({ id: item.id, title: item.title, subtitle: item.documentType }))}
+          items={documents.map((item) => ({
+            id: item.id,
+            title: item.title,
+            subtitle: documentTypeLabel(item.documentType),
+          }))}
         />
         <List
           title={t('listSources')}

@@ -210,7 +210,8 @@
     "SIBLING": "Sibling",
     "PARTNER": "Partner",
     "ADOPTIVE_PARENT": "Adoptive parent",
-    "ADOPTIVE_CHILD": "Adoptive child"
+    "ADOPTIVE_CHILD": "Adoptive child",
+    "UNKNOWN": "Unknown"
   },
   "relationshipBadge": {
     "parent": "Parent",
@@ -329,6 +330,10 @@
     "MILITARY_RECORD": "Military record",
     "ARCHIVE_RECORD": "Archive record",
     "OTHER": "Other document"
+  },
+  "settingsPage": {
+    "displayNamePh": "Family Admin",
+    "emailPh": "demo@family.local"
   },
   "treeWorkspace": {
     "pickSurnameAndRoot": "Choose a surname and root person.",

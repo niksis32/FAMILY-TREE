@@ -7,6 +7,7 @@ import { Button, Card, Input, PageHeader, Select } from '@/components/ui';
 
 export function SettingsPageContent() {
   const t = useTranslations('pages.settings');
+  const tSettings = useTranslations('settingsPage');
   const tPrivacy = useTranslations('privacy');
   const tCommon = useTranslations('common');
 
@@ -17,8 +18,8 @@ export function SettingsPageContent() {
         <Card>
           <h2 className="text-xl font-semibold">{t('profile')}</h2>
           <div className="mt-5 space-y-4">
-            <Input defaultValue="Family Admin" />
-            <Input defaultValue="demo@family.local" type="email" />
+            <Input defaultValue={tSettings('displayNamePh')} />
+            <Input defaultValue={tSettings('emailPh')} type="email" />
             <Button type="button">{tCommon('save')}</Button>
           </div>
         </Card>
