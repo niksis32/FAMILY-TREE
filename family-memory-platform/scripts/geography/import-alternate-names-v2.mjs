@@ -1,5 +1,5 @@
 /**
- * Import GeoNames alternateNamesV2 into GeographicName (en, de, fr, es, ru).
+ * Import GeoNames alternateNamesV2 into GeographicName (ISO 639-1 from iso-languagecodes.txt).
  *
  * Source: cities/alternateNamesV2/alternateNamesV2.txt
  * Format (tab): alternateNameId, geonameId, isolanguage, alternate name, isPreferred, ...
@@ -9,6 +9,7 @@
  * Usage (WSL, from repo root):
  *   pnpm geography:import:i18n
  *   pnpm geography:import:i18n -- --locale=ru
+ *   pnpm geography:import:i18n -- --locale=all
  *   pnpm geography:import:i18n -- --entity=city --locale=en,de
  *   pnpm geography:import:i18n -- --dry-run
  */

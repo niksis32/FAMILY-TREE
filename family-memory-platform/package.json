@@ -54,7 +54,10 @@
     "geography:import:i18n:regions": "node scripts/geography/import-alternate-names-v2.mjs --entity=region",
     "geography:import:country-i18n": "node scripts/geography/import-geography-country-i18n.mjs",
     "geography:import:multilang": "pnpm geography:import:ru-full && pnpm geography:import:regions-admin1 && pnpm geography:backfill:regions && pnpm geography:import:i18n && pnpm geography:import:country-i18n && pnpm geography:import:region-i18n",
-    "geography:import:multilang:world": "pnpm geography:import:geo-world"
+    "geography:import:multilang:world": "pnpm geography:import:geo-world",
+    "geography:generate:locales": "node scripts/geography/generate-geonames-locales.mjs",
+    "i18n:sync-ui-locales": "node scripts/i18n/sync-ui-locales.mjs",
+    "geography:import:i18n:ar": "node scripts/geography/import-alternate-names-v2.mjs --locale=ar"
   },
   "engines": {
     "node": ">=20.0.0",

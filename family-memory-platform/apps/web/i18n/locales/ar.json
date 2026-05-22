@@ -1,0 +1,40 @@
+{
+  "common": {
+    "language": "اللغة",
+    "loading": "جاري التحميل…",
+    "error": "حدث خطأ"
+  },
+  "placePicker": {
+    "century": "القرن",
+    "centuryNotSet": "القرن غير محدد",
+    "century18": "القرن 18 (1701–1800)",
+    "century19": "القرن 19 (1801–1900)",
+    "century20": "القرن 20 (1901–2000)",
+    "century21": "القرن 21 (2001–2100)",
+    "country": "الدولة / الدولة",
+    "countryHistorical": "الدولة (الفترة التاريخية)",
+    "region": "المنطقة",
+    "city": "المدينة",
+    "placeName": "اسم المكان",
+    "placeNamePlaceholder": "مثال: كازان، وسط المدينة",
+    "citySearch": "بحث عن مدينة",
+    "citySearchPlaceholder": "ابحث عن مدينة (حرفان أو أكثر) أو اختر من القائمة",
+    "notSelected": "غير محدد",
+    "notSelectedOptional": "غير محدد (اختياري)",
+    "selectCenturyFirst": "اختر القرن أولاً",
+    "selectCountryFirst": "اختر الدولة أولاً",
+    "historicalHint": "محافظات seed تحتوي مدناً تجريبية فقط. لـ GeoNames اترك فارغاً أو اختر منطقة مثل «Moscow Oblast».",
+    "cityListHint": "حتى {count} من التجمعات الكبرى في القائمة. البحث يشمل كل بيانات GeoNames.",
+    "selectCountryAndCentury": "اختر الدولة والقرن أولاً.",
+    "autofillTitle": "مُعبّأ من بيانات المرجع",
+    "countryLabel": "الدولة:",
+    "regionLabel": "المنطقة:",
+    "cityLabel": "المدينة:",
+    "coordinatesLabel": "الإحداثيات:",
+    "historicalNamesLabel": "الأسماء التاريخية:"
+  },
+  "timeline": {
+    "aiSummaryDone": "تم إنشاء ملخص بالذكاء الاصطناعي",
+    "deathBadge": "وفاة"
+  }
+}

@@ -763,12 +763,46 @@ curl -i -X OPTIONS "http://localhost:4000/api/v1/persons" \
 
 Контекст:
 
-- UI-локали: `en`, `de`, `fr`, `es`, `ru` — URL с префиксом: `http://localhost:3000/ru/timeline`, `http://localhost:3000/de/dashboard`.
+- **Language (переключатель):** **185 ISO 639-1** кодов из `cities/alternateNamesV2/iso-languagecodes.txt` (список в `packages/shared/src/data/geonames-locales.json`). URL: `http://localhost:3000/pl/timeline`, `http://localhost:3000/ar/timeline` и т.д.
+- **Подписи формы «Место»**: для каждого языка нужен файл `apps/web/i18n/locales/<код>.json` (сейчас: `en`, `ar`, `de`, `fr`, `es`, `ru`). После добавления JSON: `pnpm i18n:sync-ui-locales` и перезапуск Web. Без JSON — подписи на английском, **названия стран/городов** — из БД (`GeographicName`, импорт `geography:import:i18n`).
 - Переключатель языка в шапке меняет сегмент URL (`next-intl`).
 - Названия стран/регионов/городов в API: таблица `GeographicName`, импорт из `cities/alternateNamesV2/alternateNamesV2.txt`.
 - Регионы: `admin1CodesASCII.txt` (4-й столбец = `geonamesId`) → `Region.geonamesId` → переводы из alternateNamesV2.
 - **СССР в UI** (`iso2=SU`) — та же зона, что RU: иначе в списке только seed «Ленинградская область». Полный список: `pnpm geography:import:regions-admin1`.
-- Параметр API: `?lang=ru` (синхронизируется с локалью из URL на фронте).
+- Параметр API: `?lang=pl` (синхронизируется с локалью из URL на фронте).
+
+Обновить список языков после обновления `iso-languagecodes.txt`:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm geography:generate:locales
+pnpm i18n:sync-ui-locales
+pnpm --filter @family/shared build
+```
+
+### Ошибка `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND` в `~`
+
+Команда запущена **не из каталога проекта** (`/home/nik` вместо `family-memory-platform`).
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm geography:import:i18n -- --locale=ar
+```
+
+### Арабский (и другие языки): подписи + названия мест
+
+1. **Подписи полей** (Век, Страна…): `apps/web/i18n/locales/ar.json` + `pnpm i18n:sync-ui-locales` + перезапуск Web.
+2. **Названия Åland, регионов, городов**: импорт в БД (долго для `all`):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm geography:import:i18n:ar
+# или несколько: pnpm geography:import:i18n -- --locale=ar,de,fr
+```
+
+Пять языков (`/ru/`, `/de/`, …) по-прежнему требуют URL с префиксом локали; при выборе **Arabic** откройте `http://localhost:3000/ar/timeline`.
 
 ### Файлы данных (скачать с GeoNames, положить в репозиторий)
 
@@ -778,6 +812,7 @@ curl -i -X OPTIONS "http://localhost:4000/api/v1/persons" \
 | `cities/countryInfo.txt` | страны |
 | `cities/admin1CodesASCII.txt` | регионы (admin1) |
 | `cities/alternateNamesV2/alternateNamesV2.txt` | переводы названий (большой файл, ~часы импорта) |
+| `cities/alternateNamesV2/iso-languagecodes.txt` | список языков для переключателя Language (185× ISO 639-1) |
 
 ### Ubuntu / WSL: после `git pull` — зависимости Web (next-intl)
 
@@ -846,6 +881,16 @@ pnpm geography:import:country-i18n
 
 ### Отдельные команды i18n
 
+По умолчанию `geography:import:i18n` импортирует **приоритетные** локали (en, ru, de, fr, es, uk, pl, …). Все 185 языков — долго (только из каталога проекта):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm geography:import:i18n -- --locale=all
+pnpm geography:import:i18n -- --locale=pl,uk,it
+pnpm geography:import:i18n:ar
+```
+
 ```bash
 pnpm geography:backfill:regions
 pnpm geography:import:i18n
@@ -854,6 +899,7 @@ pnpm geography:import:i18n:cities
 pnpm geography:import:i18n:regions
 
 node scripts/geography/import-alternate-names-v2.mjs --locale=de
+node scripts/geography/import-alternate-names-v2.mjs --locale=all
 node scripts/geography/import-alternate-names-v2.mjs --dry-run
 ```
 

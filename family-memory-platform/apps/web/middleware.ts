@@ -1,4 +1,5 @@
 import createIntlMiddleware from 'next-intl/middleware';
+import { isAppLocale } from '@family/shared';
 import { NextResponse, type NextRequest } from 'next/server';
 import { routing } from './i18n/routing';
 
@@ -16,10 +17,15 @@ const protectedPrefixes = [
   '/settings',
 ];
 
+function localeFromPath(pathname: string) {
+  const seg = pathname.split('/')[1]?.toLowerCase();
+  return seg && isAppLocale(seg) ? seg : null;
+}
+
 function stripLocale(pathname: string) {
-  const match = pathname.match(/^\/(en|de|fr|es|ru)(?=\/|$)/);
-  if (!match) return pathname;
-  const rest = pathname.slice(match[0].length);
+  const locale = localeFromPath(pathname);
+  if (!locale) return pathname;
+  const rest = pathname.slice(locale.length + 1);
   return rest || '/';
 }
 
@@ -44,7 +50,7 @@ export default function middleware(request: NextRequest) {
     return intlResponse;
   }
 
-  const locale = pathname.match(/^\/(en|de|fr|es|ru)/)?.[1] ?? routing.defaultLocale;
+  const locale = localeFromPath(pathname) ?? routing.defaultLocale;
   const url = request.nextUrl.clone();
   url.pathname = `/${locale}/login`;
   url.searchParams.set('next', pathWithoutLocale);

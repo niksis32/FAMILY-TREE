@@ -2,7 +2,18 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import { APP_LOCALE_LABELS, APP_LOCALES, type AppLocale } from '@/i18n/config';
+import {
+  APP_LOCALE_LABELS,
+  APP_LOCALE_PRIORITY,
+  APP_LOCALES,
+  type AppLocale,
+} from '@/i18n/config';
+
+const popularSet = new Set(APP_LOCALE_PRIORITY);
+const popularLocales = APP_LOCALE_PRIORITY.filter((code) =>
+  (APP_LOCALES as readonly string[]).includes(code),
+);
+const otherLocales = (APP_LOCALES as readonly string[]).filter((code) => !popularSet.has(code));
 
 export function LocaleSwitcher() {
   const locale = useLocale() as AppLocale;
@@ -15,18 +26,27 @@ export function LocaleSwitcher() {
       <span className="sr-only">{t('language')}</span>
       <span aria-hidden>{t('language')}</span>
       <select
-        className="rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900"
+        className="max-w-[14rem] rounded border border-stone-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900"
         value={locale}
         onChange={(event) => {
           const next = event.target.value as AppLocale;
           router.replace(pathname, { locale: next });
         }}
       >
-        {APP_LOCALES.map((code) => (
-          <option key={code} value={code}>
-            {APP_LOCALE_LABELS[code]}
-          </option>
-        ))}
+        <optgroup label="Popular">
+          {popularLocales.map((code) => (
+            <option key={code} value={code}>
+              {APP_LOCALE_LABELS[code] ?? code}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="All languages">
+          {otherLocales.map((code) => (
+            <option key={code} value={code}>
+              {APP_LOCALE_LABELS[code] ?? code}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </label>
   );

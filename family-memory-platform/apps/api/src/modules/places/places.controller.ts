@@ -19,7 +19,7 @@ export class PlacesController {
 
   @Get('countries')
   @ApiQuery({ name: 'century', required: false, description: 'Century number (19) or roman (XIX)' })
-  @ApiQuery({ name: 'lang', required: false, description: 'UI locale: en | de | fr | es | ru' })
+  @ApiQuery({ name: 'lang', required: false, description: 'ISO 639-1 UI locale (GeoNames isolanguage, 185 codes)' })
   listCountries(
     @Query('century') century?: string,
     @Query('lang') lang?: string,
