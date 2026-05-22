@@ -2,7 +2,41 @@
   "common": {
     "language": "Language",
     "loading": "Loading…",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "notSelected": "Not selected",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "open": "Open",
+    "noLinks": "No links",
+    "noDate": "No date",
+    "familyFallback": "Family {id}",
+    "createFamilyHint": "{name} (create a family with this name)"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "persons": "People",
+    "families": "Families",
+    "tree": "Tree",
+    "timeline": "Timeline",
+    "media": "Media",
+    "documents": "Documents",
+    "search": "Search",
+    "settings": "Settings"
+  },
+  "shell": {
+    "brandTag": "AI Genealogy",
+    "brandTitle": "Family Memory",
+    "tagline": "Self-hosted family platform",
+    "mvpWorkspace": "MVP Workspace",
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "logout": "Log out"
+  },
+  "errors": {
+    "unknown": "Unknown error",
+    "sessionExpired": "Session expired or token invalid. Log out and sign in again.",
+    "apiError": "API error {status}"
   },
   "placePicker": {
     "century": "Century",
@@ -31,10 +65,131 @@
     "regionLabel": "Region:",
     "cityLabel": "City:",
     "coordinatesLabel": "Coordinates:",
-    "historicalNamesLabel": "Historical names:"
+    "historicalNamesLabel": "Historical names:",
+    "createPlace": "Create place"
+  },
+  "timelinePage": {
+    "title": "Life timeline",
+    "description": "Select a person to see life events: birth, marriage, migration, education, military service, work, and more."
+  },
+  "timelineView": {
+    "subtitle": "Life timeline",
+    "personNotSelected": "No person selected",
+    "person": "Person",
+    "resetFilter": "Reset filter",
+    "selectPersonPrompt": "Select a person to load the timeline.",
+    "selectPersonShort": "Select a person.",
+    "loadingTimeline": "Loading life timeline…",
+    "eventsCount": "Events: {count}",
+    "noPersonsTitle": "No persons yet",
+    "noPersonsDesc": "Create a person first on the People page.",
+    "noEventsTitle": "No events yet",
+    "noEventsDesc": "Add events in the admin block below or via the API.",
+    "documents": "Documents",
+    "media": "Media",
+    "aiSummaryPrefix": "AI summary:"
+  },
+  "timelineAdmin": {
+    "loading": "Loading events and places…",
+    "eventsPlacesCount": "Events: {events}, places: {places}",
+    "eventCreated": "Event created",
+    "placeCreated": "Place created and queued for search indexing",
+    "event": "Event",
+    "place": "Place",
+    "eventType": "Event type",
+    "date": "Date",
+    "person": "Person",
+    "familySurname": "Family / surname",
+    "placeField": "Place",
+    "description": "Description",
+    "eventDescriptionPlaceholder": "Event description",
+    "createEvent": "Create event",
+    "createPlace": "Create place",
+    "eventsFromApi": "Events from API",
+    "placesFromApi": "Places from API",
+    "noEventsTitle": "No events",
+    "noEventsDesc": "Create the first event using the form.",
+    "noPlacesTitle": "No places",
+    "noPlacesDesc": "Create the first place using the form."
   },
   "timeline": {
     "aiSummaryDone": "AI summary generated",
     "deathBadge": "Death"
+  },
+  "timelineEventTypes": {
+    "birth": "Birth",
+    "death": "Death",
+    "marriage": "Marriage",
+    "migration": "Migration",
+    "education": "Education",
+    "military": "Military service",
+    "work": "Work",
+    "custom": "Other"
+  },
+  "eventTypes": {
+    "BIRTH": "Birth",
+    "MARRIAGE": "Marriage",
+    "DIVORCE": "Divorce",
+    "BURIAL": "Burial",
+    "RESIDENCE": "Residence",
+    "MIGRATION": "Migration",
+    "EDUCATION": "Education",
+    "MILITARY": "Military service",
+    "WORK": "Work",
+    "OCCUPATION": "Occupation",
+    "IMMIGRATION": "Immigration",
+    "CUSTOM": "Other",
+    "DEATH": "Death"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Family memory dashboard",
+      "description": "Manage your family tree, media archive, documents, timeline, and future AI modules.",
+      "addPerson": "Add person"
+    },
+    "persons": {
+      "title": "People",
+      "description": "Person catalog with profile, biography, life dates, and genealogy links."
+    },
+    "families": {
+      "title": "Families",
+      "description": "Manage family lines, generations, and privacy policies for tree branches."
+    },
+    "tree": {
+      "title": "Family tree",
+      "description": "Pick a surname and root person — the tree rebuilds from them. See everyone with that surname and participants in the selected mode (ancestors / descendants / full).",
+      "rendererNote": "TreeExplorer uses the API graph contract; TreeCanvas passes nodes/edges to a renderer adapter. React Flow can later be swapped for D3.js or Cytoscape.js without rewriting backend endpoints.",
+      "rendererTitle": "Renderer architecture"
+    },
+    "media": {
+      "title": "Media archive",
+      "description": "Photos, video, and voice stories: files in MinIO, metadata in PostgreSQL."
+    },
+    "documents": {
+      "title": "Documents",
+      "description": "Archive sources, OCR pipeline, review status, and links to persons, families, and events."
+    },
+    "search": {
+      "title": "Search",
+      "description": "Local Meilisearch across people, documents, places, and sources. No external search services."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Profile, privacy, themes, future access roles, and self-hosted instance options.",
+      "profile": "Profile",
+      "privacy": "Default privacy",
+      "import": "Data import",
+      "importDesc": "GEDCOM import supports preview before writing to PostgreSQL and basic mapping of persons, families, relationships, events, and sources.",
+      "openGedcom": "Open GEDCOM import"
+    },
+    "settingsImport": {
+      "title": "GEDCOM import",
+      "description": "Preview before importing .ged: basic tags INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR, NOTE."
+    }
+  },
+  "privacy": {
+    "public": "Public",
+    "family": "Family only",
+    "private": "Private"
   }
 }

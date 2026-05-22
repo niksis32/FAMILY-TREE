@@ -1,15 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { MediaGallery } from '@/components/media-gallery';
-import { MediaUploader } from '@/components/media-uploader';
 import { PageHeader } from '@/components/ui';
 
-export default function MediaPage() {
+export default async function MediaPage() {
+  const t = await getTranslations('pages.media');
+
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Медиаархив"
-        description="Фото, видео и voice stories: файлы физически уходят в MinIO, а metadata сохраняется в PostgreSQL."
-      />
-      <MediaUploader />
+      <PageHeader title={t('title')} description={t('description')} />
       <MediaGallery />
     </div>
   );

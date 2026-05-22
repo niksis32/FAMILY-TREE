@@ -2,7 +2,41 @@
   "common": {
     "language": "Sprache",
     "loading": "Laden…",
-    "error": "Ein Fehler ist aufgetreten"
+    "error": "Ein Fehler ist aufgetreten",
+    "notSelected": "Nicht ausgewählt",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "edit": "Bearbeiten",
+    "open": "öffnen",
+    "noLinks": "Keine Verknüpfungen",
+    "noDate": "ohne Datum",
+    "familyFallback": "Familie {id}",
+    "createFamilyHint": "{name} (Familie mit diesem Namen anlegen)"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "persons": "Personen",
+    "families": "Familien",
+    "tree": "Stammbaum",
+    "timeline": "Zeitleiste",
+    "media": "Medien",
+    "documents": "Dokumente",
+    "search": "Suche",
+    "settings": "Einstellungen"
+  },
+  "shell": {
+    "brandTag": "AI Genealogy",
+    "brandTitle": "Family Memory",
+    "tagline": "Self-hosted Familienplattform",
+    "mvpWorkspace": "MVP Workspace",
+    "lightTheme": "Helles Design",
+    "darkTheme": "Dunkles Design",
+    "logout": "Abmelden"
+  },
+  "errors": {
+    "unknown": "Unbekannter Fehler",
+    "sessionExpired": "Sitzung abgelaufen. Melden Sie sich erneut an.",
+    "apiError": "API-Fehler {status}"
   },
   "placePicker": {
     "century": "Jahrhundert",
@@ -31,10 +65,131 @@
     "regionLabel": "Region:",
     "cityLabel": "Ort:",
     "coordinatesLabel": "Koordinaten:",
-    "historicalNamesLabel": "Historische Namen:"
+    "historicalNamesLabel": "Historische Namen:",
+    "createPlace": "Ort anlegen"
+  },
+  "timelinePage": {
+    "title": "Lebenszeitleiste",
+    "description": "Person wählen — Lebensereignisse: Geburt, Heirat, Migration, Bildung, Militärdienst, Arbeit und mehr."
+  },
+  "timelineView": {
+    "subtitle": "Lebenszeitleiste",
+    "personNotSelected": "Keine Person gewählt",
+    "person": "Person",
+    "resetFilter": "Filter zurücksetzen",
+    "selectPersonPrompt": "Person für die Zeitleiste wählen.",
+    "selectPersonShort": "Person wählen.",
+    "loadingTimeline": "Zeitleiste wird geladen…",
+    "eventsCount": "Ereignisse: {count}",
+    "noPersonsTitle": "Keine Personen",
+    "noPersonsDesc": "Legen Sie zuerst eine Person unter «Personen» an.",
+    "noEventsTitle": "Noch keine Ereignisse",
+    "noEventsDesc": "Ereignisse im Admin-Block unten oder per API hinzufügen.",
+    "documents": "Dokumente",
+    "media": "Medien",
+    "aiSummaryPrefix": "KI-Zusammenfassung:"
+  },
+  "timelineAdmin": {
+    "loading": "Ereignisse und Orte werden geladen…",
+    "eventsPlacesCount": "Ereignisse: {events}, Orte: {places}",
+    "eventCreated": "Ereignis erstellt",
+    "placeCreated": "Ort erstellt und für die Suche indexiert",
+    "event": "Ereignis",
+    "place": "Ort",
+    "eventType": "Ereignistyp",
+    "date": "Datum",
+    "person": "Person",
+    "familySurname": "Familie / Nachname",
+    "placeField": "Ort",
+    "description": "Beschreibung",
+    "eventDescriptionPlaceholder": "Ereignisbeschreibung",
+    "createEvent": "Ereignis erstellen",
+    "createPlace": "Ort erstellen",
+    "eventsFromApi": "Ereignisse aus API",
+    "placesFromApi": "Orte aus API",
+    "noEventsTitle": "Keine Ereignisse",
+    "noEventsDesc": "Erstes Ereignis über das Formular anlegen.",
+    "noPlacesTitle": "Keine Orte",
+    "noPlacesDesc": "Ersten Ort über das Formular anlegen."
   },
   "timeline": {
     "aiSummaryDone": "KI-Zusammenfassung erstellt",
     "deathBadge": "Tod"
+  },
+  "timelineEventTypes": {
+    "birth": "Geburt",
+    "death": "Tod",
+    "marriage": "Heirat",
+    "migration": "Migration",
+    "education": "Bildung",
+    "military": "Militärdienst",
+    "work": "Arbeit",
+    "custom": "Sonstiges"
+  },
+  "eventTypes": {
+    "BIRTH": "Geburt",
+    "MARRIAGE": "Heirat",
+    "DIVORCE": "Scheidung",
+    "BURIAL": "Beerdigung",
+    "RESIDENCE": "Wohnsitz",
+    "MIGRATION": "Migration",
+    "EDUCATION": "Bildung",
+    "MILITARY": "Militärdienst",
+    "WORK": "Arbeit",
+    "OCCUPATION": "Beruf",
+    "IMMIGRATION": "Einwanderung",
+    "CUSTOM": "Sonstiges",
+    "DEATH": "Tod"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Familien-Dashboard",
+      "description": "Stammbaum, Medienarchiv, Dokumente, Zeitleiste und künftige KI-Module.",
+      "addPerson": "Person hinzufügen"
+    },
+    "persons": {
+      "title": "Personen",
+      "description": "Personenkatalog mit Profil, Biografie und Lebensdaten."
+    },
+    "families": {
+      "title": "Familien",
+      "description": "Familienlinien, Generationen und Datenschutz pro Ast."
+    },
+    "tree": {
+      "title": "Stammbaum",
+      "description": "Nachname und Hauptperson wählen — der Baum wird neu aufgebaut.",
+      "rendererNote": "TreeExplorer uses the API graph contract; TreeCanvas passes nodes/edges to a renderer adapter. React Flow can later be swapped for D3.js or Cytoscape.js without rewriting backend endpoints.",
+      "rendererTitle": "Renderer-Architektur"
+    },
+    "media": {
+      "title": "Medienarchiv",
+      "description": "Fotos, Video, Sprachgeschichten: Dateien in MinIO, Metadaten in PostgreSQL."
+    },
+    "documents": {
+      "title": "Dokumente",
+      "description": "Archive, OCR, Prüfstatus, Verknüpfungen zu Personen und Ereignissen."
+    },
+    "search": {
+      "title": "Suche",
+      "description": "Lokale Meilisearch-Suche in Personen, Dokumenten und Orten."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Profil, Privatsphäre, Themes und Self-Hosting-Optionen.",
+      "profile": "Profil",
+      "privacy": "Standard-Privatsphäre",
+      "import": "Datenimport",
+      "importDesc": "GEDCOM-Import mit Vorschau vor PostgreSQL.",
+      "openGedcom": "GEDCOM-Import öffnen"
+    },
+    "settingsImport": {
+      "title": "GEDCOM-Import",
+      "description": "Vorschau vor .ged-Import: INDI, FAM, NAME, SEX, BIRT, DEAT usw."
+    }
+  },
+  "privacy": {
+    "public": "Öffentlich",
+    "family": "Nur Familie",
+    "private": "Privat"
   }
 }

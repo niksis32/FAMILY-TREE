@@ -2,7 +2,41 @@
   "common": {
     "language": "Idioma",
     "loading": "Cargando…",
-    "error": "Se produjo un error"
+    "error": "Se produjo un error",
+    "notSelected": "No seleccionado",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "open": "abrir",
+    "noLinks": "Sin enlaces",
+    "noDate": "sin fecha",
+    "familyFallback": "Familia {id}",
+    "createFamilyHint": "{name} (cree una familia con este nombre)"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "persons": "Personas",
+    "families": "Familias",
+    "tree": "Árbol",
+    "timeline": "Cronología",
+    "media": "Medios",
+    "documents": "Documentos",
+    "search": "Búsqueda",
+    "settings": "Ajustes"
+  },
+  "shell": {
+    "brandTag": "AI Genealogy",
+    "brandTitle": "Family Memory",
+    "tagline": "Plataforma familiar self-hosted",
+    "mvpWorkspace": "MVP Workspace",
+    "lightTheme": "Tema claro",
+    "darkTheme": "Tema oscuro",
+    "logout": "Salir"
+  },
+  "errors": {
+    "unknown": "Error desconocido",
+    "sessionExpired": "Sesión caducada. Vuelva a iniciar sesión.",
+    "apiError": "Error API {status}"
   },
   "placePicker": {
     "century": "Siglo",
@@ -16,25 +50,146 @@
     "region": "Región",
     "city": "Ciudad",
     "placeName": "Nombre del lugar",
-    "placeNamePlaceholder": "p. ej. Kazán, centro",
+    "placeNamePlaceholder": "ej. Kazán, centro",
     "citySearch": "Buscar ciudad",
-    "citySearchPlaceholder": "Buscar ciudad (2+ letras) o elegir de la lista",
+    "citySearchPlaceholder": "Buscar (2+ letras) o elegir de la lista",
     "notSelected": "No seleccionado",
     "notSelectedOptional": "No seleccionado (opcional)",
-    "selectCenturyFirst": "Primero elija el siglo",
-    "selectCountryFirst": "Primero elija el país",
-    "historicalHint": "Gobernaciones seed: solo ciudades demo. Para GeoNames deje vacío o región como «Moscow Oblast».",
-    "cityListHint": "Hasta {count} localidades principales. La búsqueda recorre todo GeoNames.",
-    "selectCountryAndCentury": "Primero país y siglo.",
+    "selectCenturyFirst": "Elija primero el siglo",
+    "selectCountryFirst": "Elija primero el país",
+    "historicalHint": "Gobernaciones seed: solo ciudades demo. Para GeoNames deje vacío o elija región.",
+    "cityListHint": "Hasta {count} asentamientos en la lista. La búsqueda recorre GeoNames.",
+    "selectCountryAndCentury": "Elija país y siglo primero.",
     "autofillTitle": "Rellenado desde datos de referencia",
     "countryLabel": "País:",
     "regionLabel": "Región:",
     "cityLabel": "Ciudad:",
     "coordinatesLabel": "Coordenadas:",
-    "historicalNamesLabel": "Nombres históricos:"
+    "historicalNamesLabel": "Nombres históricos:",
+    "createPlace": "Crear lugar"
+  },
+  "timelinePage": {
+    "title": "Cronología de vida",
+    "description": "Elija una persona: nacimiento, matrimonio, migración, educación, servicio militar, trabajo y más."
+  },
+  "timelineView": {
+    "subtitle": "Cronología de vida",
+    "personNotSelected": "Ninguna persona",
+    "person": "Persona",
+    "resetFilter": "Restablecer filtro",
+    "selectPersonPrompt": "Elija una persona para cargar la cronología.",
+    "selectPersonShort": "Elija una persona.",
+    "loadingTimeline": "Cargando cronología…",
+    "eventsCount": "Eventos: {count}",
+    "noPersonsTitle": "Sin personas",
+    "noPersonsDesc": "Cree primero una persona en «Personas».",
+    "noEventsTitle": "Sin eventos aún",
+    "noEventsDesc": "Añada eventos en el bloque de administración o vía API.",
+    "documents": "Documentos",
+    "media": "Medios",
+    "aiSummaryPrefix": "Resumen IA:"
+  },
+  "timelineAdmin": {
+    "loading": "Cargando eventos y lugares…",
+    "eventsPlacesCount": "Eventos: {events}, lugares: {places}",
+    "eventCreated": "Evento creado",
+    "placeCreated": "Lugar creado e indexado para búsqueda",
+    "event": "Evento",
+    "place": "Lugar",
+    "eventType": "Tipo de evento",
+    "date": "Fecha",
+    "person": "Persona",
+    "familySurname": "Familia / apellido",
+    "placeField": "Lugar",
+    "description": "Descripción",
+    "eventDescriptionPlaceholder": "Descripción del evento",
+    "createEvent": "Crear evento",
+    "createPlace": "Crear lugar",
+    "eventsFromApi": "Eventos de API",
+    "placesFromApi": "Lugares de API",
+    "noEventsTitle": "Sin eventos",
+    "noEventsDesc": "Cree el primer evento con el formulario.",
+    "noPlacesTitle": "Sin lugares",
+    "noPlacesDesc": "Cree el primer lugar con el formulario."
   },
   "timeline": {
-    "aiSummaryDone": "Resumen de IA generado",
+    "aiSummaryDone": "Resumen IA generado",
     "deathBadge": "Muerte"
+  },
+  "timelineEventTypes": {
+    "birth": "Nacimiento",
+    "death": "Muerte",
+    "marriage": "Matrimonio",
+    "migration": "Migración",
+    "education": "Educación",
+    "military": "Servicio militar",
+    "work": "Trabajo",
+    "custom": "Otro"
+  },
+  "eventTypes": {
+    "BIRTH": "Nacimiento",
+    "MARRIAGE": "Matrimonio",
+    "DIVORCE": "Divorcio",
+    "BURIAL": "Entierro",
+    "RESIDENCE": "Residencia",
+    "MIGRATION": "Migración",
+    "EDUCATION": "Educación",
+    "MILITARY": "Servicio militar",
+    "WORK": "Trabajo",
+    "OCCUPATION": "Ocupación",
+    "IMMIGRATION": "Inmigración",
+    "CUSTOM": "Otro",
+    "DEATH": "Muerte"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Panel de memoria familiar",
+      "description": "Árbol, archivos multimedia, documentos, cronología y módulos IA.",
+      "addPerson": "Añadir persona"
+    },
+    "persons": {
+      "title": "Personas",
+      "description": "Catálogo de personas con perfil y biografía."
+    },
+    "families": {
+      "title": "Familias",
+      "description": "Líneas familiares y privacidad por rama."
+    },
+    "tree": {
+      "title": "Árbol genealógico",
+      "description": "Elija apellido y persona principal.",
+      "rendererNote": "TreeExplorer uses the API graph contract; TreeCanvas passes nodes/edges to a renderer adapter. React Flow can later be swapped for D3.js or Cytoscape.js without rewriting backend endpoints.",
+      "rendererTitle": "Arquitectura del renderer"
+    },
+    "media": {
+      "title": "Archivo multimedia",
+      "description": "Fotos, vídeo y relatos: MinIO + PostgreSQL."
+    },
+    "documents": {
+      "title": "Documentos",
+      "description": "Fuentes de archivo, OCR y enlaces."
+    },
+    "search": {
+      "title": "Búsqueda",
+      "description": "Búsqueda local Meilisearch."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "description": "Perfil, privacidad e instancia self-hosted.",
+      "profile": "Perfil",
+      "privacy": "Privacidad predeterminada",
+      "import": "Importación de datos",
+      "importDesc": "Importación GEDCOM con vista previa.",
+      "openGedcom": "Abrir importación GEDCOM"
+    },
+    "settingsImport": {
+      "title": "Importación GEDCOM",
+      "description": "Vista previa antes de importar .ged."
+    }
+  },
+  "privacy": {
+    "public": "Público",
+    "family": "Solo familia",
+    "private": "Privado"
   }
 }

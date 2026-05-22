@@ -1,13 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { SearchPanel } from '@/components/search-panel';
 import { PageHeader } from '@/components/ui';
 
-export default function SearchPage() {
+export default async function SearchPage() {
+  const t = await getTranslations('pages.search');
+
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Поиск"
-        description="Глобальный локальный поиск через Meilisearch по людям, документам, местам и источникам. Внешние поисковые сервисы не используются."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
       <SearchPanel />
     </div>
   );

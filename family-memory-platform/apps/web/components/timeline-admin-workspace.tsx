@@ -1,10 +1,12 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/components/ui';
-import { apiClient, formatApiError, type EventRecord, type FamilyRecord, type PlaceRecord } from '@/lib/api-client';
-import { API_EVENT_TYPE_OPTIONS, apiEventTypeLabel } from '@/lib/event-type-labels';
+import { apiClient, type EventRecord, type FamilyRecord, type PlaceRecord } from '@/lib/api-client';
+import { useApiEventTypeLabel, useApiEventTypeOptions } from '@/lib/use-event-type-labels';
+import { useFormatApiError } from '@/lib/use-format-api-error';
 import { formatPersonLabel } from '@/lib/person-display';
 import { PlaceGeographyForm, type PlaceGeographyValue } from '@/components/place-geography-form';
 import { formatPlaceOption } from '@/lib/place-helpers';
@@ -16,6 +18,11 @@ type TimelineAdminWorkspaceProps = {
 
 export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWorkspaceProps) {
   const { session } = useAuth();
+  const t = useTranslations('timelineAdmin');
+  const tCommon = useTranslations('common');
+  const formatApiError = useFormatApiError();
+  const eventTypeOptions = useApiEventTypeOptions();
+  const apiEventTypeLabel = useApiEventTypeLabel();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [persons, setPersons] = useState<PersonSummary[]>([]);
@@ -35,9 +42,13 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
     cityId: '',
     name: '',
   });
-  const [placeForm, setPlaceForm] = useState<PlaceGeographyValue>(emptyGeoForm);
-  const [status, setStatus] = useState('Загружаем события и места...');
+  const [placeForm, setPlaceForm] = useState<PlaceGeographyValue>(emptyGeoForm());
+  const [status, setStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setStatus(t('loading'));
+  }, [t]);
 
   const surnames = useMemo(() => {
     const set = new Set<string>();
@@ -60,7 +71,7 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
       setPlaces(nextPlaces);
       setPersons(nextPersons);
       setFamilies(nextFamilies);
-      setStatus(`Событий: ${nextEvents.length}, мест: ${nextPlaces.length}`);
+      setStatus(t('eventsPlacesCount', { events: nextEvents.length, places: nextPlaces.length }));
     } catch (error) {
       setStatus(formatApiError(error));
     }
@@ -100,7 +111,7 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
         description: '',
       });
       await load();
-      setStatus('Событие создано');
+      setStatus(t('eventCreated'));
     } catch (error) {
       setStatus(formatApiError(error));
     } finally {
@@ -128,7 +139,7 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
       );
       setPlaceForm(emptyGeoForm());
       await load();
-      setStatus('Место создано и отправлено на индексацию поиска');
+      setStatus(t('placeCreated'));
     } catch (error) {
       setStatus(formatApiError(error));
     } finally {
@@ -141,23 +152,23 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
       <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="text-xl font-semibold">Событие</h2>
+          <h2 className="text-xl font-semibold">{t('event')}</h2>
           <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={createEvent}>
-            <FormField label="Тип события">
+            <FormField label={t('eventType')}>
               <Select value={eventForm.type} onChange={(event) => setEventForm({ ...eventForm, type: event.target.value })}>
-                {API_EVENT_TYPE_OPTIONS.map((option) => (
+                {eventTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </Select>
             </FormField>
-            <FormField label="Дата">
+            <FormField label={t('date')}>
               <Input type="date" value={eventForm.date} onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })} />
             </FormField>
-            <FormField label="Персона">
+            <FormField label={t('person')}>
               <Select value={eventForm.personId} onChange={(event) => setEventForm({ ...eventForm, personId: event.target.value })}>
-                <option value="">Не выбрано</option>
+                <option value="">{tCommon('notSelected')}</option>
                 {persons.map((person) => (
                   <option key={person.id} value={person.id}>
                     {formatPersonLabel(person)}
@@ -165,26 +176,26 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
                 ))}
               </Select>
             </FormField>
-            <FormField label="Семья / фамилия">
+            <FormField label={t('familySurname')}>
               <Select value={eventForm.familyId} onChange={(event) => setEventForm({ ...eventForm, familyId: event.target.value })}>
-                <option value="">Не выбрано</option>
+                <option value="">{tCommon('notSelected')}</option>
                 {families.map((family) => (
                   <option key={family.id} value={family.id}>
-                    {family.name?.trim() || `Семья ${family.id.slice(0, 8)}`}
+                    {family.name?.trim() || tCommon('familyFallback', { id: family.id.slice(0, 8) })}
                   </option>
                 ))}
                 {surnames
                   .filter((surname) => !families.some((family) => family.name?.trim() === surname))
                   .map((surname) => (
                     <option key={`surname-${surname}`} value="" disabled>
-                      {surname} (создайте семью с этим названием)
+                      {tCommon('createFamilyHint', { name: surname })}
                     </option>
                   ))}
               </Select>
             </FormField>
-            <FormField label="Место" className="md:col-span-2">
+            <FormField label={t('placeField')} className="md:col-span-2">
               <Select value={eventForm.placeId} onChange={(event) => setEventForm({ ...eventForm, placeId: event.target.value })}>
-                <option value="">Не выбрано</option>
+                <option value="">{tCommon('notSelected')}</option>
                 {places.map((place) => (
                   <option key={place.id} value={place.id}>
                     {formatPlaceOption(place)}
@@ -192,25 +203,25 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
                 ))}
               </Select>
             </FormField>
-            <FormField label="Описание" className="md:col-span-2">
+            <FormField label={t('description')} className="md:col-span-2">
               <Textarea
                 value={eventForm.description}
                 onChange={(event) => setEventForm({ ...eventForm, description: event.target.value })}
-                placeholder="Описание события"
+                placeholder={t('eventDescriptionPlaceholder')}
               />
             </FormField>
             <Button className="md:col-span-2" disabled={isSaving || !session} type="submit">
-              Создать событие
+              {t('createEvent')}
             </Button>
           </form>
         </Card>
 
         <Card>
-          <h2 className="text-xl font-semibold">Место</h2>
+          <h2 className="text-xl font-semibold">{t('place')}</h2>
           <form className="mt-5" onSubmit={createPlace}>
             <PlaceGeographyForm value={placeForm} onChange={setPlaceForm} disabled={isSaving || !session} />
             <Button className="mt-4 w-full" disabled={isSaving || !session || !placeForm.name.trim()} type="submit">
-              Создать место
+              {t('createPlace')}
             </Button>
           </form>
         </Card>
@@ -218,9 +229,9 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="text-xl font-semibold">События из API</h2>
+          <h2 className="text-xl font-semibold">{t('eventsFromApi')}</h2>
           <div className="mt-4 space-y-3">
-            {events.length === 0 ? <EmptyState title="Событий нет" description="Создайте первое событие через форму." /> : null}
+            {events.length === 0 ? <EmptyState title={t('noEventsTitle')} description={t('noEventsDesc')} /> : null}
             {events.map((event) => (
               <div key={event.id} className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
                 <p className="font-semibold">{apiEventTypeLabel(event.type)}</p>
@@ -231,9 +242,9 @@ export function TimelineAdminWorkspace({ activePersonId = '' }: TimelineAdminWor
         </Card>
 
         <Card>
-          <h2 className="text-xl font-semibold">Места из API</h2>
+          <h2 className="text-xl font-semibold">{t('placesFromApi')}</h2>
           <div className="mt-4 space-y-3">
-            {places.length === 0 ? <EmptyState title="Мест нет" description="Создайте первое место через форму." /> : null}
+            {places.length === 0 ? <EmptyState title={t('noPlacesTitle')} description={t('noPlacesDesc')} /> : null}
             {places.map((place) => (
               <div key={place.id} className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
                 <p className="font-semibold">{place.name}</p>

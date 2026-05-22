@@ -2,7 +2,41 @@
   "common": {
     "language": "اللغة",
     "loading": "جاري التحميل…",
-    "error": "حدث خطأ"
+    "error": "حدث خطأ",
+    "notSelected": "غير محدد",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "open": "فتح",
+    "noLinks": "لا روابط",
+    "noDate": "بدون تاريخ",
+    "familyFallback": "عائلة {id}",
+    "createFamilyHint": "{name} (أنشئ عائلة بهذا الاسم)"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "persons": "الأشخاص",
+    "families": "العائلات",
+    "tree": "الشجرة",
+    "timeline": "الجدول الزمني",
+    "media": "الوسائط",
+    "documents": "المستندات",
+    "search": "بحث",
+    "settings": "الإعدادات"
+  },
+  "shell": {
+    "brandTag": "AI Genealogy",
+    "brandTitle": "Family Memory",
+    "tagline": "منصة عائلية مستضافة ذاتياً",
+    "mvpWorkspace": "MVP Workspace",
+    "lightTheme": "سمة فاتحة",
+    "darkTheme": "سمة داكنة",
+    "logout": "تسجيل الخروج"
+  },
+  "errors": {
+    "unknown": "خطأ غير معروف",
+    "sessionExpired": "انتهت الجلسة. سجّل الدخول مرة أخرى.",
+    "apiError": "خطأ API {status}"
   },
   "placePicker": {
     "century": "القرن",
@@ -11,30 +45,151 @@
     "century19": "القرن 19 (1801–1900)",
     "century20": "القرن 20 (1901–2000)",
     "century21": "القرن 21 (2001–2100)",
-    "country": "الدولة / الدولة",
+    "country": "الدولة",
     "countryHistorical": "الدولة (الفترة التاريخية)",
     "region": "المنطقة",
     "city": "المدينة",
     "placeName": "اسم المكان",
     "placeNamePlaceholder": "مثال: كازان، وسط المدينة",
     "citySearch": "بحث عن مدينة",
-    "citySearchPlaceholder": "ابحث عن مدينة (حرفان أو أكثر) أو اختر من القائمة",
+    "citySearchPlaceholder": "ابحث (حرفان أو أكثر) أو اختر من القائمة",
     "notSelected": "غير محدد",
     "notSelectedOptional": "غير محدد (اختياري)",
     "selectCenturyFirst": "اختر القرن أولاً",
     "selectCountryFirst": "اختر الدولة أولاً",
-    "historicalHint": "محافظات seed تحتوي مدناً تجريبية فقط. لـ GeoNames اترك فارغاً أو اختر منطقة مثل «Moscow Oblast».",
-    "cityListHint": "حتى {count} من التجمعات الكبرى في القائمة. البحث يشمل كل بيانات GeoNames.",
+    "historicalHint": "محافظات seed: مدن تجريبية فقط. لـ GeoNames اترك فارغاً أو اختر منطقة.",
+    "cityListHint": "حتى {count} تجمعات في القائمة. البحث في GeoNames.",
     "selectCountryAndCentury": "اختر الدولة والقرن أولاً.",
     "autofillTitle": "مُعبّأ من بيانات المرجع",
     "countryLabel": "الدولة:",
     "regionLabel": "المنطقة:",
     "cityLabel": "المدينة:",
     "coordinatesLabel": "الإحداثيات:",
-    "historicalNamesLabel": "الأسماء التاريخية:"
+    "historicalNamesLabel": "الأسماء التاريخية:",
+    "createPlace": "إنشاء مكان"
+  },
+  "timelinePage": {
+    "title": "الجدول الزمني للحياة",
+    "description": "اختر شخصاً: ولادة، زواج، هجرة، تعليم، خدمة عسكرية، عمل وغيرها."
+  },
+  "timelineView": {
+    "subtitle": "الجدول الزمني للحياة",
+    "personNotSelected": "لم يُختر شخص",
+    "person": "الشخص",
+    "resetFilter": "إعادة تعيين الفلتر",
+    "selectPersonPrompt": "اختر شخصاً لتحميل الجدول الزمني.",
+    "selectPersonShort": "اختر شخصاً.",
+    "loadingTimeline": "جاري تحميل الجدول الزمني…",
+    "eventsCount": "الأحداث: {count}",
+    "noPersonsTitle": "لا أشخاص",
+    "noPersonsDesc": "أنشئ شخصاً أولاً في صفحة «الأشخاص».",
+    "noEventsTitle": "لا أحداث بعد",
+    "noEventsDesc": "أضف أحداثاً في قسم الإدارة أو عبر API.",
+    "documents": "المستندات",
+    "media": "الوسائط",
+    "aiSummaryPrefix": "ملخص الذكاء الاصطناعي:"
+  },
+  "timelineAdmin": {
+    "loading": "جاري تحميل الأحداث والأماكن…",
+    "eventsPlacesCount": "أحداث: {events}، أماكن: {places}",
+    "eventCreated": "تم إنشاء الحدث",
+    "placeCreated": "تم إنشاء المكان وفهرسته للبحث",
+    "event": "حدث",
+    "place": "مكان",
+    "eventType": "نوع الحدث",
+    "date": "التاريخ",
+    "person": "الشخص",
+    "familySurname": "العائلة / اللقب",
+    "placeField": "المكان",
+    "description": "الوصف",
+    "eventDescriptionPlaceholder": "وصف الحدث",
+    "createEvent": "إنشاء حدث",
+    "createPlace": "إنشاء مكان",
+    "eventsFromApi": "أحداث من API",
+    "placesFromApi": "أماكن من API",
+    "noEventsTitle": "لا أحداث",
+    "noEventsDesc": "أنشئ أول حدث عبر النموذج.",
+    "noPlacesTitle": "لا أماكن",
+    "noPlacesDesc": "أنشئ أول مكان عبر النموذج."
   },
   "timeline": {
     "aiSummaryDone": "تم إنشاء ملخص بالذكاء الاصطناعي",
     "deathBadge": "وفاة"
+  },
+  "timelineEventTypes": {
+    "birth": "ولادة",
+    "death": "وفاة",
+    "marriage": "زواج",
+    "migration": "هجرة",
+    "education": "تعليم",
+    "military": "خدمة عسكرية",
+    "work": "عمل",
+    "custom": "أخرى"
+  },
+  "eventTypes": {
+    "BIRTH": "ولادة",
+    "MARRIAGE": "زواج",
+    "DIVORCE": "طلاق",
+    "BURIAL": "دفن",
+    "RESIDENCE": "إقامة",
+    "MIGRATION": "هجرة",
+    "EDUCATION": "تعليم",
+    "MILITARY": "خدمة عسكرية",
+    "WORK": "عمل",
+    "OCCUPATION": "مهنة",
+    "IMMIGRATION": "هجرة",
+    "CUSTOM": "أخرى",
+    "DEATH": "وفاة"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "لوحة الذاكرة العائلية",
+      "description": "إدارة الشجرة والوسائط والمستندات والجدول الزمني ووحدات الذكاء الاصطناعي.",
+      "addPerson": "إضافة شخص"
+    },
+    "persons": {
+      "title": "الأشخاص",
+      "description": "دليل الأشخاص مع السيرة والتواريخ."
+    },
+    "families": {
+      "title": "العائلات",
+      "description": "خطوط العائلة والخصوصية."
+    },
+    "tree": {
+      "title": "شجرة العائلة",
+      "description": "اختر اللقب والشخص الجذر.",
+      "rendererNote": "TreeExplorer uses the API graph contract; TreeCanvas passes nodes/edges to a renderer adapter. React Flow can later be swapped for D3.js or Cytoscape.js without rewriting backend endpoints.",
+      "rendererTitle": "بنية العارض"
+    },
+    "media": {
+      "title": "أرشيف الوسائط",
+      "description": "صور وفيديو وقصص: MinIO وPostgreSQL."
+    },
+    "documents": {
+      "title": "المستندات",
+      "description": "مصادر الأرشيف وOCR والروابط."
+    },
+    "search": {
+      "title": "بحث",
+      "description": "بحث Meilisearch محلي."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "description": "الملف والخصوصية والاستضافة الذاتية.",
+      "profile": "الملف",
+      "privacy": "الخصوصية الافتراضية",
+      "import": "استيراد البيانات",
+      "importDesc": "استيراد GEDCOM مع معاينة.",
+      "openGedcom": "فتح استيراد GEDCOM"
+    },
+    "settingsImport": {
+      "title": "استيراد GEDCOM",
+      "description": "معاينة قبل استيراد .ged."
+    }
+  },
+  "privacy": {
+    "public": "عام",
+    "family": "العائلة فقط",
+    "private": "خاص"
   }
 }

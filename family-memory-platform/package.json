@@ -57,6 +57,7 @@
     "geography:import:multilang:world": "pnpm geography:import:geo-world",
     "geography:generate:locales": "node scripts/geography/generate-geonames-locales.mjs",
     "i18n:sync-ui-locales": "node scripts/i18n/sync-ui-locales.mjs",
+    "i18n:build-ui-locales": "node scripts/i18n/build-ui-locale-bundles.mjs && pnpm i18n:sync-ui-locales",
     "geography:import:i18n:ar": "node scripts/geography/import-alternate-names-v2.mjs --locale=ar"
   },
   "engines": {

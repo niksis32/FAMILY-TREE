@@ -2,7 +2,41 @@
   "common": {
     "language": "Язык",
     "loading": "Загрузка…",
-    "error": "Произошла ошибка"
+    "error": "Произошла ошибка",
+    "notSelected": "Не выбрано",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "edit": "Редактировать",
+    "open": "открыть",
+    "noLinks": "Нет связей",
+    "noDate": "без даты",
+    "familyFallback": "Семья {id}",
+    "createFamilyHint": "{name} (создайте семью с этим названием)"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "persons": "Люди",
+    "families": "Семьи",
+    "tree": "Древо",
+    "timeline": "Хронология",
+    "media": "Медиа",
+    "documents": "Документы",
+    "search": "Поиск",
+    "settings": "Настройки"
+  },
+  "shell": {
+    "brandTag": "AI Genealogy",
+    "brandTitle": "Family Memory",
+    "tagline": "Self-hosted семейная платформа",
+    "mvpWorkspace": "MVP Workspace",
+    "lightTheme": "Светлая тема",
+    "darkTheme": "Тёмная тема",
+    "logout": "Выйти"
+  },
+  "errors": {
+    "unknown": "Неизвестная ошибка",
+    "sessionExpired": "Сессия истекла или токен недействителен. Нажмите «Выйти» и войдите снова.",
+    "apiError": "Ошибка API {status}"
   },
   "placePicker": {
     "century": "Век",
@@ -31,10 +65,131 @@
     "regionLabel": "Регион:",
     "cityLabel": "Город:",
     "coordinatesLabel": "Координаты:",
-    "historicalNamesLabel": "Исторические названия:"
+    "historicalNamesLabel": "Исторические названия:",
+    "createPlace": "Создать место"
+  },
+  "timelinePage": {
+    "title": "Хронология жизни",
+    "description": "Выберите персону — отобразятся события её жизни: рождение, брак, миграция, образование, служба, работа и другие."
+  },
+  "timelineView": {
+    "subtitle": "Хронология жизни",
+    "personNotSelected": "Персона не выбрана",
+    "person": "Персона",
+    "resetFilter": "Сбросить фильтр",
+    "selectPersonPrompt": "Выберите персону для загрузки хронологии.",
+    "selectPersonShort": "Выберите персону.",
+    "loadingTimeline": "Загружаем хронологию жизни...",
+    "eventsCount": "Событий: {count}",
+    "noPersonsTitle": "Персон нет",
+    "noPersonsDesc": "Сначала создайте персону на странице «Люди».",
+    "noEventsTitle": "Событий пока нет",
+    "noEventsDesc": "Добавьте события в блоке администрирования ниже или через API.",
+    "documents": "Документы",
+    "media": "Медиа",
+    "aiSummaryPrefix": "ИИ выполнило краткое изложение:"
+  },
+  "timelineAdmin": {
+    "loading": "Загружаем события и места...",
+    "eventsPlacesCount": "Событий: {events}, мест: {places}",
+    "eventCreated": "Событие создано",
+    "placeCreated": "Место создано и отправлено на индексацию поиска",
+    "event": "Событие",
+    "place": "Место",
+    "eventType": "Тип события",
+    "date": "Дата",
+    "person": "Персона",
+    "familySurname": "Семья / фамилия",
+    "placeField": "Место",
+    "description": "Описание",
+    "eventDescriptionPlaceholder": "Описание события",
+    "createEvent": "Создать событие",
+    "createPlace": "Создать место",
+    "eventsFromApi": "События из API",
+    "placesFromApi": "Места из API",
+    "noEventsTitle": "Событий нет",
+    "noEventsDesc": "Создайте первое событие через форму.",
+    "noPlacesTitle": "Мест нет",
+    "noPlacesDesc": "Создайте первое место через форму."
   },
   "timeline": {
     "aiSummaryDone": "ИИ выполнило краткое изложение",
     "deathBadge": "Смерть"
+  },
+  "timelineEventTypes": {
+    "birth": "Рождение",
+    "death": "Смерть",
+    "marriage": "Брак",
+    "migration": "Миграция",
+    "education": "Образование",
+    "military": "Военная служба",
+    "work": "Работа",
+    "custom": "Другое"
+  },
+  "eventTypes": {
+    "BIRTH": "Рождение",
+    "MARRIAGE": "Брак",
+    "DIVORCE": "Развод",
+    "BURIAL": "Захоронение",
+    "RESIDENCE": "Проживание",
+    "MIGRATION": "Миграция",
+    "EDUCATION": "Образование",
+    "MILITARY": "Военная служба",
+    "WORK": "Работа",
+    "OCCUPATION": "Занятость",
+    "IMMIGRATION": "Иммиграция",
+    "CUSTOM": "Другое",
+    "DEATH": "Смерть"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Панель семейной памяти",
+      "description": "Единая точка управления семейным древом, медиаархивом, документами, timeline и будущими AI-модулями.",
+      "addPerson": "Добавить персону"
+    },
+    "persons": {
+      "title": "Люди",
+      "description": "Каталог персон с базовой карточкой, биографией, датами жизни и будущими связями genealogy graph."
+    },
+    "families": {
+      "title": "Семьи",
+      "description": "Управление семейными линиями, поколениями и политиками приватности для отдельных веток древа."
+    },
+    "tree": {
+      "title": "Семейное древо",
+      "description": "Выберите фамилию и основную персону — дерево перестроится от неё. Справа: все с этой фамилией и участники на выбранном режиме (предки / потомки / полное).",
+      "rendererNote": "TreeExplorer работает с API graph contract, а TreeCanvas передаёт nodes/edges в renderer adapter. Позже можно заменить React Flow на D3.js или Cytoscape.js без переписывания backend endpoints.",
+      "rendererTitle": "Архитектура рендерера"
+    },
+    "media": {
+      "title": "Медиаархив",
+      "description": "Фото, видео и voice stories: файлы физически уходят в MinIO, а metadata сохраняется в PostgreSQL."
+    },
+    "documents": {
+      "title": "Документы",
+      "description": "Архивные источники, OCR pipeline, статусы проверки и связь документов с персонами, семьями и событиями."
+    },
+    "search": {
+      "title": "Поиск",
+      "description": "Глобальный локальный поиск через Meilisearch по людям, документам, местам и источникам. Внешние поисковые сервисы не используются."
+    },
+    "settings": {
+      "title": "Настройки",
+      "description": "Профиль, приватность, темы, будущие роли доступа и параметры self-hosted инсталляции.",
+      "profile": "Профиль",
+      "privacy": "Приватность по умолчанию",
+      "import": "Импорт данных",
+      "importDesc": "GEDCOM import поддерживает preview перед записью в PostgreSQL и базовый mapping персон, семей, связей, событий и источников.",
+      "openGedcom": "Открыть GEDCOM import"
+    },
+    "settingsImport": {
+      "title": "GEDCOM import",
+      "description": "Preview перед импортом .ged: базовые теги INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR и NOTE."
+    }
+  },
+  "privacy": {
+    "public": "Публично",
+    "family": "Только семья",
+    "private": "Приватно"
   }
 }

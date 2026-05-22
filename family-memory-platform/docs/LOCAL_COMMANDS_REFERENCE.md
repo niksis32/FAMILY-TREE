@@ -410,6 +410,43 @@ Ready
 
 Терминал с этой командой должен оставаться открытым.
 
+*******************************************************************************************
+Перезапуск после обновления кода 4000
+*******************************************************************************************
+
+
+
+*** Первый признак  http://localhost:3000/  
+
+////////Не удается авторизоваться  
+
+
+*** Второй признак  http://localhost:4000/api/v1/health  выдает 404
+
+
+то перезапуск  в отдельном терминале 
+
+Терминал A — API:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:prisma
+pnpm --filter @family/shared build
+pnpm api:build && pnpm api:start
+```
+
+После должен http://localhost:4000/api/v1/health 
+
+
+{
+  "status": "ok",
+  "service": "family-api",
+  "timestamp": "2026-05-22T08:34:43.591Z"
+}
+
+
 ### Windows PowerShell: проверить страницу
 
 ```powershell
@@ -1006,7 +1043,13 @@ pkill -f "next dev --port 3000" 2>/dev/null || true
 pnpm --filter @family/web dev
 ```
 
-Проверка: `http://localhost:3000/en/timeline` — в «Персона» по умолчанию **Not selected** / «Не выбрано»; век и страны на выбранном языке.
+Проверка UI на языке:
+
+- `http://localhost:3000/en/timeline` — меню и «Место» / «Event» на английском
+- `http://localhost:3000/ru/timeline` — на русском
+- `http://localhost:3000/ar/timeline` — подписи на арабском (названия стран — после `geography:import:i18n:ar`)
+
+После добавления `apps/web/i18n/locales/xx.json`: `pnpm i18n:build-ui-locales`, затем перезапуск Web.
 
 ### 5) Браузер
 

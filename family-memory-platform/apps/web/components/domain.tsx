@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { PersonSummary, RelationshipType } from '@family/shared';
 import { Badge, Button, Card, Input, Select, Textarea } from '@/components/ui';
@@ -16,14 +19,9 @@ function apiPrivacyLevel(level?: string | null): PrivacyLevel | null {
 }
 
 export function PrivacyBadge({ level }: { level: PrivacyLevel }) {
-  const label = {
-    public: 'Публично',
-    family: 'Только семья',
-    private: 'Приватно',
-  }[level];
-
+  const t = useTranslations('privacy');
   const tone = level === 'public' ? 'green' : level === 'family' ? 'gold' : 'red';
-  return <Badge tone={tone}>{label}</Badge>;
+  return <Badge tone={tone}>{t(level)}</Badge>;
 }
 
 export function RelationshipBadge({ type }: { type: RelationshipType }) {
