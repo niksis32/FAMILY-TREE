@@ -15,37 +15,11 @@ import { loadGeonamesRuNamesMap } from './lib/geonames-ru-names-map.mjs';
 import { loadAdmin1Meta } from './lib/load-admin1-meta.mjs';
 import { loadRootEnv } from './lib/load-env.mjs';
 import { createPrismaClient } from './lib/prisma-client.mjs';
+import { resolveCitiesFilePath } from './lib/resolve-cities-file.mjs';
 import { loadIso2SetFromDb, resolveCountryIdForIso2 } from './lib/resolve-country-id.mjs';
 
 loadRootEnv();
 const prisma = createPrismaClient();
-const root = join(process.cwd(), 'data/imports/geonames');
-
-function resolveCitiesFilePath(countryFilter, fileArg) {
-  if (fileArg) return fileArg;
-
-  const citiesDir = join(process.cwd(), 'cities');
-  if (countryFilter) {
-    const perCountry = join(citiesDir, `${countryFilter}.txt`);
-    if (existsSync(perCountry)) return perCountry;
-    if (countryFilter === 'RU') {
-      const ruLocalized = join(citiesDir, 'ru/RU.ru.txt');
-      if (existsSync(ruLocalized)) return ruLocalized;
-      const ru = join(citiesDir, 'RU.txt');
-      if (existsSync(ru)) return ru;
-    }
-  }
-
-  const candidates = [
-    join(citiesDir, 'cities15000.txt'),
-    join(root, 'cities15000.txt'),
-    join(citiesDir, 'RU.txt'),
-  ];
-  for (const path of candidates) {
-    if (existsSync(path)) return path;
-  }
-  return null;
-}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -54,13 +28,17 @@ function parseArgs() {
   const countryFilter = args.find((a) => a.startsWith('--country='))?.split('=')[1]?.toUpperCase();
   const minPopArg = args.find((a) => a.startsWith('--min-population='))?.split('=')[1];
 
-  const resolvedCountry = world ? undefined : (countryFilter ?? 'RU');
-  const file = resolveCitiesFilePath(resolvedCountry, fileArg);
+  const resolved = resolveCitiesFilePath({
+    world,
+    countryFilter: world ? undefined : (countryFilter ?? 'RU'),
+    fileArg,
+  });
 
   return {
-    file,
+    file: resolved.path,
+    fileError: resolved.error,
     world,
-    countryFilter: resolvedCountry,
+    countryFilter: world ? undefined : (countryFilter ?? 'RU'),
     minPopulation: minPopArg ? Number.parseInt(minPopArg, 10) : 0,
   };
 }
@@ -217,7 +195,12 @@ async function importCities(filePath, countryFilter, allowedIso2, minPopulation,
 }
 
 async function main() {
-  const { file, world, countryFilter, minPopulation } = parseArgs();
+  const { file, fileError, world, countryFilter, minPopulation } = parseArgs();
+  if (fileError || !file) {
+    console.error(fileError ?? 'Cities file not resolved.');
+    process.exitCode = 1;
+    return;
+  }
   const admin1Path = existsSync(join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt'))
     ? join(process.cwd(), 'cities/ru/admin1CodesASCII.ru.txt')
     : join(process.cwd(), 'cities/admin1CodesASCII.txt');

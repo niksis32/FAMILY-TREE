@@ -414,11 +414,22 @@ export const apiClient = {
       appendLang(params, locale);
       return apiGet<GeoCityRecord[]>(`/places/cities?${params}`, token);
     },
-    search: (q: string, century?: string, token?: string | null, locale?: AppLocale | null) => {
+    search: (
+      q: string,
+      options?: {
+        century?: string;
+        countryId?: string;
+        regionId?: string;
+        token?: string | null;
+        locale?: AppLocale | null;
+      },
+    ) => {
       const params = new URLSearchParams({ q });
-      if (century) params.set('century', century);
-      appendLang(params, locale);
-      return apiGet<GeoSearchResult>(`/places/search?${params}`, token);
+      if (options?.century) params.set('century', options.century);
+      if (options?.countryId) params.set('countryId', options.countryId);
+      if (options?.regionId) params.set('regionId', options.regionId);
+      appendLang(params, options?.locale);
+      return apiGet<GeoSearchResult>(`/places/search?${params}`, options?.token);
     },
     create: (input: unknown, token?: string | null) => apiPost<PlaceRecord>('/places', input, token),
     remove: (id: string, token?: string | null) => apiDelete<PlaceRecord>(`/places/${id}`, token),

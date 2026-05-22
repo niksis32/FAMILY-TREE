@@ -8,7 +8,13 @@ import {
   applyRegionNames,
   buildNameResolver,
 } from './geography-i18n';
-import { centuryToYearRange, isRuGeoZone, periodOverlapFilter, RU_GEO_ZONE_ISO2 } from './geography.utils';
+import {
+  centuryToYearRange,
+  cityRegionWhereInput,
+  isRuGeoZone,
+  periodOverlapFilter,
+  RU_GEO_ZONE_ISO2,
+} from './geography.utils';
 
 @Injectable()
 export class GeographyService {
@@ -81,20 +87,27 @@ export class GeographyService {
     return applyRegionNames(rows, resolve);
   }
 
+  private async resolveCityRegionFilter(regionId: string): Promise<Prisma.CityWhereInput> {
+    const region = await this.prisma.region.findUnique({
+      where: { id: regionId.trim() },
+      select: { id: true, admin1Key: true },
+    });
+    return cityRegionWhereInput(region, regionId);
+  }
+
   async listCities(
     countryId: string,
     regionId?: string,
-    century?: string,
+    _century?: string,
     locale: AppLocale = DEFAULT_APP_LOCALE,
   ) {
     if (!countryId?.trim()) throw new BadRequestException('countryId is required');
 
-    const range = century ? centuryToYearRange(century) : null;
     const countryIds = await this.countryIdsForScope(countryId);
+    const regionFilter = regionId?.trim() ? await this.resolveCityRegionFilter(regionId) : {};
     const where: Prisma.CityWhereInput = {
       countryId: { in: countryIds },
-      ...(regionId?.trim() ? { regionId: regionId.trim() } : {}),
-      ...(range ? periodOverlapFilter(range.from, range.to) : {}),
+      ...regionFilter,
     };
 
     const rows = await this.prisma.city.findMany({
@@ -146,13 +159,25 @@ export class GeographyService {
     return localized;
   }
 
-  async search(q: string, century?: string, locale: AppLocale = DEFAULT_APP_LOCALE) {
+  async search(
+    q: string,
+    century?: string,
+    locale: AppLocale = DEFAULT_APP_LOCALE,
+    scope?: { countryId?: string; regionId?: string },
+  ) {
     const query = q?.trim();
     if (!query || query.length < 2) return { countries: [], regions: [], cities: [] };
 
     const range = century ? centuryToYearRange(century) : null;
     const periodFilter = range ? periodOverlapFilter(range.from, range.to) : {};
     const contains = { contains: query, mode: 'insensitive' as const };
+
+    const countryIds = scope?.countryId?.trim()
+      ? await this.countryIdsForScope(scope.countryId)
+      : null;
+    const regionFilter = scope?.regionId?.trim()
+      ? await this.resolveCityRegionFilter(scope.regionId)
+      : {};
 
     const [countryNameHits, regionNameHits, cityNameHits] = await Promise.all([
       this.prisma.geographicName.findMany({
@@ -203,7 +228,8 @@ export class GeographyService {
         }),
         tx.city.findMany({
           where: {
-            ...periodFilter,
+            ...(countryIds ? { countryId: { in: countryIds } } : {}),
+            ...regionFilter,
             OR: [
               { name: contains },
               { historicalName: contains },

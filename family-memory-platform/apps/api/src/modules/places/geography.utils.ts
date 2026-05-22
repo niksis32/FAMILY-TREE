@@ -35,3 +35,17 @@ export const RU_GEO_ZONE_ISO2 = ['RU', 'SU'] as const;
 export function isRuGeoZone(iso2: string | null | undefined): boolean {
   return iso2 != null && (RU_GEO_ZONE_ISO2 as readonly string[]).includes(iso2);
 }
+
+/** Cities in a region: exact regionId or any row with the same GeoNames admin1Key (DE.04, RU.48, …). */
+export function cityRegionWhereInput(
+  region: { id: string; admin1Key: string | null } | null,
+  regionId: string,
+): { regionId: string } | { OR: Array<{ regionId: string } | { region: { admin1Key: string } }> } {
+  if (!region) return { regionId: regionId.trim() };
+  if (region.admin1Key) {
+    return {
+      OR: [{ regionId: region.id }, { region: { admin1Key: region.admin1Key } }],
+    };
+  }
+  return { regionId: region.id };
+}

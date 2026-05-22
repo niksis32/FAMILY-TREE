@@ -895,12 +895,40 @@ pnpm geography:import:region-i18n
 pnpm geography:import:countries
 pnpm geography:import:regions-admin1:all
 
-# Города: скачать cities15000.zip → распаковать в cities/cities15000.txt
-# https://download.geonames.org/export/dump/cities15000.zip
+# Города: ОБЯЗАТЕЛЬНО cities15000.txt (не подставляется RU.txt!)
+# https://download.geonames.org/export/dump/cities15000.zip → cities/cities15000.txt
 pnpm geography:import:cities:world
+pnpm geography:import:cities:backfill-regions
+
+# Только RU.txt (без cities15000) — мир не импортируется; для РФ после RU.txt:
+# pnpm geography:import:cities:backfill-regions:ru
 
 # Переводы названий из alternateNamesV2 (долго)
 pnpm geography:import:i18n
+```
+
+### Регион есть, города пустые (Германия, Гамбург и т.д.)
+
+Причина: в БД нет строк `City` для этой страны/региона. Регионы приходят из `admin1CodesASCII.txt`, города — **отдельным** импортом.
+
+**Важно:** если `cities15000.txt` нет, `geography:import:cities:world` **раньше молча брал `RU.txt`** (только ~4800 городов РФ). Сейчас команда **завершится с ошибкой**, пока не положите `cities/cities15000.txt`.
+
+1. Скачать [cities15000.zip](https://download.geonames.org/export/dump/cities15000.zip) → `cities/cities15000.txt` (все страны, население ≥15k в файле; скрипт по умолчанию `--min-population=1000`).
+2. Или одну страну: [DE.zip](https://download.geonames.org/export/dump/DE.zip) → `cities/DE.txt`, затем:
+
+```bash
+pnpm geography:import:cities:de
+# или: pnpm geography:import:cities -- --country=DE --min-population=0
+pnpm geography:import:cities:backfill-regions -- --country=DE
+```
+
+3. Перезапустить API (см. ниже) и обновить страницу `Ctrl+F5`.
+
+Проверка API (подставьте `countryId` и `regionId` из ответа `/places/regions`):
+
+```bash
+curl -s "http://localhost:4000/api/v1/places/cities?countryId=geo-country-de&regionId=geo-geonames-region-de-04&lang=en" \
+  -H "Authorization: Bearer YOUR_TOKEN" | head -c 500
 ```
 
 Одна страна (например Польша): скачать `PL.zip` → `cities/PL.txt`, затем:
@@ -908,6 +936,7 @@ pnpm geography:import:i18n
 ```bash
 pnpm geography:import:regions-admin1 -- --country=PL
 pnpm geography:import:cities -- --country=PL --min-population=0
+pnpm geography:import:cities:backfill-regions -- --country=PL
 pnpm geography:import:i18n:regions
 ```
 
@@ -936,6 +965,27 @@ pnpm --filter @family/web dev
 ### 5) Браузер
 
 `Ctrl + F5` на странице хронологии.
+
+### Одной цепочкой (код + география + API + Web)
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm install
+pnpm docker:infra && pnpm db:migrate
+pnpm geography:import:countries
+pnpm geography:import:regions-admin1:all
+# нужен файл cities/cities15000.txt
+pnpm geography:import:cities:world
+pnpm geography:import:cities:backfill-regions
+pnpm geography:import:country-i18n && pnpm geography:import:region-i18n
+
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:prisma && pnpm --filter @family/shared build && pnpm api:build && pnpm api:start
+# второй терминал:
+pkill -f "next dev --port 3000" 2>/dev/null || true
+pnpm --filter @family/web dev
+```
 
 ---
 

@@ -62,15 +62,19 @@ export class PlacesController {
   @Get('search')
   @ApiQuery({ name: 'q', required: true })
   @ApiQuery({ name: 'century', required: false })
+  @ApiQuery({ name: 'countryId', required: false, description: 'Limit city hits to this country scope' })
+  @ApiQuery({ name: 'regionId', required: false, description: 'Limit city hits to admin1 region' })
   @ApiQuery({ name: 'lang', required: false })
   searchPlaces(
     @Query('q') q: string,
     @Query('century') century?: string,
+    @Query('countryId') countryId?: string,
+    @Query('regionId') regionId?: string,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
   ) {
     const locale = resolveRequestLocale(lang, acceptLanguage);
-    return this.geography.search(q, century, locale);
+    return this.geography.search(q, century, locale, { countryId, regionId });
   }
 
   @Get('cities/:cityId/details')

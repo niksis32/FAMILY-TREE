@@ -113,7 +113,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
         const list = await apiClient.places.cities(
           value.countryId,
           value.regionId || undefined,
-          centuryApi,
+          undefined,
           session?.accessToken,
           locale,
         );
@@ -139,7 +139,13 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const result = await apiClient.places.search(query, centuryApi, session?.accessToken, locale);
+        const result = await apiClient.places.search(query, {
+          century: centuryApi,
+          countryId: value.countryId,
+          regionId: value.regionId || undefined,
+          token: session?.accessToken,
+          locale,
+        });
         if (!cancelled) setSearchHits(result.cities);
       } catch {
         if (!cancelled) setSearchHits([]);
@@ -150,7 +156,7 @@ export function PlaceGeographyForm({ value, onChange, disabled }: PlaceGeography
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [citySearch, value.countryId, centuryApi, session?.accessToken, locale]);
+  }, [citySearch, value.countryId, value.regionId, centuryApi, session?.accessToken, locale]);
 
   const cityOptions = citySearch.trim().length >= 2 ? searchHits : cities;
 
