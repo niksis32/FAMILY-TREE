@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-stone-400">{tShell('mvpWorkspace')}</p>
               <p className="mt-1 font-semibold text-family-ink dark:text-white">
-                {session?.user.displayName ?? 'Family Admin'}
+                {session?.user.displayName ?? tShell('defaultDisplayName')}
               </p>
             </div>
             <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { TreeGraphResponse, TreePersonNode, TreeRelationshipEdge } from '@/lib/api-client';
 
@@ -37,7 +38,30 @@ const reactFlowRenderer: TreeRendererAdapter = {
   ),
 };
 
-function buildGraph(graph: TreeGraphResponse) {
+type RelationshipBadgeKey =
+  | 'parent'
+  | 'child'
+  | 'spouse'
+  | 'sibling'
+  | 'partner'
+  | 'adoptive_parent'
+  | 'adoptive_child';
+
+function relationshipTypeKey(type: string): RelationshipBadgeKey | null {
+  const key = type.toLowerCase().replace(/-/g, '_');
+  const allowed: RelationshipBadgeKey[] = [
+    'parent',
+    'child',
+    'spouse',
+    'sibling',
+    'partner',
+    'adoptive_parent',
+    'adoptive_child',
+  ];
+  return allowed.includes(key as RelationshipBadgeKey) ? (key as RelationshipBadgeKey) : null;
+}
+
+function buildGraph(graph: TreeGraphResponse, edgeLabel: (type: string) => string) {
   const grouped = new Map<number, TreePersonNode[]>();
 
   for (const person of graph.nodes) {
@@ -70,7 +94,7 @@ function buildGraph(graph: TreeGraphResponse) {
     id: relationship.id,
     source: relationship.source,
     target: relationship.target,
-    label: relationship.label,
+    label: edgeLabel(relationship.type),
     animated: relationship.type === 'parent' || relationship.type === 'child',
     style: { stroke: '#c9a227', strokeWidth: 2 },
     labelStyle: { fill: '#78610f', fontWeight: 600 },
@@ -80,6 +104,7 @@ function buildGraph(graph: TreeGraphResponse) {
 }
 
 function PersonNode({ data }: NodeProps<Node<{ person: TreePersonNode; label: string }>>) {
+  const t = useTranslations('treeCanvas');
   const person = data.person;
   const years = [person.birthDate?.slice(0, 4) ?? '?', person.deathDate?.slice(0, 4)].filter(Boolean).join(' - ');
 
@@ -96,7 +121,8 @@ function PersonNode({ data }: NodeProps<Node<{ person: TreePersonNode; label: st
         </div>
       </div>
       <p className="mt-3 text-xs text-stone-500 dark:text-slate-400">
-        {person.isLiving ? 'Живущий родственник' : 'Архивная запись'} · поколение {person.generation}
+        {person.isLiving ? t('livingRelative') : t('archiveRecord')} ·{' '}
+        {t('generation', { gen: person.generation })}
       </p>
       <Handle type="source" position={Position.Bottom} className="!bg-family-accent" />
     </div>
@@ -134,8 +160,13 @@ export function TreeCanvas({
   onPersonClick?: (person: TreePersonNode) => void;
   renderer?: TreeRendererAdapter;
 }) {
+  const tEdge = useTranslations('relationshipBadge');
+  const edgeLabel = (type: string) => {
+    const key = relationshipTypeKey(type);
+    return key ? tEdge(key) : type;
+  };
   const normalizedGraph = graph ?? legacyGraph(persons ?? [], relationships ?? []);
-  const flowGraph = buildGraph(normalizedGraph);
+  const flowGraph = buildGraph(normalizedGraph, edgeLabel);
 
   return (
     <div className="h-[680px] overflow-hidden rounded-3xl border bg-white shadow-premium dark:bg-slate-950">

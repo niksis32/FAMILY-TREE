@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/components/auth-provider';
 import { Card, EmptyState } from '@/components/ui';
 import { apiClient } from '@/lib/api-client';
+import { useFormatApiError } from '@/lib/use-format-api-error';
 
 interface MediaRecord {
   id: string;
@@ -15,21 +17,24 @@ interface MediaRecord {
 
 export function MediaGallery() {
   const { session } = useAuth();
+  const t = useTranslations('mediaGallery');
+  const formatApiError = useFormatApiError();
   const [items, setItems] = useState<MediaRecord[]>([]);
-  const [status, setStatus] = useState('Загружаем media metadata...');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setStatus(t('loading'));
       try {
         const data = (await apiClient.media.list(session?.accessToken)) as MediaRecord[];
         if (cancelled) return;
         setItems(data);
-        setStatus(data.length ? `Файлов в metadata: ${data.length}` : 'Media metadata пока нет');
+        setStatus(data.length ? t('filesCount', { count: data.length }) : t('noMetadata'));
       } catch (error) {
         if (cancelled) return;
-        setStatus(error instanceof Error ? error.message : 'Не удалось загрузить media metadata');
+        setStatus(formatApiError(error));
       }
     }
 
@@ -38,12 +43,13 @@ export function MediaGallery() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken]);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
-      {items.length === 0 ? <EmptyState title="Медиа нет" description="Загрузите первый файл через MinIO uploader." /> : null}
+      {items.length === 0 ? <EmptyState title={t('emptyTitle')} description={t('emptyDesc')} /> : null}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <Card key={item.id} className="p-5">

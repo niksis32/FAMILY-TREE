@@ -2,6 +2,7 @@
 
 import { Link } from '@/i18n/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/components/auth-provider';
 import { TreeCanvas } from '@/components/tree-canvas';
 import { Badge, Button, Card, FormField, Select } from '@/components/ui';
@@ -16,25 +17,31 @@ const emptyGraph: TreeGraphResponse = {
   edges: [],
 };
 
-const modes: Array<{ value: TreeViewMode; label: string }> = [
-  { value: 'ancestors', label: 'Предки' },
-  { value: 'descendants', label: 'Потомки' },
-  { value: 'full', label: 'Полное дерево' },
-];
-
 function personSurname(person: Pick<PersonSummary, 'familyName'>) {
   return person.familyName?.trim() || '';
 }
 
 export function TreeExplorer() {
   const { session } = useAuth();
+  const t = useTranslations('treeWorkspace');
+  const tCommon = useTranslations('common');
   const [persons, setPersons] = useState<PersonSummary[]>([]);
   const [selectedSurname, setSelectedSurname] = useState('');
   const [rootPersonId, setRootPersonId] = useState('');
   const [mode, setMode] = useState<TreeViewMode>('descendants');
   const [graph, setGraph] = useState<TreeGraphResponse>(emptyGraph);
   const [selectedPerson, setSelectedPerson] = useState<TreePersonNode | null>(null);
-  const [status, setStatus] = useState('Выберите фамилию и основную персону.');
+  const [status, setStatus] = useState('');
+
+  const modes = useMemo(
+    () =>
+      [
+        { value: 'ancestors' as const, label: t('modeAncestors') },
+        { value: 'descendants' as const, label: t('modeDescendants') },
+        { value: 'full' as const, label: t('modeFull') },
+      ],
+    [t],
+  );
 
   const surnames = useMemo(() => {
     const unique = new Set<string>();
@@ -79,10 +86,10 @@ export function TreeExplorer() {
       if (!rootPersonId.trim()) {
         setGraph({ ...emptyGraph, mode });
         setSelectedPerson(null);
-        setStatus('Выберите фамилию и основную персону.');
+        setStatus('');
         return;
       }
-      setStatus('Строим дерево от основной персоны...');
+      setStatus(t('buildingTree'));
 
       try {
         const nextGraph = await apiClient.tree.graph(rootPersonId.trim(), mode, session?.accessToken);
@@ -91,7 +98,7 @@ export function TreeExplorer() {
         const rootNode =
           nextGraph.nodes.find((node) => node.id === nextGraph.rootPersonId) ?? nextGraph.nodes[0] ?? null;
         setSelectedPerson((current) => current ?? rootNode);
-        setStatus(`Дерево: ${nextGraph.nodes.length} персон, ${nextGraph.edges.length} связей`);
+        setStatus(t('treeStats', { nodes: nextGraph.nodes.length, edges: nextGraph.edges.length }));
       } catch (error) {
         if (cancelled) return;
         setGraph({ ...emptyGraph, mode });
@@ -105,7 +112,7 @@ export function TreeExplorer() {
     return () => {
       cancelled = true;
     };
-  }, [mode, rootPersonId, session?.accessToken]);
+  }, [mode, rootPersonId, session?.accessToken, t]);
 
   const rootNode = useMemo(
     () => graph.nodes.find((node) => node.id === graph.rootPersonId) ?? null,
@@ -125,12 +132,14 @@ export function TreeExplorer() {
     return sorted;
   }, [graph.nodes, mode, rootGeneration]);
 
+  const statusLine = status || t('pickSurnameAndRoot');
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
       <div className="space-y-4">
         <Card className="p-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <FormField label="Фамилия">
+            <FormField label={t('surname')}>
               <Select
                 value={selectedSurname}
                 onChange={(event) => {
@@ -138,7 +147,7 @@ export function TreeExplorer() {
                   setSelectedPerson(null);
                 }}
               >
-                <option value="">Все фамилии</option>
+                <option value="">{t('allSurnames')}</option>
                 {surnames.map((surname) => (
                   <option key={surname} value={surname}>
                     {surname}
@@ -147,7 +156,7 @@ export function TreeExplorer() {
               </Select>
             </FormField>
 
-            <FormField label="Основная персона">
+            <FormField label={t('rootPerson')}>
               <Select
                 value={rootPersonId}
                 onChange={(event) => {
@@ -156,7 +165,7 @@ export function TreeExplorer() {
                 }}
                 disabled={personsBySurname.length === 0}
               >
-                <option value="">Не выбрано</option>
+                <option value="">{tCommon('notSelected')}</option>
                 {personsBySurname.map((person) => (
                   <option key={person.id} value={person.id}>
                     {formatPersonLabel(person)}
@@ -181,10 +190,10 @@ export function TreeExplorer() {
 
           {rootNode ? (
             <p className="mt-3 text-sm font-medium text-family-primary dark:text-family-accent">
-              Основатель дерева: {rootNode.label}
+              {t('treeFounder', { name: rootNode.label })}
             </p>
           ) : null}
-          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{status}</p>
+          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{statusLine}</p>
         </Card>
 
         <TreeCanvas graph={graph} onPersonClick={setSelectedPerson} />
@@ -223,41 +232,45 @@ function PersonDetailsPanel({
   onSelectPerson: (node: TreePersonNode) => void;
   onSetRootPersonId: (personId: string) => void;
 }) {
+  const t = useTranslations('treeWorkspace');
+  const tCommon = useTranslations('common');
+
   const scopeTitle =
     mode === 'descendants'
-      ? 'Потомки основной персоны'
+      ? t('scopeDescendants')
       : mode === 'ancestors'
-        ? 'Предки основной персоны'
-        : 'Участники на дереве';
+        ? t('scopeAncestors')
+        : t('scopeOnTree');
 
   return (
     <Card className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto">
-      <h2 className="text-xl font-semibold">Участники</h2>
+      <h2 className="text-xl font-semibold">{t('participants')}</h2>
 
       {selectedPerson ? (
         <div className="mt-4 rounded-2xl border border-family-accent/40 bg-family-accent/5 p-4 dark:bg-slate-950">
-          <p className="text-xs text-stone-500 dark:text-slate-400">Выбрано на дереве</p>
+          <p className="text-xs text-stone-500 dark:text-slate-400">{t('selectedOnTree')}</p>
           <p className="mt-1 text-lg font-semibold">{selectedPerson.label}</p>
           <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
             {[selectedPerson.birthDate?.slice(0, 4), selectedPerson.deathDate?.slice(0, 4)].filter(Boolean).join(' — ') ||
-              'Даты не указаны'}
+              tCommon('noDate')}
           </p>
           <Link
             href={`/persons/${selectedPerson.personId}`}
             className="mt-3 inline-block text-sm font-semibold text-family-primary underline dark:text-family-accent"
           >
-            Открыть профиль →
+            {t('openProfile')}
           </Link>
         </div>
       ) : (
-        <p className="mt-3 text-sm text-stone-600 dark:text-slate-300">Кликните по карточке на дереве или выберите из списка ниже.</p>
+        <p className="mt-3 text-sm text-stone-600 dark:text-slate-300">{t('clickCardHint')}</p>
       )}
 
       <div className="mt-6">
         <p className="text-sm font-semibold text-stone-700 dark:text-slate-200">
-          {surname ? `Все с фамилией «${surname}»` : 'Все персоны'} ({familyLinePersons.length})
+          {surname ? t('allWithSurname', { surname }) : t('allPersons')} ({familyLinePersons.length})
         </p>
         <MemberList
+          emptyLabel={t('listEmpty')}
           items={familyLinePersons.map((person) => ({
             id: person.id,
             label: formatPersonLabel(person),
@@ -272,11 +285,14 @@ function PersonDetailsPanel({
           {scopeTitle} ({treeScopeMembers.length})
         </p>
         <MemberList
+          emptyLabel={t('listEmpty')}
           items={treeScopeMembers.map((node) => ({
             id: node.personId,
             label: node.label,
-            sub: `поколение ${node.generation >= 0 ? `+${node.generation}` : node.generation}`,
-            badge: node.id === selectedPerson?.id ? 'на дереве' : undefined,
+            sub: t('generation', {
+              gen: node.generation >= 0 ? `+${node.generation}` : String(node.generation),
+            }),
+            badge: node.id === selectedPerson?.id ? t('onTreeBadge') : undefined,
           }))}
           onPick={(id) => {
             const node = treeScopeMembers.find((n) => n.personId === id);
@@ -291,12 +307,14 @@ function PersonDetailsPanel({
 function MemberList({
   items,
   onPick,
+  emptyLabel,
 }: {
   items: Array<{ id: string; label: string; sub?: string; badge?: string }>;
   onPick: (id: string) => void;
+  emptyLabel: string;
 }) {
   if (items.length === 0) {
-    return <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">Список пуст.</p>;
+    return <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{emptyLabel}</p>;
   }
 
   return (
