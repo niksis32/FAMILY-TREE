@@ -224,6 +224,9 @@ const locales = {
     common: { language: 'Language', loading: 'Loading…', error: 'Something went wrong', ...base.common },
     nav: base.nav,
     shell: base.shell,
+    localeNames: base.localeNames,
+    localeGroups: base.localeGroups,
+    formHints: base.formHints,
     errors: base.errors,
     placePicker: base.placePicker,
     timelinePage: base.timelinePage,
@@ -336,6 +339,10 @@ for (const [code, data] of Object.entries(locales)) {
     ...data,
     ...ws,
     common: { ...data.common, ...ws.common },
+    pages: data.pages,
+    localeNames: data.localeNames ?? ws.localeNames,
+    localeGroups: data.localeGroups ?? ws.localeGroups,
+    formHints: data.formHints ?? ws.formHints,
     privacy: data.privacy ?? ws.privacy,
   };
   writeFileSync(join(dir, `${code}.json`), `${JSON.stringify(merged, null, 2)}\n`, 'utf8');

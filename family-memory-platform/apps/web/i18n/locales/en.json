@@ -39,6 +39,22 @@
     "darkTheme": "Dark theme",
     "logout": "Log out"
   },
+  "localeNames": {
+    "en": "English",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "ru": "Russian",
+    "ar": "Arabic"
+  },
+  "localeGroups": {
+    "popular": "Popular",
+    "all": "All languages"
+  },
+  "formHints": {
+    "dateFormat": "Format: YYYY-MM-DD",
+    "datePlaceholder": "YYYY-MM-DD"
+  },
   "errors": {
     "unknown": "Unknown error",
     "sessionExpired": "Session expired or token invalid. Log out and sign in again.",

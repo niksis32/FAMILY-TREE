@@ -10,6 +10,6 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   return {
     locale,
-    messages: loadUiMessages(locale),
+    messages: await loadUiMessages(locale),
   };
 });
