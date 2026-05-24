@@ -12,6 +12,9 @@ const dir = join(root, 'apps/web/i18n/locales');
 
 const base = {
   common: {
+    language: 'Language',
+    searchLanguage: 'Search language…',
+    noLanguagesFound: 'No matching languages',
     notSelected: 'Not selected',
     save: 'Save',
     cancel: 'Cancel',
@@ -44,6 +47,8 @@ const base = {
     logout: 'Log out',
   },
   localeNames: {
+    enGb: 'English',
+    enUs: 'USA',
     en: 'English',
     de: 'German',
     fr: 'French',
@@ -239,10 +244,10 @@ const locales = {
     privacy: base.privacy,
   },
   ru: {
-    common: { language: 'Язык', loading: 'Загрузка…', error: 'Произошла ошибка', notSelected: 'Не выбрано', save: 'Сохранить', cancel: 'Отмена', edit: 'Редактировать', open: 'открыть', noLinks: 'Нет связей', noDate: 'без даты', familyFallback: 'Семья {id}', createFamilyHint: '{name} (создайте семью с этим названием)' },
+    common: { language: 'Язык', searchLanguage: 'Поиск языка…', noLanguagesFound: 'Ничего не найдено', loading: 'Загрузка…', error: 'Произошла ошибка', notSelected: 'Не выбрано', save: 'Сохранить', cancel: 'Отмена', edit: 'Редактировать', open: 'открыть', noLinks: 'Нет связей', noDate: 'без даты', familyFallback: 'Семья {id}', createFamilyHint: '{name} (создайте семью с этим названием)' },
     nav: { dashboard: 'Dashboard', persons: 'Люди', families: 'Семьи', tree: 'Древо', timeline: 'Хронология', media: 'Медиа', documents: 'Документы', search: 'Поиск', settings: 'Настройки' },
     shell: { brandTag: 'AI ГЕНЕАЛОГИЯ', brandTitle: 'Family Memory', tagline: 'Self-hosted семейная платформа', mvpWorkspace: 'MVP-рабочая область', defaultDisplayName: 'Админ платформы', lightTheme: 'Светлая тема', darkTheme: 'Тёмная тема', logout: 'Выйти' },
-    localeNames: { en: 'Английский', de: 'Немецкий', fr: 'Французский', es: 'Испанский', ru: 'Русский', ar: 'Арабский' },
+    localeNames: { enGb: 'Английский', enUs: 'США', en: 'Английский', de: 'Немецкий', fr: 'Французский', es: 'Испанский', ru: 'Русский', ar: 'Арабский' },
     localeGroups: { popular: 'Популярные', all: 'Все языки' },
     formHints: { dateFormat: 'Формат: ГГГГ-ММ-ДД', datePlaceholder: 'ГГГГ-ММ-ДД' },
     errors: { unknown: 'Неизвестная ошибка', sessionExpired: 'Сессия истекла или токен недействителен. Нажмите «Выйти» и войдите снова.', apiError: 'Ошибка API {status}' },
@@ -257,10 +262,10 @@ const locales = {
     privacy: { public: 'Публично', family: 'Только семья', private: 'Приватно' },
   },
   de: {
-    common: { language: 'Sprache', loading: 'Laden…', error: 'Ein Fehler ist aufgetreten', notSelected: 'Nicht ausgewählt', save: 'Speichern', cancel: 'Abbrechen', edit: 'Bearbeiten', open: 'öffnen', noLinks: 'Keine Verknüpfungen', noDate: 'ohne Datum', familyFallback: 'Familie {id}', createFamilyHint: '{name} (Familie mit diesem Namen anlegen)' },
+    common: { language: 'Sprache', searchLanguage: 'Sprache suchen…', noLanguagesFound: 'Keine passenden Sprachen', loading: 'Laden…', error: 'Ein Fehler ist aufgetreten', notSelected: 'Nicht ausgewählt', save: 'Speichern', cancel: 'Abbrechen', edit: 'Bearbeiten', open: 'öffnen', noLinks: 'Keine Verknüpfungen', noDate: 'ohne Datum', familyFallback: 'Familie {id}', createFamilyHint: '{name} (Familie mit diesem Namen anlegen)' },
     nav: { dashboard: 'Dashboard', persons: 'Personen', families: 'Familien', tree: 'Stammbaum', timeline: 'Zeitleiste', media: 'Medien', documents: 'Dokumente', search: 'Suche', settings: 'Einstellungen' },
     shell: { brandTag: 'KI-Genealogie', brandTitle: 'Family Memory', tagline: 'Self-hosted Familienplattform', mvpWorkspace: 'MVP-Arbeitsbereich', defaultDisplayName: 'Familienplattform-Admin', lightTheme: 'Helles Design', darkTheme: 'Dunkles Design', logout: 'Abmelden' },
-    localeNames: { en: 'Englisch', de: 'Deutsch', fr: 'Französisch', es: 'Spanisch', ru: 'Russisch', ar: 'Arabisch' },
+    localeNames: { enGb: 'Englisch', enUs: 'USA', en: 'Englisch', de: 'Deutsch', fr: 'Französisch', es: 'Spanisch', ru: 'Russisch', ar: 'Arabisch' },
     localeGroups: { popular: 'Beliebt', all: 'Alle Sprachen' },
     formHints: { dateFormat: 'Format: JJJJ-MM-TT', datePlaceholder: 'JJJJ-MM-TT' },
     errors: { unknown: 'Unbekannter Fehler', sessionExpired: 'Sitzung abgelaufen. Melden Sie sich erneut an.', apiError: 'API-Fehler {status}' },
@@ -275,7 +280,7 @@ const locales = {
     privacy: { public: 'Öffentlich', family: 'Nur Familie', private: 'Privat' },
   },
   fr: {
-    common: { language: 'Langue', loading: 'Chargement…', error: 'Une erreur s\'est produite', notSelected: 'Non sélectionné', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', open: 'ouvrir', noLinks: 'Aucun lien', noDate: 'sans date', familyFallback: 'Famille {id}', createFamilyHint: '{name} (créez une famille avec ce nom)' },
+    common: { language: 'Langue', searchLanguage: 'Rechercher une langue…', noLanguagesFound: 'Aucune langue correspondante', loading: 'Chargement…', error: 'Une erreur s\'est produite', notSelected: 'Non sélectionné', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', open: 'ouvrir', noLinks: 'Aucun lien', noDate: 'sans date', familyFallback: 'Famille {id}', createFamilyHint: '{name} (créez une famille avec ce nom)' },
     nav: { dashboard: 'Tableau de bord', persons: 'Personnes', families: 'Familles', tree: 'Arbre', timeline: 'Chronologie', media: 'Médias', documents: 'Documents', search: 'Recherche', settings: 'Paramètres' },
     shell: { brandTag: 'AI Genealogy', brandTitle: 'Family Memory', tagline: 'Plateforme familiale self-hosted', mvpWorkspace: 'MVP Workspace', lightTheme: 'Thème clair', darkTheme: 'Thème sombre', logout: 'Déconnexion' },
     errors: { unknown: 'Erreur inconnue', sessionExpired: 'Session expirée. Reconnectez-vous.', apiError: 'Erreur API {status}' },
@@ -290,7 +295,7 @@ const locales = {
     privacy: { public: 'Public', family: 'Famille uniquement', private: 'Privé' },
   },
   es: {
-    common: { language: 'Idioma', loading: 'Cargando…', error: 'Se produjo un error', notSelected: 'No seleccionado', save: 'Guardar', cancel: 'Cancelar', edit: 'Editar', open: 'abrir', noLinks: 'Sin enlaces', noDate: 'sin fecha', familyFallback: 'Familia {id}', createFamilyHint: '{name} (cree una familia con este nombre)' },
+    common: { language: 'Idioma', searchLanguage: 'Buscar idioma…', noLanguagesFound: 'No hay idiomas coincidentes', loading: 'Cargando…', error: 'Se produjo un error', notSelected: 'No seleccionado', save: 'Guardar', cancel: 'Cancelar', edit: 'Editar', open: 'abrir', noLinks: 'Sin enlaces', noDate: 'sin fecha', familyFallback: 'Familia {id}', createFamilyHint: '{name} (cree una familia con este nombre)' },
     nav: { dashboard: 'Panel', persons: 'Personas', families: 'Familias', tree: 'Árbol', timeline: 'Cronología', media: 'Medios', documents: 'Documentos', search: 'Búsqueda', settings: 'Ajustes' },
     shell: { brandTag: 'AI Genealogy', brandTitle: 'Family Memory', tagline: 'Plataforma familiar self-hosted', mvpWorkspace: 'MVP Workspace', lightTheme: 'Tema claro', darkTheme: 'Tema oscuro', logout: 'Salir' },
     errors: { unknown: 'Error desconocido', sessionExpired: 'Sesión caducada. Vuelva a iniciar sesión.', apiError: 'Error API {status}' },
@@ -305,7 +310,7 @@ const locales = {
     privacy: { public: 'Público', family: 'Solo familia', private: 'Privado' },
   },
   ar: {
-    common: { language: 'اللغة', loading: 'جاري التحميل…', error: 'حدث خطأ', notSelected: 'غير محدد', save: 'حفظ', cancel: 'إلغاء', edit: 'تعديل', open: 'فتح', noLinks: 'لا روابط', noDate: 'بدون تاريخ', familyFallback: 'عائلة {id}', createFamilyHint: '{name} (أنشئ عائلة بهذا الاسم)' },
+    common: { language: 'اللغة', searchLanguage: 'البحث عن لغة…', noLanguagesFound: 'لم يتم العثور على لغات', loading: 'جاري التحميل…', error: 'حدث خطأ', notSelected: 'غير محدد', save: 'حفظ', cancel: 'إلغاء', edit: 'تعديل', open: 'فتح', noLinks: 'لا روابط', noDate: 'بدون تاريخ', familyFallback: 'عائلة {id}', createFamilyHint: '{name} (أنشئ عائلة بهذا الاسم)' },
     nav: { dashboard: 'لوحة التحكم', persons: 'الأشخاص', families: 'العائلات', tree: 'الشجرة', timeline: 'الجدول الزمني', media: 'الوسائط', documents: 'المستندات', search: 'بحث', settings: 'الإعدادات' },
     shell: {
       brandTag: 'الذكاء الاصطناعي للأنساب',
@@ -317,7 +322,7 @@ const locales = {
       darkTheme: 'سمة داكنة',
       logout: 'تسجيل الخروج',
     },
-    localeNames: { en: 'الإنجليزية', de: 'الألمانية', fr: 'الفرنسية', es: 'الإسبانية', ru: 'الروسية', ar: 'العربية' },
+    localeNames: { enGb: 'الإنجليزية', enUs: 'الولايات المتحدة', en: 'الإنجليزية', de: 'الألمانية', fr: 'الفرنسية', es: 'الإسبانية', ru: 'الروسية', ar: 'العربية' },
     localeGroups: { popular: 'شائعة', all: 'كل اللغات' },
     formHints: { dateFormat: 'الصيغة: YYYY-MM-DD', datePlaceholder: 'YYYY-MM-DD' },
     errors: { unknown: 'خطأ غير معروف', sessionExpired: 'انتهت الجلسة. سجّل الدخول مرة أخرى.', apiError: 'خطأ API {status}' },

@@ -1,4 +1,5 @@
 export * from './locales';
+export * from './locale-display';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

@@ -1,6 +1,8 @@
 {
   "common": {
     "language": "Language",
+    "searchLanguage": "Search language…",
+    "noLanguagesFound": "No matching languages",
     "loading": "Loading…",
     "error": "Something went wrong",
     "notSelected": "Not selected",
@@ -40,6 +42,8 @@
     "logout": "Log out"
   },
   "localeNames": {
+    "enGb": "English",
+    "enUs": "USA",
     "en": "English",
     "de": "German",
     "fr": "French",
