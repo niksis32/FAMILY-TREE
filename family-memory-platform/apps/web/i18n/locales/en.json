@@ -183,9 +183,9 @@
     },
     "tree": {
       "title": "Family tree",
-      "description": "Pick a surname and root person — the tree rebuilds from them. See everyone with that surname and participants in the selected mode (ancestors / descendants / full).",
-      "rendererNote": "TreeExplorer uses the API graph contract; TreeCanvas passes nodes/edges to a renderer adapter. React Flow can later be swapped for D3.js or Cytoscape.js without rewriting backend endpoints.",
-      "rendererTitle": "Renderer architecture"
+      "description": "Tree Experience 2.0: one dataset, five views (Classic, Graph, 3D, Timeline, Map). Switch modes like map layers; filters apply on the server.",
+      "rendererNote": "GET /tree/person/:id/view-data feeds all renderers. Legacy ancestors/descendants/full endpoints remain as thin wrappers.",
+      "rendererTitle": "Tree Experience 2.0"
     },
     "media": {
       "title": "Media archive",
@@ -384,6 +384,99 @@
     "livingRelative": "Living relative",
     "archiveRecord": "Archive record",
     "generation": "generation {gen}"
+  },
+  "treeExperience": {
+    "modeSwitcherLabel": "Tree display mode",
+    "modes": {
+      "classic": "2D Tree",
+      "graph": "Scheme",
+      "three-d": "3D",
+      "timeline": "Timeline",
+      "map": "Map"
+    },
+    "rootPerson": "Root person",
+    "pickRoot": "Select root",
+    "loading": "Loading tree view data…",
+    "stats": "{nodes} people · {edges} links",
+    "empty": "No people match the current filters.",
+    "mapNoPlaces": "No places with coordinates in this tree scope. Add events with geocoded places.",
+    "filters": {
+      "scope": "Scope",
+      "scopeAncestors": "Ancestors",
+      "scopeDescendants": "Descendants",
+      "scopeFull": "Full tree",
+      "lineage": "Line",
+      "lineageBoth": "All lines",
+      "lineagePaternal": "Paternal line",
+      "lineageMaternal": "Maternal line",
+      "surname": "Surname",
+      "allSurnames": "All surnames",
+      "country": "Country",
+      "countryPh": "e.g. Russia",
+      "generationMin": "Generation from",
+      "generationMax": "Generation to",
+      "yearFrom": "Year from",
+      "yearTo": "Year to"
+    },
+    "insight": {
+      "title": "Person insight",
+      "selected": "Selected",
+      "living": "Living",
+      "deceased": "Deceased",
+      "generation": "gen. {gen}",
+      "openProfile": "Open profile →",
+      "hint": "Click a person in any view to see details.",
+      "media": "Media preview",
+      "events": "Life events"
+    },
+    "threeD": {
+      "fallback": {
+        "message": "3D view is not available on this device. Showing graph view instead.",
+        "contextLost": "WebGL ran out of memory (context lost). Showing graph view — try fewer people in scope or disable cinematic tour."
+      },
+      "performance": {
+        "simplified": "Simplified 3D (performance mode)"
+      },
+      "toolbar": {
+        "title": "3D controls",
+        "focusRoot": "Focus root",
+        "resetCamera": "Reset camera",
+        "generationRange": "Generations {min} – {max}",
+        "searchPh": "Search by name…",
+        "search": "Find",
+        "cinematicStart": "Cinematic tour",
+        "cinematicStop": "Stop tour",
+        "cinematicPause": "Pause",
+        "cinematicResume": "Resume",
+        "focused": "Focused: {id}…",
+        "highlight": {
+          "none": "Clear",
+          "ancestors": "Ancestors",
+          "descendants": "Descendants",
+          "paternal": "Paternal",
+          "maternal": "Maternal",
+          "focus": "Focus"
+        }
+      },
+      "legend": {
+        "title": "Legend",
+        "living": "Living",
+        "deceased": "Deceased",
+        "highlight": "Highlighted",
+        "parentEdge": "Parent–child",
+        "spouseEdge": "Spouse / partner",
+        "event": "Key event",
+        "activeHighlight": "Active: {mode}",
+        "modes": {
+          "none": "—",
+          "ancestors": "ancestors",
+          "descendants": "descendants",
+          "paternal": "paternal line",
+          "maternal": "maternal line",
+          "focus": "focus"
+        }
+      }
+    }
   },
   "mediaGallery": {
     "loading": "Loading media metadata…",

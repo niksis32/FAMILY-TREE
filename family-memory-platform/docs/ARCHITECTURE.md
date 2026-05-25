@@ -56,7 +56,9 @@ apps/api (NestJS REST API)
 
 ## Graph rendering
 
-Frontend `TreeCanvas` uses React Flow for MVP. The code is intentionally structured around graph DTOs (`nodes`, `edges`) so the renderer can later be replaced with D3.js, Cytoscape.js or a custom graph engine.
+**Tree Experience 2.0** (`/tree`): single `GET /tree/person/:id/view-data` feeds five modes (Classic React Flow, Cytoscape graph, R3F 3D, SVG timeline, MapLibre map). Layout math lives in `packages/tree-experience`. Legacy `TreeCanvas` / `ancestors|descendants|full` endpoints remain as thin wrappers.
+
+Frontend `TreeCanvas` (MVP) still uses React Flow. Graph DTOs (`nodes`, `edges`) are extended in `TreeViewDataResponse` with `events`, `places`, `mediaPreview`, and layout hints.
 
 ## Optional services
 

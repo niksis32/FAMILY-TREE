@@ -467,6 +467,23 @@ export const apiClient = {
   tree: {
     graph: (personId: string, mode: TreeViewMode, token?: string | null) =>
       apiGet<TreeGraphResponse>(`/tree/person/${personId}/${mode}`, token),
+    viewData: (personId: string, query: import('@family/shared').TreeViewDataQuery, token?: string | null) => {
+      const params = new URLSearchParams();
+      if (query.scope) params.set('scope', query.scope);
+      if (query.depth != null) params.set('depth', String(query.depth));
+      if (query.generationMin != null) params.set('generationMin', String(query.generationMin));
+      if (query.generationMax != null) params.set('generationMax', String(query.generationMax));
+      if (query.lineage) params.set('lineage', query.lineage);
+      if (query.yearFrom != null) params.set('yearFrom', String(query.yearFrom));
+      if (query.yearTo != null) params.set('yearTo', String(query.yearTo));
+      if (query.country?.trim()) params.set('country', query.country.trim());
+      if (query.surname?.trim()) params.set('surname', query.surname.trim());
+      const qs = params.toString();
+      return apiGet<import('@family/shared').TreeViewDataResponse>(
+        `/tree/person/${personId}/view-data${qs ? `?${qs}` : ''}`,
+        token,
+      );
+    },
   },
   timeline: {
     person: (personId: string, token?: string | null) =>
