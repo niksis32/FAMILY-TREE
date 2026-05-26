@@ -94,6 +94,19 @@ services:
     expose:
       - "8000"
 
+  # Local vintage map tiles — enable with: docker compose --profile tiles up -d
+  tileserver:
+    image: maptiler/tileserver-gl:latest
+    container_name: family_tileserver
+    restart: unless-stopped
+    profiles:
+      - tiles
+    volumes:
+      - ./data/tiles:/data
+    ports:
+      - "${TILESERVER_PORT:-8080}:8080"
+    command: --port 8080 --config /data/config.json
+
 volumes:
   postgres_data:
   redis_data:

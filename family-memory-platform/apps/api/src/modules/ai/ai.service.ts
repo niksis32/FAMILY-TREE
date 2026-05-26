@@ -1,8 +1,23 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { OcrPreviewDto, RelationshipSuggestDto, TimelineSummaryDto } from './ai.dto';
+import type {
+  OcrPreviewDto,
+  PhotoDetectFacesDto,
+  PhotoImageContextDto,
+  PhotoSuggestPersonDto,
+  RelationshipSuggestDto,
+  TimelineSummaryDto,
+} from './ai.dto';
 
-type AiFeature = 'health' | 'ocr.preview' | 'relationship.suggest' | 'timeline.summary';
+type AiFeature =
+  | 'health'
+  | 'ocr.preview'
+  | 'relationship.suggest'
+  | 'timeline.summary'
+  | 'photo.detect-faces'
+  | 'photo.suggest-person'
+  | 'photo.extract-context'
+  | 'photo.estimate-period';
 
 @Injectable()
 export class AiService {
@@ -29,6 +44,37 @@ export class AiService {
       events: dto.events ?? [],
       language: dto.language ?? 'ru',
     });
+  }
+
+  detectPhotoFaces(dto: PhotoDetectFacesDto) {
+    return this.request('photo.detect-faces', 'POST', '/photo/detect-faces', {
+      mediaId: dto.mediaId,
+      imageUrl: dto.imageUrl,
+    });
+  }
+
+  suggestPhotoPerson(dto: PhotoSuggestPersonDto) {
+    return this.request('photo.suggest-person', 'POST', '/photo/suggest-person', dto);
+  }
+
+  extractPhotoContext(dto: PhotoImageContextDto) {
+    return this.request('photo.extract-context', 'POST', '/photo/extract-context', dto);
+  }
+
+  estimatePhotoPeriod(dto: PhotoImageContextDto) {
+    return this.request('photo.estimate-period', 'POST', '/photo/estimate-period', dto);
+  }
+
+  isAiEnabled() {
+    return this.isEnabled();
+  }
+
+  extractData<T>(result: unknown): T | null {
+    if (result && typeof result === 'object' && 'data' in result) {
+      const data = (result as { data?: unknown }).data;
+      if (data != null) return data as T;
+    }
+    return null;
   }
 
   private async request(feature: AiFeature, method: 'GET' | 'POST', path: string, body?: unknown) {

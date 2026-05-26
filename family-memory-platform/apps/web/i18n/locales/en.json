@@ -25,6 +25,8 @@
     "persons": "People",
     "families": "Families",
     "tree": "Tree",
+    "map": "Historical map",
+    "research": "Research",
     "timeline": "Timeline",
     "media": "Media",
     "documents": "Documents",
@@ -211,6 +213,10 @@
     "settingsImport": {
       "title": "GEDCOM import",
       "description": "Preview before importing .ged: basic tags INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR, NOTE."
+    },
+    "research": {
+      "title": "Family research",
+      "description": "Track discovery progress, close evidence gaps, and pursue structured research cases across your archive."
     }
   },
   "privacy": {
@@ -486,6 +492,52 @@
     "emptyTitle": "No media",
     "emptyDesc": "Upload the first file via the MinIO uploader."
   },
+  "photoIntelligence": {
+    "photoViewer": "Photo intelligence",
+    "photoViewerDesc": "Tag faces, link people from your tree, and review AI insights. Manual tagging works when AI is off.",
+    "loading": "Loading photo workspace…",
+    "manualFace": "Manual face",
+    "runAiAnalysis": "Run AI analysis",
+    "aiDisabled": "AI disabled (manual tagging available)",
+    "analysisStatus": "Analysis: {status}",
+    "noAnalysisYet": "No analysis queued yet",
+    "unassignedFace": "Face not linked to a person yet",
+    "assignPerson": "Assign person",
+    "identifiedPerson": "Identified person",
+    "periodConfidence": "Period confidence: {level}",
+    "confidence": {
+      "high": "high",
+      "medium": "medium",
+      "low": "low",
+      "unknown": "unknown"
+    },
+    "openProfile": "Open profile",
+    "changePerson": "Change person",
+    "suggestedMatches": "Suggested matches",
+    "loadingSuggestions": "Loading suggestions…",
+    "noSuggestions": "No suggestions yet",
+    "selectPerson": "Person from tree",
+    "selectPersonPlaceholder": "Select a person…",
+    "faceLabel": "Label",
+    "faceNote": "Note",
+    "saveTag": "Save tag",
+    "cancel": "Cancel",
+    "comments": "Comments",
+    "commentPlaceholder": "Add a comment about this photo…",
+    "addComment": "Add comment",
+    "close": "Close",
+    "openFullPage": "Open full page",
+    "quickView": "Quick view",
+    "bulkTaggingLink": "Bulk tagging queue",
+    "bulkTaggingTitle": "Bulk photo tagging",
+    "bulkTaggingDesc": "Work through photos that still need face identification.",
+    "bulkQueueTitle": "Tagging queue",
+    "bulkQueueHint": "{count} photos need attention",
+    "bulkItemStats": "{untagged} untagged · {tagged} tagged",
+    "bulkAssignAll": "Assign all untagged faces to",
+    "applyBulkAssign": "Apply to current photo",
+    "bulkEmpty": "All photos are fully tagged — great work!"
+  },
   "documentsWorkspace": {
     "loading": "Loading documents, sources and citations…",
     "stats": "Documents: {documents}, sources: {sources}, citations: {citations}",
@@ -543,5 +595,203 @@
     "places": "Places",
     "sources": "Sources",
     "noResults": "No results"
+  },
+  "gamification": {
+    "dashboard": {
+      "loading": "Loading research dashboard…",
+      "subtitle": "Premium research progress across your family archive",
+      "openResearch": "Open full research workspace →"
+    },
+    "researchProgress": {
+      "eyebrow": "Research progress",
+      "title": "Archive completeness",
+      "overall": "Overall",
+      "persons": "People",
+      "personsHint": "In tree",
+      "documented": "Documented",
+      "documentedHint": "Core fields filled",
+      "sourced": "Sourced facts",
+      "sourcedHint": "Citations & sourced links",
+      "photos": "Identified photos",
+      "photosHint": "People tagged on media",
+      "actionsWeek": "{count} actions this week",
+      "streak": "{days}-day research streak",
+      "categories": {
+        "persons": "People profiles",
+        "relationships": "Verified relationships",
+        "events": "Geocoded events",
+        "documents": "Archive documents",
+        "citations": "Source citations",
+        "media": "Identified media",
+        "geo": "Geography & migration"
+      }
+    },
+    "questDashboard": {
+      "weeklyEyebrow": "Weekly goals",
+      "weeklyTitle": "This week's research focus",
+      "weekRange": "Current week",
+      "activeEyebrow": "Active cases",
+      "activeTitle": "Open research cases",
+      "completedCount": "{count} completed"
+    },
+    "achievements": {
+      "eyebrow": "Achievements",
+      "title": "Research credentials",
+      "unlocked": "{count}/{total} earned",
+      "earned": "Earned",
+      "tiers": {
+        "bronze": "Bronze",
+        "silver": "Silver",
+        "gold": "Gold",
+        "archive": "Archive"
+      },
+      "first-document": {
+        "title": "First archive entry",
+        "description": "Upload your first genealogical document"
+      },
+      "sourced-fact": {
+        "title": "Sourced fact",
+        "description": "Attach a citation to a person or event"
+      },
+      "first-migration": {
+        "title": "Migration trace",
+        "description": "Record a migration or immigration event"
+      },
+      "photo-archivist": {
+        "title": "Photo archivist",
+        "description": "Identify people on five photographs"
+      },
+      "migration-tracer": {
+        "title": "Route builder",
+        "description": "Build a connected migration route"
+      },
+      "four-generations": {
+        "title": "Four generations",
+        "description": "Document four generations in one line"
+      },
+      "archive-scholar": {
+        "title": "Archive scholar",
+        "description": "OCR three archive documents"
+      },
+      "complete-profile": {
+        "title": "Complete dossier",
+        "description": "Fully complete one person's research profile"
+      }
+    },
+    "missingData": {
+      "eyebrow": "Evidence gaps",
+      "title": "Missing data challenges",
+      "count": "{count} gaps",
+      "resolve": "Investigate →",
+      "viewAll": "View all research cases →",
+      "severity": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "gaps": {
+        "birthDate": "Birth date is missing — required for timeline reconstruction",
+        "birthPlace": "Birth place not recorded — regional context unavailable",
+        "avatar": "No portrait linked — visual identification missing",
+        "biography": "Biography empty — narrative context missing"
+      }
+    },
+    "familyMystery": {
+      "eyebrow": "Open case",
+      "title": "Family mystery",
+      "discoveryScore": "Discovery score",
+      "unknownSubject": "Unidentified ancestor",
+      "cta": "Open dossier →",
+      "none": "No critical mysteries — archive is well documented.",
+      "severity": {
+        "critical": "Critical gap",
+        "high": "High priority",
+        "medium": "Needs review"
+      }
+    },
+    "categories": {
+      "ancestor": "Ancestor line",
+      "regional": "Regional research",
+      "document": "Document quest",
+      "photo": "Photo identification",
+      "migration": "Migration route",
+      "missing-data": "Data completeness",
+      "weekly": "Weekly goal"
+    },
+    "status": {
+      "locked": "Locked",
+      "available": "Open",
+      "in_progress": "In progress",
+      "completed": "Closed"
+    },
+    "quests": {
+      "birthPlaces5": {
+        "title": "Regional anchors",
+        "description": "Add birth places for five people"
+      },
+      "ancestorDocument": {
+        "title": "Ancestor archive",
+        "description": "Find an archive document for a third-generation ancestor"
+      },
+      "citeRelationship": {
+        "title": "Verified link",
+        "description": "Confirm a relationship with a source citation"
+      },
+      "identifyPhotos3": {
+        "title": "Photo identification",
+        "description": "Identify people on three photographs"
+      },
+      "maternalLine4": {
+        "title": "Maternal line",
+        "description": "Document the maternal line to four generations"
+      },
+      "migrationRoute": {
+        "title": "Migration route",
+        "description": "Build a connected family migration route"
+      },
+      "uploadArchive": {
+        "title": "Archive upload",
+        "description": "Upload an archival record document"
+      },
+      "completeProfiles10": {
+        "title": "Complete dossiers",
+        "description": "Fully complete ten person profiles"
+      },
+      "regionalEvents5": {
+        "title": "Regional events",
+        "description": "Add five geocoded life events"
+      },
+      "confirmSources3": {
+        "title": "Source confirmation",
+        "description": "Add three source citations"
+      }
+    }
+  },
+  "historicalMap": {
+    "badge": "Historical geography",
+    "title": "Historical family map",
+    "subtitle": "Birth, migration, service, work and death events on a vintage-styled local map. Linked with Timeline and 3D Tree.",
+    "sourceKind": "Data source",
+    "sourcePerson": "Person",
+    "sourceFamily": "Family",
+    "sourceTree": "Tree (from root person)",
+    "person": "Person",
+    "family": "Family",
+    "selectFamily": "Select family",
+    "focusPerson": "Focus person",
+    "allPersons": "All persons",
+    "loading": "Loading map data…",
+    "noPlaces": "No geocoded places for the current selection.",
+    "statsEvents": "Events",
+    "statsPlaces": "Places",
+    "statsRoutes": "Routes",
+    "modes": {
+      "person-route": "Person route",
+      "family-migration": "Family migration",
+      "generation-map": "Generation map",
+      "events-map": "Events map",
+      "historical-places": "Historical places"
+    }
   }
 }

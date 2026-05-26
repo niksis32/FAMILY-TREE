@@ -7,8 +7,14 @@ import { CitationsModule } from './modules/citations/citations.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EventsModule } from './modules/events/events.module';
 import { FamiliesModule } from './modules/families/families.module';
+import { GamificationModule } from './modules/gamification/gamification.module';
 import { GedcomModule } from './modules/gedcom/gedcom.module';
+import { MapModule } from './modules/map/map.module';
+import { RedisModule } from './common/redis/redis.module';
+import { FaceTagsModule } from './modules/face-tags/face-tags.module';
 import { MediaModule } from './modules/media/media.module';
+import { PersonPhotoLinksModule } from './modules/person-photo-links/person-photo-links.module';
+import { PhotoAnalysisModule } from './modules/photo-analysis/photo-analysis.module';
 import { PersonsModule } from './modules/persons/persons.module';
 import { PlacesModule } from './modules/places/places.module';
 import { RelationshipsModule } from './modules/relationships/relationships.module';
@@ -28,6 +34,7 @@ import { HealthModule } from './common/health/health.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
     PrismaModule,
+    RedisModule,
     HealthModule,
     AiModule,
     AuthModule,
@@ -38,11 +45,16 @@ import { HealthModule } from './common/health/health.module';
     EventsModule,
     PlacesModule,
     MediaModule,
+    FaceTagsModule,
+    PersonPhotoLinksModule,
+    PhotoAnalysisModule,
     DocumentsModule,
     SourcesModule,
     CitationsModule,
     TimelineModule,
     TreeModule,
+    MapModule,
+    GamificationModule,
     SearchModule,
     GedcomModule,
     AdminModule,

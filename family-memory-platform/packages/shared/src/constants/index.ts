@@ -1,5 +1,7 @@
 export * from './locales';
 export * from './locale-display';
+export * from './gamification';
+export * from './photo-intelligence';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

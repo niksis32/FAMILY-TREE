@@ -30,3 +30,6 @@ export interface PaginatedResponse<T> {
 }
 
 export * from './tree-view';
+export * from './map';
+export * from './gamification';
+export * from './photo-intelligence';

@@ -26,6 +26,11 @@ model User {
   deletedAt    DateTime?
 
   auditLogs AuditLog[]
+  questProgress      QuestProgress[]
+  userAchievements   UserAchievement[]
+  gamificationEvents GamificationEvent[]
+  photoFaceTagsCreated PhotoFaceTag[] @relation("PhotoFaceTagCreator")
+  mediaComments        MediaComment[]
 
   @@index([role])
   @@index([deletedAt])
@@ -127,6 +132,7 @@ model Person {
   documents         Document[]
   timelineItems     TimelineItem[]
   citations         Citation[]
+  photoFaceTags     PhotoFaceTag[]
 
   @@index([familyName, givenName])
   @@index([birthDate])
@@ -386,6 +392,10 @@ model Media {
   personAvatar  Person?     @relation("PersonAvatar")
   documents     Document[]
   links         MediaLink[]
+  faceTags      PhotoFaceTag[]
+  insight       PhotoInsight?
+  comments      MediaComment[]
+  analysisJobs  PhotoAnalysisJob[]
 
   @@unique([bucket, storageKey])
   @@index([personId])
@@ -406,6 +416,92 @@ model MediaLink {
   @@unique([mediaId, ownerType, ownerId])
   @@index([ownerType, ownerId])
   @@index([mediaId])
+}
+
+enum FaceTagSource {
+  MANUAL
+  AI
+}
+
+enum PhotoAnalysisStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model PhotoFaceTag {
+  id         String        @id @default(cuid())
+  mediaId    String
+  personId   String?
+  x          Float
+  y          Float
+  width      Float
+  height     Float
+  confidence Float?
+  label      String?
+  note       String?       @db.Text
+  source     FaceTagSource @default(MANUAL)
+  createdBy  String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  person  Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  creator User?   @relation("PhotoFaceTagCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([mediaId])
+  @@index([personId])
+  @@index([createdBy])
+}
+
+model PhotoInsight {
+  id                    String   @id @default(cuid())
+  mediaId               String   @unique
+  estimatedYearFrom     Int?
+  estimatedYearTo       Int?
+  detectedObjects       Json?
+  detectedClothingStyle String?
+  aiDescription         String?  @db.Text
+  uncertaintyNotes      String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([estimatedYearFrom, estimatedYearTo])
+}
+
+model MediaComment {
+  id        String   @id @default(cuid())
+  mediaId   String
+  authorId  String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  media  Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId, createdAt])
+  @@index([authorId])
+}
+
+model PhotoAnalysisJob {
+  id          String              @id @default(cuid())
+  mediaId     String
+  status      PhotoAnalysisStatus @default(QUEUED)
+  error       String?             @db.Text
+  requestedBy String?
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId, createdAt])
+  @@index([status])
 }
 
 model Document {
@@ -509,4 +605,71 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// --- Gamification / Family Quest ---
+
+enum QuestStatus {
+  LOCKED
+  AVAILABLE
+  IN_PROGRESS
+  COMPLETED
+}
+
+model QuestProgress {
+  id          String      @id @default(cuid())
+  userId      String
+  questId     String
+  progress    Int         @default(0)
+  target      Int
+  status      QuestStatus @default(AVAILABLE)
+  weekStart   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId, weekStart])
+  @@index([userId])
+  @@index([questId])
+  @@index([status])
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model GamificationEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ResearchScoreSnapshot {
+  id         String   @id @default(cuid())
+  score      Int
+  breakdown  Json
+  treeRootId String?
+  computedAt DateTime @default(now())
+
+  @@index([computedAt])
 }

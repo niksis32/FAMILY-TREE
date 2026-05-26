@@ -453,9 +453,62 @@ export const apiClient = {
   },
   media: {
     list: (token?: string | null) => apiGet<unknown[]>('/media', token),
+    one: (id: string, token?: string | null) => apiGet<unknown>(`/media/${id}`, token),
+    downloadUrl: (id: string, token?: string | null) =>
+      apiGet<{ downloadUrl: string; mediaId: string }>(`/media/${id}/download-url`, token),
     uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
       apiPost<MediaUploadUrlResponse>('/media/upload-url', input, token),
     metadata: (input: MediaMetadataInput, token?: string | null) => apiPost('/media/metadata', input, token),
+  },
+  photoIntelligence: {
+    workspace: (mediaId: string, token?: string | null) =>
+      apiGet<import('@family/shared').PhotoWorkspacePayload>(`/media/${mediaId}/workspace`, token),
+    suggestPerson: (mediaId: string, faceTagId?: string, token?: string | null) => {
+      const qs = faceTagId ? `?faceTagId=${encodeURIComponent(faceTagId)}` : '';
+      return apiGet<import('@family/shared').PersonMatchSuggestion[]>(
+        `/media/${mediaId}/suggest-person${qs}`,
+        token,
+      );
+    },
+    createFaceTag: (
+      mediaId: string,
+      body: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        personId?: string;
+        label?: string;
+        note?: string;
+        confidence?: number;
+      },
+      token?: string | null,
+    ) => apiPost<import('@family/shared').PhotoFaceTagRecord>(`/media/${mediaId}/face-tags`, body, token),
+    updateFaceTag: (
+      mediaId: string,
+      tagId: string,
+      body: { personId?: string; label?: string; note?: string },
+      token?: string | null,
+    ) =>
+      apiPatch<import('@family/shared').PhotoFaceTagRecord>(
+        `/media/${mediaId}/face-tags/${tagId}`,
+        body,
+        token,
+      ),
+    deleteFaceTag: (mediaId: string, tagId: string, token?: string | null) =>
+      apiDelete(`/media/${mediaId}/face-tags/${tagId}`, token),
+    addComment: (mediaId: string, body: string, token?: string | null) =>
+      apiPost(`/media/${mediaId}/comments`, { body }, token),
+    enqueueAnalysis: (mediaId: string, token?: string | null) =>
+      apiPost(`/photo-analysis/${mediaId}/enqueue`, {}, token),
+    analysisStatus: (mediaId: string, token?: string | null) =>
+      apiGet(`/photo-analysis/${mediaId}/status`, token),
+    bulkQueue: (token?: string | null) =>
+      apiGet<import('@family/shared').BulkTaggingMediaItem[]>('/media/bulk-tagging', token),
+    bulkAssign: (
+      assignments: Array<{ faceTagId: string; personId: string }>,
+      token?: string | null,
+    ) => apiPost('/media/bulk-tagging/assign', { assignments }, token),
   },
   search: (q: string, token?: string | null) => apiGet<SearchResults>(`/search?q=${encodeURIComponent(q)}`, token),
   gedcom: {
@@ -489,4 +542,55 @@ export const apiClient = {
     person: (personId: string, token?: string | null) =>
       apiGet<PersonTimelineResponse>(`/timeline/person/${personId}`, token),
   },
+  map: {
+    person: (personId: string, query: import('@family/shared').MapQuery = {}, token?: string | null) => {
+      const params = buildMapQueryParams(query);
+      const qs = params.toString();
+      return apiGet<import('@family/shared').MapPayload>(
+        `/map/person/${personId}${qs ? `?${qs}` : ''}`,
+        token,
+      );
+    },
+    family: (familyId: string, query: import('@family/shared').MapQuery = {}, token?: string | null) => {
+      const params = buildMapQueryParams(query);
+      const qs = params.toString();
+      return apiGet<import('@family/shared').MapPayload>(
+        `/map/family/${familyId}${qs ? `?${qs}` : ''}`,
+        token,
+      );
+    },
+    tree: (treeId: string, query: import('@family/shared').MapQuery = {}, token?: string | null) => {
+      const params = buildMapQueryParams(query);
+      const qs = params.toString();
+      return apiGet<import('@family/shared').MapPayload>(`/map/tree/${treeId}${qs ? `?${qs}` : ''}`, token);
+    },
+    migrationPath: (query: import('@family/shared').MigrationPathQuery, token?: string | null) => {
+      const params = buildMapQueryParams(query);
+      for (const id of query.personIds) params.append('personIds', id);
+      return apiGet<import('@family/shared').MapPayload>(`/map/migration-path?${params}`, token);
+    },
+  },
+  gamification: {
+    dashboard: (token?: string | null) =>
+      apiGet<import('@family/shared').GamificationDashboardPayload>('/gamification/dashboard', token),
+    progress: (token?: string | null) => apiGet('/gamification/progress', token),
+    score: (token?: string | null) => apiGet<import('@family/shared').FamilyDiscoveryScore>('/gamification/score', token),
+    quests: (token?: string | null) => apiGet('/gamification/quests', token),
+    achievements: (token?: string | null) => apiGet('/gamification/achievements', token),
+    gaps: (token?: string | null) => apiGet('/gamification/gaps', token),
+    mysteries: (token?: string | null) => apiGet('/gamification/mysteries', token),
+  },
 };
+
+function buildMapQueryParams(query: import('@family/shared').MapQuery) {
+  const params = new URLSearchParams();
+  if (query.yearFrom != null) params.set('yearFrom', String(query.yearFrom));
+  if (query.yearTo != null) params.set('yearTo', String(query.yearTo));
+  if (query.eventTypes?.length) query.eventTypes.forEach((t) => params.append('eventTypes', t));
+  if (query.includeHistoricalNames) params.set('includeHistoricalNames', 'true');
+  if (query.scope) params.set('scope', query.scope);
+  if (query.depth != null) params.set('depth', String(query.depth));
+  if (query.generationMin != null) params.set('generationMin', String(query.generationMin));
+  if (query.generationMax != null) params.set('generationMax', String(query.generationMax));
+  return params;
+}

@@ -24,8 +24,18 @@ export class MediaService {
 
   async findAll() {
     return this.prisma.media.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 50,
+    });
+  }
+
+  async findOne(id: string) {
+    return this.prisma.media.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        _count: { select: { faceTags: true, comments: true } },
+      },
     });
   }
 

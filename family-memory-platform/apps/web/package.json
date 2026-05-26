@@ -7,10 +7,11 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "tsc --noEmit",
+    "lint": "node ../../node_modules/typescript/bin/tsc --noEmit",
     "test": "echo \"web: tests not configured yet\""
   },
   "dependencies": {
+    "@family/map-engine": "workspace:*",
     "@family/shared": "workspace:*",
     "@family/tree-experience": "workspace:*",
     "@family/ui": "workspace:*",

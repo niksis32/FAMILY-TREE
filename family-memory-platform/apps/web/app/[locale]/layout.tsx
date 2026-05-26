@@ -3,7 +3,6 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AuthProvider } from '@/components/auth-provider';
 import { ThemeProvider } from '@/components/theme-provider';
-import { routing } from '@/i18n/routing';
 import { APP_LOCALES, type AppLocale } from '@family/shared';
 
 export function generateStaticParams() {

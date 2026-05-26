@@ -1,8 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { GAMIFICATION_ACTIONS } from '@family/shared';
+import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { GamificationActivityService } from '../gamification/gamification-activity.service';
 import { CreatePersonDto, UpdatePersonDto } from './persons.dto';
 import { PersonsService } from './persons.service';
 
@@ -10,7 +13,10 @@ import { PersonsService } from './persons.service';
 @ApiBearerAuth()
 @Controller('persons')
 export class PersonsController {
-  constructor(private readonly service: PersonsService) {}
+  constructor(
+    private readonly service: PersonsService,
+    private readonly gamification: GamificationActivityService,
+  ) {}
 
   @Get()
   findAll() {
@@ -25,15 +31,29 @@ export class PersonsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'EDITOR')
-  create(@Body() dto: CreatePersonDto) {
-    return this.service.create(dto);
+  async create(@Body() dto: CreatePersonDto, @CurrentUser() user: AuthenticatedUser) {
+    const person = await this.service.create(dto);
+    await this.gamification.record({
+      userId: user.id,
+      action: GAMIFICATION_ACTIONS.PERSON_CREATE,
+      entityType: 'person',
+      entityId: person.id,
+    });
+    return person;
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'EDITOR')
-  update(@Param('id') id: string, @Body() dto: UpdatePersonDto) {
-    return this.service.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdatePersonDto, @CurrentUser() user: AuthenticatedUser) {
+    const person = await this.service.update(id, dto);
+    await this.gamification.record({
+      userId: user.id,
+      action: GAMIFICATION_ACTIONS.PERSON_UPDATE,
+      entityType: 'person',
+      entityId: person.id,
+    });
+    return person;
   }
 
   @Delete(':id')

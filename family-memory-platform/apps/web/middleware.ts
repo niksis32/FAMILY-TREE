@@ -10,6 +10,8 @@ const protectedPrefixes = [
   '/persons',
   '/families',
   '/tree',
+  '/map',
+  '/research',
   '/timeline',
   '/media',
   '/documents',

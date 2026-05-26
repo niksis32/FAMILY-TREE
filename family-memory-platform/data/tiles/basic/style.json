@@ -1,0 +1,32 @@
+{
+  "version": 8,
+  "name": "Basic Vintage",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "url": "mbtiles://{v3}"
+    }
+  },
+  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#e8dcc8" }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "paint": { "fill-color": "#b8c9d9" }
+    },
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "paint": { "fill-color": "#d9cdb8", "fill-opacity": 0.6 }
+    }
+  ]
+}

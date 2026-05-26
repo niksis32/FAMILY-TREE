@@ -13,6 +13,8 @@ const navHrefs = [
   { href: '/persons', key: 'persons', icon: '◎' },
   { href: '/families', key: 'families', icon: '⌘' },
   { href: '/tree', key: 'tree', icon: '⌁' },
+  { href: '/map', key: 'map', icon: '⊕' },
+  { href: '/research', key: 'research', icon: '◈' },
   { href: '/timeline', key: 'timeline', icon: '↦' },
   { href: '/media', key: 'media', icon: '▣' },
   { href: '/documents', key: 'documents', icon: '◇' },

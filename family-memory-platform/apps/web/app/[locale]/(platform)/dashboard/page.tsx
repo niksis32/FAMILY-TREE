@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { DashboardOverview } from '@/components/dashboard-overview';
+import { GamificationOverview } from '@/components/gamification-overview';
 import { PageHeader, Button } from '@/components/ui';
 
 export default async function DashboardPage() {
@@ -19,6 +20,8 @@ export default async function DashboardPage() {
       />
 
       <DashboardOverview />
+
+      <GamificationOverview />
     </div>
   );
 }

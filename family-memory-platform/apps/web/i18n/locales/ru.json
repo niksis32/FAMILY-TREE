@@ -23,6 +23,8 @@
     "persons": "Люди",
     "families": "Семьи",
     "tree": "Древо",
+    "map": "Историческая карта",
+    "research": "Расследование",
     "timeline": "Хронология",
     "media": "Медиа",
     "documents": "Документы",
@@ -209,6 +211,10 @@
     "settingsImport": {
       "title": "GEDCOM import",
       "description": "Preview перед импортом .ged: базовые теги INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR и NOTE."
+    },
+    "research": {
+      "title": "Семейное расследование",
+      "description": "Прогресс исследования, пробелы в доказательной базе и структурированные research cases по архиву семьи."
     }
   },
   "privacy": {
@@ -471,6 +477,52 @@
     "emptyTitle": "Медиа нет",
     "emptyDesc": "Загрузите первый файл через MinIO uploader."
   },
+  "photoIntelligence": {
+    "photoViewer": "Фото и лица",
+    "photoViewerDesc": "Разметка лиц, привязка к персонам дерева и AI-подсказки. Без AI доступна ручная разметка.",
+    "loading": "Загрузка фото…",
+    "manualFace": "Лицо (вручную)",
+    "runAiAnalysis": "Запустить AI-анализ",
+    "aiDisabled": "AI выключен (ручная разметка доступна)",
+    "analysisStatus": "Анализ: {status}",
+    "noAnalysisYet": "Анализ ещё не ставился в очередь",
+    "unassignedFace": "Лицо ещё не привязано к персоне",
+    "assignPerson": "Назначить персону",
+    "identifiedPerson": "Опознанный человек",
+    "periodConfidence": "Достоверность периода: {level}",
+    "confidence": {
+      "high": "высокая",
+      "medium": "средняя",
+      "low": "низкая",
+      "unknown": "неизвестно"
+    },
+    "openProfile": "Открыть профиль",
+    "changePerson": "Сменить персону",
+    "suggestedMatches": "Возможные совпадения",
+    "loadingSuggestions": "Загрузка подсказок…",
+    "noSuggestions": "Подсказок пока нет",
+    "selectPerson": "Персона из дерева",
+    "selectPersonPlaceholder": "Выберите персону…",
+    "faceLabel": "Подпись",
+    "faceNote": "Заметка",
+    "saveTag": "Сохранить",
+    "cancel": "Отмена",
+    "comments": "Комментарии",
+    "commentPlaceholder": "Комментарий к фото…",
+    "addComment": "Добавить комментарий",
+    "close": "Закрыть",
+    "openFullPage": "Открыть страницу",
+    "quickView": "Быстрый просмотр",
+    "bulkTaggingLink": "Массовая разметка",
+    "bulkTaggingTitle": "Массовая разметка фото",
+    "bulkTaggingDesc": "Очередь снимков, где ещё нужно указать людей на лицах.",
+    "bulkQueueTitle": "Очередь разметки",
+    "bulkQueueHint": "Фото в очереди: {count}",
+    "bulkItemStats": "без персоны: {untagged} · с персоной: {tagged}",
+    "bulkAssignAll": "Назначить все неназначенные лица",
+    "applyBulkAssign": "Применить к текущему фото",
+    "bulkEmpty": "Все фото размечены — отличная работа!"
+  },
   "documentsWorkspace": {
     "loading": "Загружаем documents/sources/citations...",
     "stats": "Документов: {documents}, источников: {sources}, цитат: {citations}",
@@ -537,5 +589,203 @@
     "MILITARY_RECORD": "Военный документ",
     "ARCHIVE_RECORD": "Архивная запись",
     "OTHER": "Другой документ"
+  },
+  "gamification": {
+    "dashboard": {
+      "loading": "Загрузка research dashboard…",
+      "subtitle": "Прогресс исследования семейного архива",
+      "openResearch": "Открыть полный research workspace →"
+    },
+    "researchProgress": {
+      "eyebrow": "Прогресс исследования",
+      "title": "Полнота архива",
+      "overall": "Общий",
+      "persons": "Люди",
+      "personsHint": "В древе",
+      "documented": "Документировано",
+      "documentedHint": "Заполнены ключевые поля",
+      "sourced": "Подтверждённые факты",
+      "sourcedHint": "Цитаты и sourced links",
+      "photos": "Идентифицированные фото",
+      "photosHint": "Люди отмечены на медиа",
+      "actionsWeek": "{count} действий за неделю",
+      "streak": "Серия {days} дн.",
+      "categories": {
+        "persons": "Профили людей",
+        "relationships": "Подтверждённые связи",
+        "events": "Геокодированные события",
+        "documents": "Архивные документы",
+        "citations": "Источники",
+        "media": "Идентифицированные медиа",
+        "geo": "География и миграции"
+      }
+    },
+    "questDashboard": {
+      "weeklyEyebrow": "Цели недели",
+      "weeklyTitle": "Фокус текущей недели",
+      "weekRange": "Текущая неделя",
+      "activeEyebrow": "Активные кейсы",
+      "activeTitle": "Открытые research cases",
+      "completedCount": "Закрыто: {count}"
+    },
+    "achievements": {
+      "eyebrow": "Достижения",
+      "title": "Research credentials",
+      "unlocked": "{count}/{total} получено",
+      "earned": "Получено",
+      "tiers": {
+        "bronze": "Бронза",
+        "silver": "Серебро",
+        "gold": "Золото",
+        "archive": "Архив"
+      },
+      "first-document": {
+        "title": "Первая архивная запись",
+        "description": "Загрузите первый генеалогический документ"
+      },
+      "sourced-fact": {
+        "title": "Подтверждённый факт",
+        "description": "Добавьте citation к человеку или событию"
+      },
+      "first-migration": {
+        "title": "След миграции",
+        "description": "Зафиксируйте событие миграции или иммиграции"
+      },
+      "photo-archivist": {
+        "title": "Фото-архивист",
+        "description": "Идентифицируйте людей на пяти фотографиях"
+      },
+      "migration-tracer": {
+        "title": "Построитель маршрута",
+        "description": "Постройте связанный маршрут миграции"
+      },
+      "four-generations": {
+        "title": "Четыре поколения",
+        "description": "Документируйте четыре поколения по одной линии"
+      },
+      "archive-scholar": {
+        "title": "Архивный исследователь",
+        "description": "Распознайте OCR-текст трёх архивных документов"
+      },
+      "complete-profile": {
+        "title": "Полное досье",
+        "description": "Полностью заполните research profile одного человека"
+      }
+    },
+    "missingData": {
+      "eyebrow": "Пробелы в доказательствах",
+      "title": "Missing data challenges",
+      "count": "{count} пробелов",
+      "resolve": "Исследовать →",
+      "viewAll": "Все research cases →",
+      "severity": {
+        "critical": "Критично",
+        "high": "Высокий",
+        "medium": "Средний",
+        "low": "Низкий"
+      },
+      "gaps": {
+        "birthDate": "Не указана дата рождения — нужна для реконструкции timeline",
+        "birthPlace": "Не указано место рождения — нет регионального контекста",
+        "avatar": "Нет портрета — отсутствует визуальная идентификация",
+        "biography": "Биография пуста — нет narrative context"
+      }
+    },
+    "familyMystery": {
+      "eyebrow": "Открытый кейс",
+      "title": "Family mystery",
+      "discoveryScore": "Discovery score",
+      "unknownSubject": "Неидентифицированный предок",
+      "cta": "Открыть досье →",
+      "none": "Критических mysteries нет — архив хорошо документирован.",
+      "severity": {
+        "critical": "Критический пробел",
+        "high": "Высокий приоритет",
+        "medium": "Требует проверки"
+      }
+    },
+    "categories": {
+      "ancestor": "Линия предков",
+      "regional": "Региональное исследование",
+      "document": "Document quest",
+      "photo": "Идентификация фото",
+      "migration": "Маршрут миграции",
+      "missing-data": "Полнота данных",
+      "weekly": "Цель недели"
+    },
+    "status": {
+      "locked": "Закрыт",
+      "available": "Открыт",
+      "in_progress": "В работе",
+      "completed": "Завершён"
+    },
+    "quests": {
+      "birthPlaces5": {
+        "title": "Региональные якоря",
+        "description": "Добавьте места рождения для пяти человек"
+      },
+      "ancestorDocument": {
+        "title": "Архив предка",
+        "description": "Найдите архивный документ для предка 3-го поколения"
+      },
+      "citeRelationship": {
+        "title": "Подтверждённая связь",
+        "description": "Подтвердите родственную связь источником"
+      },
+      "identifyPhotos3": {
+        "title": "Идентификация фото",
+        "description": "Определите людей на трёх фотографиях"
+      },
+      "maternalLine4": {
+        "title": "Материнская линия",
+        "description": "Заполните материнскую линию до 4 поколений"
+      },
+      "migrationRoute": {
+        "title": "Маршрут миграции",
+        "description": "Постройте связанный маршрут миграции семьи"
+      },
+      "uploadArchive": {
+        "title": "Архивная загрузка",
+        "description": "Загрузите архивный документ"
+      },
+      "completeProfiles10": {
+        "title": "Полные досье",
+        "description": "Полностью заполните 10 профилей людей"
+      },
+      "regionalEvents5": {
+        "title": "Региональные события",
+        "description": "Добавьте пять геокодированных life events"
+      },
+      "confirmSources3": {
+        "title": "Подтверждение источников",
+        "description": "Добавьте три source citations"
+      }
+    }
+  },
+  "historicalMap": {
+    "badge": "Историческая география",
+    "title": "Историческая карта семьи",
+    "subtitle": "Рождение, миграции, служба, работа и смерть на карте в старинном стиле. Связь с Timeline и 3D Tree.",
+    "sourceKind": "Источник данных",
+    "sourcePerson": "Персона",
+    "sourceFamily": "Семья",
+    "sourceTree": "Древо (от корневой персоны)",
+    "person": "Персона",
+    "family": "Семья",
+    "selectFamily": "Выберите семью",
+    "focusPerson": "Фокус на персоне",
+    "allPersons": "Все персоны",
+    "loading": "Загружаем карту…",
+    "noPlaces": "Нет мест с координатами для текущего выбора.",
+    "statsEvents": "События",
+    "statsPlaces": "Места",
+    "statsRoutes": "Маршруты",
+    "modes": {
+      "person-route": "Маршрут персоны",
+      "family-migration": "Миграция семьи",
+      "generation-map": "Карта поколений",
+      "events-map": "Карта событий",
+      "historical-places": "Исторические места"
+    }
   }
 }

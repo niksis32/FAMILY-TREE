@@ -521,6 +521,146 @@ pnpm exec prisma migrate dev
 
 ---
 
+## Photo Intelligence (PROMPT 6) — миграция, Redis, AI (Ubuntu / WSL)
+
+Контекст: разметка лиц на фото (`PhotoFaceTag`), очередь анализа **BullMQ** (нужен **Redis**), детекция лиц — **MediaPipe** в контейнере `ai-service` (profile `ai`).
+
+Подробности: [PROMPT_6_AI_PHOTO_TAGGING.md](./PROMPT_6_AI_PHOTO_TAGGING.md).
+
+### 1. Инфраструктура (Postgres, Redis, MinIO, …)
+
+Из **корня** монорепозитория (Redis обязателен для очереди фото):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm docker:infra
+```
+
+Проверка, что Redis поднят:
+
+```bash
+docker ps --filter "name=family_redis"
+redis-cli -h localhost -p 6379 ping
+```
+
+Ожидаемо: `PONG`.
+
+### 2. Переменные в корневом `.env`
+
+Откройте `family-memory-platform/.env` (не только `apps/api/.env`) и добавьте или раскомментируйте:
+
+```env
+REDIS_URL=redis://localhost:6379
+AI_SERVICE_URL=http://localhost:8000
+AI_SERVICE_ENABLED=true
+```
+
+Без `REDIS_URL` ручная разметка фото работает, но задачи в очередь не ставятся (статус job — `SKIPPED`).  
+Без `AI_SERVICE_ENABLED=true` API не вызывает AI; кнопка «Запустить AI-анализ» в UI будет неактивна.
+
+### 3. Применить миграции Prisma (photo intelligence)
+
+**Вариант A (рекомендуется)** — из корня, с корневым `.env`:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+node scripts/prisma-cli.mjs migrate deploy
+node scripts/prisma-cli.mjs generate
+```
+
+**Вариант B** — только каталог API (как в runbook):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform/apps/api"
+source ~/.nvm/nvm.sh
+export DATABASE_URL="postgresql://family_user:ВАШ_ПАРОЛЬ@localhost:5432/family_platform?schema=public"
+pnpm prisma migrate deploy
+pnpm prisma generate
+```
+
+Пароль и хост должны совпадать с `DATABASE_URL` в корневом `.env` и с `docker-compose`.
+
+Проверка статуса:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform/apps/api"
+pnpm exec prisma migrate status
+```
+
+Ожидаемо: `Database schema is up to date!` (в т.ч. миграция `20260526120000_photo_intelligence`).
+
+После миграции пересоберите API:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm api:prisma
+pnpm --filter @family/shared build
+pnpm api:build && pnpm api:start
+```
+
+### 4. Запустить AI-сервис (MediaPipe, profile `ai`)
+
+Из **корня** проекта:
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile ai up -d --build
+```
+
+Краткий вариант (если dev-overlay уже в контексте не нужен):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+docker compose --profile ai up -d --build
+```
+
+Проверка:
+
+```bash
+curl -s http://localhost:8000/health | head
+```
+
+В ответе желательно `"mediapipe": true`.
+
+Порт AI по умолчанию: `8000` (`AI_PORT` в `.env`).
+
+### 5. Web + проверка в UI
+
+Терминал Web (если ещё не запущен):
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+source ~/.nvm/nvm.sh
+pnpm --filter @family/web dev
+```
+
+Страницы:
+
+- Галерея: http://localhost:3000/media  
+- Фото с тегами: http://localhost:3000/media/{mediaId}  
+- Массовая разметка: http://localhost:3000/media/tagging  
+
+После загрузки **изображения** (`image/jpeg`, `image/png`, `image/webp`) API ставит задачу в очередь; статус: `GET http://localhost:4000/api/v1/photo-analysis/{mediaId}/status`.
+
+Ручной повторный анализ (нужен JWT EDITOR/ADMIN):
+
+```bash
+curl -s -X POST "http://localhost:4000/api/v1/photo-analysis/MEDIA_ID/enqueue" \
+  -H "Authorization: Bearer ВАШ_ACCESS_TOKEN"
+```
+
+### 6. Типичные проблемы
+
+| Симптом | Что проверить |
+|--------|----------------|
+| Очередь не работает | `REDIS_URL`, контейнер `family_redis`, перезапуск API после правки `.env` |
+| AI не находит лица | `docker ps` → `family_ai`, `AI_SERVICE_ENABLED=true`, `curl localhost:8000/health` |
+| `migrate deploy` — нет `DATABASE_URL` | Запуск из корня: `node scripts/prisma-cli.mjs migrate deploy` или `export DATABASE_URL=...` в WSL |
+| Первый build AI долгий | `mediapipe` + `opencv` — нормально для `--build` |
+
+---
+
 ## UI — `401 Unauthorized` при создании персоны
 
 Симптом в браузере:

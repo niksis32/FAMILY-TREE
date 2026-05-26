@@ -1,58 +1,47 @@
 import type { TreeViewDataResponse } from '@family/shared';
+import { buildMapLayoutFromPayload, buildPersonRoutes } from '@family/map-engine';
+import type { MapMarker, MapMigrationLine } from '@family/map-engine';
 
-export interface MapMarker {
-  placeId: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  personIds: string[];
-}
+export type { MapMarker, MapMigrationLine };
 
-export interface MapMigrationLine {
-  id: string;
-  coordinates: [number, number][];
-  personId?: string | null;
-}
+export function buildMapLayout(data: TreeViewDataResponse): { markers: MapMarker[]; lines: MapMigrationLine[] } {
+  const persons = data.nodes.map((node) => ({
+    id: node.personId,
+    label: node.label,
+    generation: node.generation,
+  }));
 
-export function buildMapLayout(data: TreeViewDataResponse) {
-  const markers: MapMarker[] = data.places
-    .filter((place) => place.latitude != null && place.longitude != null)
-    .map((place) => ({
-      placeId: place.id,
-      name: place.name,
-      latitude: place.latitude!,
-      longitude: place.longitude!,
-      personIds: place.personIds,
+  const events = data.events.map((event) => {
+    const place = event.placeId ? data.places.find((p) => p.id === event.placeId) : null;
+    return {
+      id: event.id,
+      personId: event.personId,
+      familyId: event.familyId,
+      type: event.type,
+      title: event.title,
+      date: event.date,
+      year: event.year,
+      placeId: event.placeId,
+      placeName: event.placeName,
+      latitude: place?.latitude ?? null,
+      longitude: place?.longitude ?? null,
+    };
+  });
+
+  const places = data.places
+    .filter((p) => p.latitude != null && p.longitude != null)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      latitude: p.latitude!,
+      longitude: p.longitude!,
+      country: p.country,
+      region: p.region,
+      city: p.city,
+      eventIds: p.eventIds,
+      personIds: p.personIds,
     }));
 
-  const lines: MapMigrationLine[] = [];
-  const eventsByPerson = new Map<string, typeof data.events>();
-
-  for (const event of data.events) {
-    if (!event.personId) continue;
-    const list = eventsByPerson.get(event.personId) ?? [];
-    list.push(event);
-    eventsByPerson.set(event.personId, list);
-  }
-
-  for (const [personId, events] of eventsByPerson) {
-    const migrationEvents = events
-      .filter((e) => ['MIGRATION', 'RESIDENCE', 'IMMIGRATION'].includes(e.type))
-      .sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
-
-    const coordinates: [number, number][] = [];
-    for (const event of migrationEvents) {
-      if (!event.placeId) continue;
-      const place = data.places.find((p) => p.id === event.placeId);
-      if (place?.latitude != null && place.longitude != null) {
-        coordinates.push([place.longitude, place.latitude]);
-      }
-    }
-
-    if (coordinates.length >= 2) {
-      lines.push({ id: `migration-${personId}`, coordinates, personId });
-    }
-  }
-
-  return { markers, lines };
+  const routes = buildPersonRoutes({ persons, events });
+  return buildMapLayoutFromPayload({ places, events, routes });
 }

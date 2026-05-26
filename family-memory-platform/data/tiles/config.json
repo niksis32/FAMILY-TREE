@@ -1,0 +1,21 @@
+{
+  "options": {
+    "paths": {
+      "root": "/data",
+      "fonts": "/data/fonts"
+    }
+  },
+  "styles": {
+    "basic": {
+      "style": "basic/style.json",
+      "tilejson": {
+        "bounds": [-180, -85, 180, 85]
+      }
+    }
+  },
+  "data": {
+    "v3": {
+      "mbtiles": "v3.mbtiles"
+    }
+  }
+}

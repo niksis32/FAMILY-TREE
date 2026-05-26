@@ -1,4 +1,4 @@
-import { IsArray, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class OcrPreviewDto {
   @IsOptional()
@@ -49,4 +49,40 @@ export class TimelineSummaryDto {
 export class AiProxyPayloadDto {
   @IsObject()
   payload!: Record<string, unknown>;
+}
+
+export class PhotoDetectFacesDto {
+  @IsString()
+  mediaId!: string;
+
+  @IsString()
+  imageUrl!: string;
+}
+
+export class PhotoSuggestPersonDto {
+  @IsString()
+  mediaId!: string;
+
+  @IsOptional()
+  @IsString()
+  faceTagId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  photoYear?: number;
+
+  @IsArray()
+  candidates!: Array<Record<string, unknown>>;
+}
+
+export class PhotoImageContextDto {
+  @IsString()
+  mediaId!: string;
+
+  @IsString()
+  imageUrl!: string;
+
+  @IsOptional()
+  @IsString()
+  takenAt?: string;
 }
