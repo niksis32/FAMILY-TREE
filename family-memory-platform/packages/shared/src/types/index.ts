@@ -33,3 +33,5 @@ export * from './tree-view';
 export * from './map';
 export * from './gamification';
 export * from './photo-intelligence';
+export * from './matching';
+export * from './family-stories';

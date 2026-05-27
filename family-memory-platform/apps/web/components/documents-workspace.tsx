@@ -2,10 +2,12 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, Input, Select, Textarea } from '@/components/ui';
 import { apiClient, type CitationRecord, type DocumentRecord, type SourceRecord } from '@/lib/api-client';
 import { useFormatApiError } from '@/lib/use-format-api-error';
+import { DocumentIntelligenceModal } from '@/features/document-intelligence/document-intelligence-modal';
 
 const DOCUMENT_TYPE_KEYS = [
   'BIRTH_CERTIFICATE',
@@ -51,6 +53,7 @@ export function DocumentsWorkspace() {
   const [citationForm, setCitationForm] = useState({ sourceId: '', personId: '', page: '', detail: '' });
   const [status, setStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [intelligenceDocId, setIntelligenceDocId] = useState<string | null>(null);
 
   async function load() {
     setStatus(t('loading'));
@@ -161,6 +164,14 @@ export function DocumentsWorkspace() {
 
   return (
     <div className="space-y-6">
+      {intelligenceDocId ? (
+        <DocumentIntelligenceModal
+          documentId={intelligenceDocId}
+          documentTitle={documents.find((d) => d.id === intelligenceDocId)?.title ?? null}
+          token={session?.accessToken ?? null}
+          onClose={() => setIntelligenceDocId(null)}
+        />
+      ) : null}
       <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
       <div className="grid gap-6 xl:grid-cols-3">
         <Card>
@@ -276,16 +287,37 @@ export function DocumentsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <List
-          title={t('listDocuments')}
-          empty={t('noDocuments')}
-          backendEmpty={t('backendEmpty')}
-          items={documents.map((item) => ({
-            id: item.id,
-            title: item.title,
-            subtitle: documentTypeLabel(item.documentType),
-          }))}
-        />
+        <Card>
+          <h2 className="text-xl font-semibold">{t('listDocuments')}</h2>
+          <div className="mt-4 space-y-3">
+            {documents.length === 0 ? <EmptyState title={t('noDocuments')} description={t('backendEmpty')} /> : null}
+            {documents.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950"
+              >
+                <p className="font-semibold">{item.title}</p>
+                <p className="mt-1 text-stone-500 dark:text-slate-400">{documentTypeLabel(item.documentType)}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!session}
+                    onClick={() => setIntelligenceDocId(item.id)}
+                  >
+                    {t('intelligenceModal')}
+                  </Button>
+                  <Link
+                    href={`/documents/${item.id}/intelligence`}
+                    className="inline-flex items-center justify-center rounded-xl border border-family-primary/30 bg-white px-3 py-1.5 text-xs font-semibold text-family-primary hover:bg-stone-50 dark:bg-slate-900 dark:text-family-accent dark:hover:bg-slate-800"
+                  >
+                    {t('intelligenceFullPage')}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
         <List
           title={t('listSources')}
           empty={t('noSources')}

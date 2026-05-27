@@ -19,6 +19,9 @@ const navHrefs = [
   { href: '/media', key: 'media', icon: '▣' },
   { href: '/documents', key: 'documents', icon: '◇' },
   { href: '/search', key: 'search', icon: '⌕' },
+  { href: '/community', key: 'community', icon: '☷' },
+  { href: '/matching', key: 'matching', icon: '⇄' },
+  { href: '/stories', key: 'stories', icon: '✦' },
   { href: '/settings', key: 'settings', icon: '⚙' },
 ] as const;
 

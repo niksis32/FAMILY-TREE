@@ -4,6 +4,204 @@
 
 **Обновление / перезапуск после `git pull` или миграций** — пошаговый runbook: [LOCAL_SERVICE_UPDATE_RUNBOOK.md](./LOCAL_SERVICE_UPDATE_RUNBOOK.md).
 
+---
+
+## Шпаргалка Ubuntu/WSL — перезапуск и обновление (Variant A)
+
+Все команды ниже — **только в Ubuntu/WSL**, не в PowerShell (кроме EPERM Prisma — см. runbook §8).
+
+**Схема Variant A:** Docker = PostgreSQL, Redis, MinIO, Meilisearch; **API** = WSL `:4000`; **Web** = WSL `:3000`.
+
+### 0. Перейти в проект и Node (каждый новый терминал)
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pwd
+ls package.json
+```
+
+Ожидаемо: путь заканчивается на `family-memory-platform`, есть `package.json`.  
+Если `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND` — вы в `~`, снова выполните `cd`.
+
+---
+
+### 1. Полное обновление после `git pull` (рекомендуется)
+
+**Терминал 1** — инфраструктура, БД, API:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+
+# зависимости (если менялся pnpm-lock.yaml)
+pnpm install
+
+# Docker: postgres, redis, minio, meilisearch
+pnpm docker:infra
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# миграции Prisma (применяет все папки в apps/api/prisma/migrations/)
+pnpm db:migrate
+node scripts/prisma-cli.mjs migrate status
+
+# остановить старый API, собрать заново (внутри: api:prisma + shared + genealogy-core + api)
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:build
+ls -la apps/api/dist/main.js
+
+# запуск API (терминал не закрывать)
+pnpm api:start
+```
+
+Ожидаемо в конце терминала 1:
+
+```text
+API listening on http://localhost:4000/api/v1
+```
+
+**Терминал 2** — фронтенд:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm dev:web
+```
+
+Ожидаемо:
+
+```text
+Local:        http://localhost:3000
+✓ Ready
+```
+
+**Проверка (любой терминал):**
+
+```bash
+curl -s http://localhost:4000/api/v1/health
+ss -ltnp | grep -E ':4000|:3000|:5432'
+```
+
+Браузер: http://localhost:3000 → после перезапуска API **выйти и войти снова** (`/login`), затем **Ctrl+F5**.
+
+---
+
+### 2. Только перезапуск API (новые маршруты, без смены schema)
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:build
+pnpm api:start
+```
+
+Web (`pnpm dev:web`) можно не трогать.
+
+---
+
+### 3. Только перезапуск Web (изменения в `apps/web`)
+
+В терминале, где крутится Next.js: **Ctrl+C**, затем:
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm dev:web
+```
+
+В браузере: **Ctrl+F5** на http://localhost:3000
+
+---
+
+### 4. Только миграции БД (новый `schema.prisma` / папки `migrations/`)
+
+```bash
+source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm docker:infra
+pnpm db:migrate
+node scripts/prisma-cli.mjs migrate status
+pnpm api:prisma
+pkill -f "dist/main.js" 2>/dev/null || true
+pnpm api:build
+pnpm api:start
+```
+
+Если после `pnpm db:migrate` Prisma спрашивает имя новой миграции, а `migrate status` уже показывает **`Database schema is up to date!`** — **Ctrl+C** (код 130 нормален), дальше `pnpm api:build`.
+
+**Production-подобный режим** (без интерактива `migrate dev`):
+
+```bash
+node scripts/prisma-cli.mjs migrate deploy
+pnpm api:prisma
+```
+
+---
+
+### 5. Остановка сервисов
+
+```bash
+# API
+pkill -f "dist/main.js" 2>/dev/null || true
+
+# Web — в терминале next: Ctrl+C, или:
+fuser -k 3000/tcp 2>/dev/null || true
+
+# Docker-инфраструктура (данные в volumes сохраняются)
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+pnpm docker:infra:down
+```
+
+---
+
+### 6. Опционально: AI-сервис (Document Intelligence, Family Stories narrative)
+
+```bash
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+# в корневом .env: AI_SERVICE_ENABLED=true, AI_SERVICE_URL=http://localhost:8000
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile ai up -d
+curl -s http://localhost:8000/health
+```
+
+После изменений в `apps/ai-service` — пересоздать контейнер profile `ai` (см. runbook).
+
+---
+
+### 7. Опционально: PDF для Public Family Stories (PROMPT 10)
+
+В корневом `.env` (WSL):
+
+```env
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+# или путь к Chromium в WSL
+```
+
+Проверка endpoint (после `api:start` и создания story):
+
+```bash
+curl -s -o /tmp/story.pdf -w "%{http_code}\n" \
+  "http://localhost:4000/api/v1/public/family-stories/token/YOUR_TOKEN/pdf"
+```
+
+---
+
+### 8. Симптомы → быстрые команды
+
+| Симптом | WSL |
+|---------|-----|
+| `Failed to fetch`, `/health` → 404 | §2 — перезапуск API |
+| `401` после перезапуска API | Выйти → войти на `/login` |
+| `EADDRINUSE :::4000` | `pkill -f "dist/main.js"` → `pnpm api:start` |
+| `EADDRINUSE :::3000` | Ctrl+C в терминале Web или `fuser -k 3000/tcp` |
+| `DATABASE_URL` not found | `cd` в корень проекта; `ls .env`; `pnpm docker:infra` |
+| `avatarMediaId does not exist` при build | `pnpm api:prisma` → `pnpm api:build` |
+| Prisma engine Windows vs WSL | **не** `db:generate` из PowerShell; только `pnpm api:prisma` из WSL |
+
+Подробные разборы: [LOCAL_SERVICE_UPDATE_RUNBOOK.md](./LOCAL_SERVICE_UPDATE_RUNBOOK.md).
+
+---
+
 ## Meilisearch: создать индекс и добавить документ
 
 Контекст:
@@ -410,58 +608,35 @@ Ready
 
 Терминал с этой командой должен оставаться открытым.
 
-*******************************************************************************************
-Перезапуск после обновления кода порт 4000
-*******************************************************************************************
+## Перезапуск API при `Failed to fetch` / health 404
 
+Симптомы: http://localhost:3000 — не логинится, `Failed to fetch`; http://localhost:4000/api/v1/health — **404** или connection refused.
 
-
-*** Первый признак  http://localhost:3000/  
-
-////////Не удается авторизоваться  
-
-ошибка Failed to fetch
-
-
-*** Второй признак  http://localhost:4000/api/v1/health  выдает 404
-
-
-то перезапуск  в отдельном терминале 
-
-Терминал A — API:
+**Решение (WSL)** — см. также [§ Шпаргалка WSL](#шпаргалка-ubuntuwsl--перезапуск-и-обновление-variant-a) выше:
 
 ```bash
-cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
 source ~/.nvm/nvm.sh
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
 pkill -f "dist/main.js" 2>/dev/null || true
-pnpm api:prisma
-pnpm --filter @family/shared build
-pnpm api:build && pnpm api:start
+pnpm api:build
+pnpm api:start
 ```
 
-После должен http://localhost:4000/api/v1/health 
+Проверка:
 
+```bash
+curl -s http://localhost:4000/api/v1/health
+```
 
-{
-  "status": "ok",
-  "service": "family-api",
-  "timestamp": "2026-05-22T08:34:43.591Z"
-}
+Ожидаемо JSON с `"status":"ok"`. В браузере: **Ctrl+F5**, повторный **/login**.
 
-
-### Windows PowerShell: проверить страницу
+### Windows PowerShell: проверить Web
 
 ```powershell
-Invoke-WebRequest -Uri "http://localhost:3000/documentation" -UseBasicParsing
+Invoke-WebRequest -Uri "http://localhost:3000" -UseBasicParsing
 ```
 
-Ожидаемо:
-
-```text
-StatusCode: 200
-```
-
-После перезапуска в браузере нажмите `Ctrl + F5`, чтобы обновить страницу без старого кэша.
+Ожидаемо: `StatusCode: 200`.
 
 ## Prisma — `Environment variable not found: DATABASE_URL`
 

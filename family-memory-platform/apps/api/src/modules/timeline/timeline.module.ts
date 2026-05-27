@@ -8,5 +8,6 @@ import { TimelineService } from './timeline.service';
   imports: [PrismaModule],
   controllers: [TimelineController],
   providers: [TimelineService],
+  exports: [TimelineService],
 })
 export class TimelineModule {}

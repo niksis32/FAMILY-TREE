@@ -41,6 +41,26 @@ export class DocumentsService {
     return document;
   }
 
+  /** Short-lived GET URL for viewers (Document Intelligence, PDF embed). */
+  async getPresignedDownloadUrl(id: string) {
+    await this.ensureExists(id);
+    const document = await this.prisma.document.findFirst({
+      where: { id, deletedAt: null },
+      select: { storageKey: true, bucket: true, mimeType: true, title: true },
+    });
+    if (!document) throw new NotFoundException('Document not found');
+    const client = this.createMinioClient();
+    const bucket = document.bucket || this.bucket;
+    const downloadUrl = await client.presignedGetObject(bucket, document.storageKey, 15 * 60);
+    return {
+      documentId: id,
+      downloadUrl,
+      mimeType: document.mimeType,
+      title: document.title,
+      expiresInSeconds: 15 * 60,
+    };
+  }
+
   async createUploadUrl(dto: CreateDocumentUploadUrlDto) {
     this.assertAllowedFile(dto.mimeType, dto.sizeBytes);
     const storageKey = this.buildStorageKey(dto.fileName);
@@ -120,6 +140,7 @@ export class DocumentsService {
         secretKey: string;
       }) => {
         presignedPutObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
+        presignedGetObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
       };
     };
 

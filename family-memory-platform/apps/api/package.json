@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@family/genealogy-core": "workspace:*",
+    "@family/matching-core": "workspace:*",
     "@family/map-engine": "workspace:*",
     "@family/shared": "workspace:*",
     "@nestjs/common": "^10.4.15",
@@ -27,6 +28,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
+    "graphql": "^16.10.0",
     "@nestjs/swagger": "^8.1.0",
     "@prisma/client": "^6.1.0",
     "bullmq": "^5.34.5",
@@ -37,7 +39,8 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "puppeteer-core": "^24.2.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

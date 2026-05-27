@@ -5,6 +5,19 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from app.family_story import FamilyStoryNarrativeRequest, family_story_narrative_stub
+from app.document_intelligence import (
+    DocumentExtractEntitiesRequest,
+    DocumentOcrRequest,
+    DocumentSuggestEventsRequest,
+    DocumentSuggestRelationshipsRequest,
+    DocumentSummarizeRequest,
+    document_extract_entities_stub,
+    document_ocr_stub,
+    document_suggest_events_stub,
+    document_suggest_relationships_stub,
+    document_summarize_stub,
+)
 from app.photo import (
     PhotoImageRequest,
     PhotoSuggestRequest,
@@ -49,7 +62,18 @@ def health():
         "status": "ok",
         "service": "family-ai",
         "optional": True,
-        "implemented": ["ocr.stub", "photo.mediapipe", "relationship.stub", "timeline.stub"],
+        "implemented": [
+            "ocr.stub",
+            "photo.mediapipe",
+            "relationship.stub",
+            "timeline.stub",
+            "document.ocr",
+            "document.extract-entities",
+            "document.suggest-events",
+            "document.suggest-relationships",
+            "document.summarize",
+            "family-story.narrative",
+        ],
         "mediapipe": mediapipe_module is not None,
         "futureEngines": ["paddleocr", "local-llm", "face-embeddings"],
     }
@@ -149,3 +173,33 @@ async def photo_estimate_period(payload: PhotoImageRequest):
         "mediaId": payload.media_id,
         **period,
     }
+
+
+@app.post("/document/ocr")
+def document_ocr(payload: DocumentOcrRequest):
+    return document_ocr_stub(payload)
+
+
+@app.post("/document/extract-entities")
+def document_extract_entities(payload: DocumentExtractEntitiesRequest):
+    return document_extract_entities_stub(payload)
+
+
+@app.post("/document/suggest-events")
+def document_suggest_events(payload: DocumentSuggestEventsRequest):
+    return document_suggest_events_stub(payload)
+
+
+@app.post("/document/suggest-relationships")
+def document_suggest_relationships(payload: DocumentSuggestRelationshipsRequest):
+    return document_suggest_relationships_stub(payload)
+
+
+@app.post("/document/summarize")
+def document_summarize(payload: DocumentSummarizeRequest):
+    return document_summarize_stub(payload)
+
+
+@app.post("/family-story/narrative")
+def family_story_narrative(payload: FamilyStoryNarrativeRequest):
+    return family_story_narrative_stub(payload)

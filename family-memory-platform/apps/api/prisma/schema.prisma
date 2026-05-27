@@ -32,6 +32,22 @@ model User {
   photoFaceTagsCreated PhotoFaceTag[] @relation("PhotoFaceTagCreator")
   mediaComments        MediaComment[]
 
+  communityGroupsOwned       CommunityGroup[]       @relation("CommunityGroupOwner")
+  forumThreadsAuthored       ForumThread[]          @relation("ForumThreadAuthor")
+  forumPostsAuthored         ForumPost[]            @relation("ForumPostAuthor")
+  researchRequestsAuthored   ResearchRequest[]      @relation("ResearchRequestAuthor")
+  moderationReportsFiled     ModerationReport[]     @relation("ModerationReportReporter")
+  moderationActionsPerformed ModerationAction[]     @relation("ModerationActionModerator")
+  reputationEvents           CommunityReputationEvent[] @relation("ReputationEventUser")
+  forumHelpfulVotes          ForumPostHelpfulVote[]
+  researcherPublicProfile    ResearcherPublicProfile?
+  communityUserStrike        CommunityUserStrike?
+  matchProfile               MatchProfile?
+  workspaceMemberships       WorkspaceMember[]
+  treeMatchRunsRequested     TreeMatchRun[]         @relation("TreeMatchRunRequester")
+  treeMatchCandidatesReviewed TreeMatchCandidate[]  @relation("TreeMatchCandidateReviewer")
+  familyStoriesCreated       FamilyStory[]          @relation("FamilyStoryCreator")
+
   @@index([role])
   @@index([deletedAt])
 }
@@ -133,6 +149,9 @@ model Person {
   timelineItems     TimelineItem[]
   citations         Citation[]
   photoFaceTags     PhotoFaceTag[]
+  nameAliases       PersonNameAlias[]
+  matchCandidatesAsSource TreeMatchCandidate[] @relation("MatchSourcePerson")
+  matchCandidatesAsTarget TreeMatchCandidate[] @relation("MatchTargetPerson")
 
   @@index([familyName, givenName])
   @@index([birthDate])
@@ -143,16 +162,20 @@ model Person {
 }
 
 model Family {
-  id        String    @id @default(cuid())
-  name      String?
-  notes     String?   @db.Text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id          String    @id @default(cuid())
+  workspaceId String?
+  name        String?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  members FamilyMember[]
-  events  Event[]
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  members   FamilyMember[]
+  events    Event[]
+  matchRuns TreeMatchRun[]
 
+  @@index([workspaceId])
   @@index([name])
   @@index([deletedAt])
 }
@@ -523,6 +546,7 @@ model Document {
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   media  Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   source Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  forumThreads ForumThread[]
 
   @@index([personId])
   @@index([mediaId])
@@ -672,4 +696,483 @@ model ResearchScoreSnapshot {
   computedAt DateTime @default(now())
 
   @@index([computedAt])
+}
+
+// --- Community / forum (PROMPT 8) — privacy + moderation first-class ---
+
+enum CommunityGroupType {
+  SURNAME
+  REGION
+  COUNTRY
+  PERIOD
+  TOPIC
+}
+
+enum CommunityGroupVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum ForumThreadStatus {
+  OPEN
+  LOCKED
+  ARCHIVED
+}
+
+enum ForumContentStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  HIDDEN
+  FLAGGED
+  DELETED
+}
+
+enum ResearchRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ModerationReportCategory {
+  SPAM
+  HARASSMENT
+  PERSONAL_DATA_LIVING
+  MISINFORMATION
+  OFF_TOPIC
+  COPYRIGHT
+  OTHER
+}
+
+enum ModerationReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ModerationActionType {
+  WARN
+  HIDE_CONTENT
+  SOFT_DELETE
+  RESTORE
+  BAN_USER_TEMP
+  BAN_USER_PERM
+}
+
+enum CommunityReputationEventType {
+  HELPFUL_POST
+  THREAD_START
+  REPLY
+  EXPERT_ANSWER_ACCEPTED
+  MODERATION_PENALTY
+  REPORT_UPHELD_AGAINST
+}
+
+model CommunityGroup {
+  id          String                   @id @default(cuid())
+  type        CommunityGroupType
+  title       String
+  description String?                  @db.Text
+  visibility  CommunityGroupVisibility @default(PUBLIC)
+  ownerId     String
+  /// Optional structured filters (surname slug, ISO region, year range)
+  slug        String?
+  regionLabel String?
+  countryCode String?
+  periodFrom  Int?
+  periodTo    Int?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  deletedAt   DateTime?
+
+  owner            User                         @relation("CommunityGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  threads          ForumThread[]
+  reputationEvents CommunityReputationEvent[]
+
+  @@index([type])
+  @@index([ownerId])
+  @@index([slug])
+  @@index([deletedAt])
+}
+
+model ForumThread {
+  id          String             @id @default(cuid())
+  groupId     String
+  authorId    String
+  title       String
+  tags        String[]           @default([])
+  status      ForumThreadStatus  @default(OPEN)
+  /// Link forum topic to a platform document (discuss archives)
+  documentId  String?
+  contentStatus ForumContentStatus @default(PUBLISHED)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+
+  group    CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author   User           @relation("ForumThreadAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  document Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  posts    ForumPost[]
+  helpfulVotes ForumPostHelpfulVote[]
+
+  @@index([groupId])
+  @@index([authorId])
+  @@index([documentId])
+  @@index([contentStatus])
+  @@index([deletedAt])
+}
+
+model ForumPost {
+  id            String             @id @default(cuid())
+  threadId      String
+  authorId      String
+  content       String             @db.Text
+  /// JSON: [{ "mediaId"?: string, "documentId"?: string }]
+  attachments   Json?
+  /// G1: if true, public listing requires hasConsentForPublicLivingData
+  referencesLivingPersonData Boolean @default(false)
+  hasConsentForPublicLivingData Boolean @default(false)
+  contentStatus ForumContentStatus @default(PUBLISHED)
+  isExpertAnswer Boolean           @default(false)
+  helpfulCount  Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  thread ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User        @relation("ForumPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  helpfulVotes ForumPostHelpfulVote[]
+
+  @@index([threadId])
+  @@index([authorId])
+  @@index([contentStatus])
+  @@index([deletedAt])
+}
+
+model ForumPostHelpfulVote {
+  id        String   @id @default(cuid())
+  threadId  String
+  postId    String
+  voterId   String
+  createdAt DateTime @default(now())
+
+  thread ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  post   ForumPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  voter  User        @relation(fields: [voterId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, voterId])
+  @@index([threadId])
+  @@index([voterId])
+}
+
+model ResearchRequest {
+  id          String                 @id @default(cuid())
+  authorId    String
+  surname     String?
+  region      String?
+  period      String?
+  description String                 @db.Text
+  status      ResearchRequestStatus  @default(OPEN)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  deletedAt   DateTime?
+
+  author User @relation("ResearchRequestAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([status])
+  @@index([surname])
+  @@index([deletedAt])
+}
+
+model ResearcherPublicProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  bio         String?  @db.Text
+  specialties String[] @default([])
+  locale      String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CommunityReputationEvent {
+  id              String                     @id @default(cuid())
+  userId          String
+  groupId         String
+  type            CommunityReputationEventType
+  baseWeight      Float
+  decayMultiplier Float                      @default(1.0)
+  /// Snapshot after this event (optional, for audit)
+  note            String?
+  relatedPostId   String?
+  relatedThreadId String?
+  createdAt       DateTime                   @default(now())
+
+  user  User           @relation("ReputationEventUser", fields: [userId], references: [id], onDelete: Cascade)
+  group CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([userId, groupId])
+  @@index([groupId, createdAt])
+  @@index([type])
+}
+
+model CommunityUserStrike {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  strikeCount Int     @default(0)
+  lastStrikeAt DateTime?
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ModerationReport {
+  id          String                   @id @default(cuid())
+  reporterId  String
+  targetType  String // e.g. FORUM_POST, FORUM_THREAD, RESEARCH_REQUEST
+  targetId    String
+  category    ModerationReportCategory
+  details     String?                  @db.Text
+  status      ModerationReportStatus   @default(OPEN)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  reporter User @relation("ModerationReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+}
+
+model ModerationAction {
+  id           String               @id @default(cuid())
+  moderatorId  String
+  targetType   String
+  targetId     String
+  actionType   ModerationActionType
+  reason       String?              @db.Text
+  metadata     Json?
+  createdAt    DateTime             @default(now())
+
+  moderator User @relation("ModerationActionModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([moderatorId])
+  @@index([createdAt])
+}
+
+// --- Multi-tenant workspace (PROMPT 9) ---
+
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces Workspace[]
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members  WorkspaceMember[]
+  families Family[]
+  matchRuns TreeMatchRun[]
+  familyStories FamilyStory[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
+}
+
+model WorkspaceMember {
+  id          String              @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceMemberRole @default(EDITOR)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+/// Global tree matching opt-in (user-level gate for cross-tree discovery).
+model MatchProfile {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  isOptedIn  Boolean   @default(false)
+  optedInAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PersonNameAlias {
+  id         String   @id @default(cuid())
+  personId   String
+  givenName  String?
+  patronymic String?
+  familyName String?
+  label      String?
+  createdAt  DateTime @default(now())
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([familyName, givenName])
+}
+
+enum TreeMatchRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum TreeMatchCandidateStatus {
+  NEW
+  ACCEPTED
+  REJECTED
+  NEEDS_REVIEW
+}
+
+model TreeMatchRun {
+  id           String             @id @default(cuid())
+  familyId     String
+  workspaceId  String
+  requestedBy  String?
+  status       TreeMatchRunStatus @default(QUEUED)
+  error        String?            @db.Text
+  stats        Json?
+  completedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requester   User?       @relation("TreeMatchRunRequester", fields: [requestedBy], references: [id], onDelete: SetNull)
+  candidates  TreeMatchCandidate[]
+
+  @@index([familyId, createdAt])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model TreeMatchCandidate {
+  id                String                   @id @default(cuid())
+  runId             String?
+  sourcePersonId    String
+  targetPersonId    String
+  sourceWorkspaceId String
+  targetWorkspaceId String
+  score             Float
+  reasons           Json
+  status            TreeMatchCandidateStatus @default(NEW)
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  run             TreeMatchRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  sourcePerson    Person        @relation("MatchSourcePerson", fields: [sourcePersonId], references: [id], onDelete: Cascade)
+  targetPerson    Person        @relation("MatchTargetPerson", fields: [targetPersonId], references: [id], onDelete: Cascade)
+  reviewer        User?         @relation("TreeMatchCandidateReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@unique([sourcePersonId, targetPersonId])
+  @@index([sourcePersonId, status])
+  @@index([targetPersonId])
+  @@index([runId])
+  @@index([status, score])
+}
+
+// --- Public Family Stories (PROMPT 10) ---
+
+enum StoryVisibility {
+  PUBLIC
+  PRIVATE
+  FAMILY_ONLY
+  LINK_ONLY
+}
+
+enum FamilyStoryTemplate {
+  CLASSIC
+  HERITAGE
+  JOURNEY
+  GALLERY
+}
+
+enum FamilyStoryScopeType {
+  PERSON
+  FAMILY_BRANCH
+}
+
+model FamilyStory {
+  id                   String               @id @default(cuid())
+  workspaceId          String?
+  createdById          String
+  title                String
+  slug                 String?              @unique
+  template             FamilyStoryTemplate  @default(CLASSIC)
+  visibility           StoryVisibility      @default(LINK_ONLY)
+  publicTokenHash      String               @unique
+  narrativeText        String?              @db.Text
+  narrativeGeneratedAt DateTime?
+  hideLivingPersons    Boolean              @default(true)
+  scopeType            FamilyStoryScopeType
+  scopePersonId        String?
+  scopeFamilyId        String?
+  configJson           Json
+  coverMediaId         String?
+  ogDescription        String?              @db.VarChar(500)
+  viewCount            Int                  @default(0)
+  lastViewedAt         DateTime?
+  tokenRevokedAt       DateTime?
+  publishedAt          DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdBy User       @relation("FamilyStoryCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  views     FamilyStoryView[]
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([visibility])
+  @@index([deletedAt])
+}
+
+model FamilyStoryView {
+  id           String   @id @default(cuid())
+  storyId      String
+  viewedAt     DateTime @default(now())
+  viewerIpHash String?
+  userAgent    String?  @db.VarChar(512)
+
+  story FamilyStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, viewedAt])
 }

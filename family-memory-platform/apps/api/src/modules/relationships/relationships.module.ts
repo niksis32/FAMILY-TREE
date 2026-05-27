@@ -9,5 +9,6 @@ import { RelationshipsService } from './relationships.service';
   imports: [AuthModule, PrismaModule],
   controllers: [RelationshipsController],
   providers: [RelationshipsService],
+  exports: [RelationshipsService],
 })
 export class RelationshipsModule {}

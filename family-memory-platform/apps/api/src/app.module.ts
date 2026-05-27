@@ -4,12 +4,20 @@ import { AiModule } from './modules/ai/ai.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CitationsModule } from './modules/citations/citations.module';
+import { CommunityForumModule } from './modules/community-forum/community-forum.module';
+import { CommunityGraphqlModule } from './modules/community-graphql/community-graphql.module';
+import { CommunityGroupsModule } from './modules/community-groups/community-groups.module';
+import { CommunityModerationModule } from './modules/community-moderation/community-moderation.module';
+import { CommunityResearchModule } from './modules/community-research/community-research.module';
+import { DocumentIntelligenceModule } from './modules/document-intelligence/document-intelligence.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EventsModule } from './modules/events/events.module';
 import { FamiliesModule } from './modules/families/families.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { GedcomModule } from './modules/gedcom/gedcom.module';
 import { MapModule } from './modules/map/map.module';
+import { MatchingModule } from './modules/matching/matching.module';
+import { FamilyStoriesModule } from './modules/family-stories/family-stories.module';
 import { RedisModule } from './common/redis/redis.module';
 import { FaceTagsModule } from './modules/face-tags/face-tags.module';
 import { MediaModule } from './modules/media/media.module';
@@ -49,6 +57,7 @@ import { HealthModule } from './common/health/health.module';
     PersonPhotoLinksModule,
     PhotoAnalysisModule,
     DocumentsModule,
+    DocumentIntelligenceModule,
     SourcesModule,
     CitationsModule,
     TimelineModule,
@@ -58,6 +67,13 @@ import { HealthModule } from './common/health/health.module';
     SearchModule,
     GedcomModule,
     AdminModule,
+    CommunityGroupsModule,
+    CommunityForumModule,
+    CommunityResearchModule,
+    CommunityModerationModule,
+    CommunityGraphqlModule,
+    MatchingModule,
+    FamilyStoriesModule,
   ],
 })
 export class AppModule {}

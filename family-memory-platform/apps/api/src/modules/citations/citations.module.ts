@@ -10,5 +10,6 @@ import { CitationsService } from './citations.service';
   imports: [AuthModule, PrismaModule, GamificationModule],
   controllers: [CitationsController],
   providers: [CitationsService],
+  exports: [CitationsService],
 })
 export class CitationsModule {}

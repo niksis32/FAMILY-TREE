@@ -10,3 +10,4 @@ export * from './privacy-rules';
 export * from './gedcom-mapper';
 export * from './timeline-builder';
 export * from './validation-rules';
+export * from './story-privacy';

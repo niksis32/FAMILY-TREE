@@ -17,6 +17,7 @@ const protectedPrefixes = [
   '/documents',
   '/search',
   '/settings',
+  '/stories',
 ];
 
 function localeFromPath(pathname: string) {

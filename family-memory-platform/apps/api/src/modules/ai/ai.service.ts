@@ -17,7 +17,13 @@ type AiFeature =
   | 'photo.detect-faces'
   | 'photo.suggest-person'
   | 'photo.extract-context'
-  | 'photo.estimate-period';
+  | 'photo.estimate-period'
+  | 'doc.ocr'
+  | 'doc.extract-entities'
+  | 'doc.suggest-events'
+  | 'doc.suggest-relationships'
+  | 'doc.summarize'
+  | 'family-story.narrative';
 
 @Injectable()
 export class AiService {
@@ -63,6 +69,31 @@ export class AiService {
 
   estimatePhotoPeriod(dto: PhotoImageContextDto) {
     return this.request('photo.estimate-period', 'POST', '/photo/estimate-period', dto);
+  }
+
+  /** PROMPT 7 — thin proxy to AI document intelligence routes */
+  documentOcr(body: Record<string, unknown>) {
+    return this.request('doc.ocr', 'POST', '/document/ocr', body);
+  }
+
+  documentExtractEntities(body: Record<string, unknown>) {
+    return this.request('doc.extract-entities', 'POST', '/document/extract-entities', body);
+  }
+
+  documentSuggestEvents(body: Record<string, unknown>) {
+    return this.request('doc.suggest-events', 'POST', '/document/suggest-events', body);
+  }
+
+  documentSuggestRelationships(body: Record<string, unknown>) {
+    return this.request('doc.suggest-relationships', 'POST', '/document/suggest-relationships', body);
+  }
+
+  documentSummarize(body: Record<string, unknown>) {
+    return this.request('doc.summarize', 'POST', '/document/summarize', body);
+  }
+
+  generateFamilyStoryNarrative(body: Record<string, unknown>) {
+    return this.request('family-story.narrative', 'POST', '/family-story/narrative', body);
   }
 
   isAiEnabled() {

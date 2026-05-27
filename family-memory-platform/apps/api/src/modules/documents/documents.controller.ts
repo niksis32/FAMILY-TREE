@@ -31,6 +31,13 @@ export class DocumentsController {
     return this.service.createUploadUrl(dto);
   }
 
+  @Get(':id/download-url')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'EDITOR')
+  downloadUrl(@Param('id') id: string) {
+    return this.service.getPresignedDownloadUrl(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

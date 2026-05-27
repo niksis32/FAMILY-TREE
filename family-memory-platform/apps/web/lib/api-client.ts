@@ -215,6 +215,15 @@ export interface DocumentRecord {
   description?: string | null;
   personId?: string | null;
   sourceId?: string | null;
+  ocrText?: string | null;
+}
+
+export interface DocumentDownloadUrlResponse {
+  documentId: string;
+  downloadUrl: string;
+  mimeType: string;
+  title: string;
+  expiresInSeconds: number;
 }
 
 export interface SourceRecord {
@@ -352,6 +361,65 @@ export interface PersonTimelineResponse {
   availableTypes: TimelineEventType[];
 }
 
+/** Community / forum (PROMPT 8) */
+export interface CommunityGroupRecord {
+  id: string;
+  type: string;
+  title: string;
+  description?: string | null;
+  visibility: string;
+  ownerId: string;
+  slug?: string | null;
+  regionLabel?: string | null;
+  countryCode?: string | null;
+  periodFrom?: number | null;
+  periodTo?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  owner?: { id: string; displayName: string | null };
+  _count?: { posts: number };
+}
+
+export interface CommunityForumThread {
+  id: string;
+  groupId: string;
+  authorId: string;
+  title: string;
+  tags: string[];
+  status: string;
+  documentId?: string | null;
+  contentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  author?: { id: string; displayName: string | null };
+  _count?: { posts: number };
+  group?: CommunityGroupRecord;
+  document?: { id: string; title: string; documentType: string } | null;
+}
+
+export interface CommunityForumPost {
+  id: string;
+  threadId: string;
+  authorId: string;
+  content: string;
+  attachments?: unknown;
+  referencesLivingPersonData: boolean;
+  hasConsentForPublicLivingData: boolean;
+  contentStatus: string;
+  isExpertAnswer: boolean;
+  helpfulCount: number;
+  createdAt: string;
+  updatedAt: string;
+  author?: { id: string; displayName: string | null };
+  authorReputationInGroup?: number;
+  viewerMarkedHelpful?: boolean;
+}
+
+export interface CommunityGraphqlResponse<T = unknown> {
+  data?: T;
+  errors?: { message: string }[];
+}
+
 export const apiClient = {
   login: (dto: LoginDto) => apiPost<AuthSession>('/auth/login', dto),
   registerFirstAdmin: (dto: RegisterFirstAdminInput) => apiPost<AuthSession>('/auth/register-first-admin', dto),
@@ -436,10 +504,40 @@ export const apiClient = {
   },
   documents: {
     list: (token?: string | null) => apiGet<DocumentRecord[]>('/documents', token),
+    one: (id: string, token?: string | null) => apiGet<DocumentRecord>(`/documents/${id}`, token),
+    downloadUrl: (id: string, token?: string | null) =>
+      apiGet<DocumentDownloadUrlResponse>(`/documents/${id}/download-url`, token),
     uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
       apiPost<MediaUploadUrlResponse>('/documents/upload-url', input, token),
     create: (input: unknown, token?: string | null) => apiPost<DocumentRecord>('/documents', input, token),
     remove: (id: string, token?: string | null) => apiDelete<DocumentRecord>(`/documents/${id}`, token),
+  },
+  documentIntelligence: {
+    ocr: (body: { documentId: string; language?: string }, token?: string | null) =>
+      apiPost<unknown>('/document-intelligence/ocr', body, token),
+    entities: (body: { documentId: string; language?: string }, token?: string | null) =>
+      apiPost<unknown>('/document-intelligence/entities', body, token),
+    events: (body: { documentId: string; language?: string; knownPersonIds?: string[] }, token?: string | null) =>
+      apiPost<unknown>('/document-intelligence/events', body, token),
+    relationships: (
+      body: { documentId: string; language?: string; knownPersonIds?: string[] },
+      token?: string | null,
+    ) => apiPost<unknown>('/document-intelligence/relationships', body, token),
+    summary: (body: { documentId: string; language?: string }, token?: string | null) =>
+      apiPost<unknown>('/document-intelligence/summary', body, token),
+    results: (documentId: string, token?: string | null) =>
+      apiGet<unknown>(`/document-intelligence/${documentId}/results`, token),
+    confirmEvent: (documentId: string, body: unknown, token?: string | null) =>
+      apiPost<unknown>(`/document-intelligence/${documentId}/confirm-event`, body, token),
+    confirmRelationship: (documentId: string, body: unknown, token?: string | null) =>
+      apiPost<unknown>(`/document-intelligence/${documentId}/confirm-relationship`, body, token),
+    confirmCitation: (documentId: string, body: unknown, token?: string | null) =>
+      apiPost<unknown>(`/document-intelligence/${documentId}/confirm-citation`, body, token),
+    reject: (
+      documentId: string,
+      body: { suggestionId: string; kind: 'event' | 'relationship' | 'entity' },
+      token?: string | null,
+    ) => apiPost<unknown>(`/document-intelligence/${documentId}/reject`, body, token),
   },
   sources: {
     list: (token?: string | null) => apiGet<SourceRecord[]>('/sources', token),
@@ -579,6 +677,122 @@ export const apiClient = {
     achievements: (token?: string | null) => apiGet('/gamification/achievements', token),
     gaps: (token?: string | null) => apiGet('/gamification/gaps', token),
     mysteries: (token?: string | null) => apiGet('/gamification/mysteries', token),
+  },
+  community: {
+    groupsList: (params: { type?: string; q?: string } = {}, token?: string | null) => {
+      const qs = new URLSearchParams();
+      if (params.type) qs.set('type', params.type);
+      if (params.q?.trim()) qs.set('q', params.q.trim());
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return apiGet<CommunityGroupRecord[]>(`/community/groups${suffix}`, token);
+    },
+    groupOne: (id: string, token?: string | null) =>
+      apiGet<CommunityGroupRecord>(`/community/groups/${id}`, token),
+    threadsByGroup: (groupId: string, query: { skip?: number; take?: number } = {}, token?: string | null) => {
+      const qs = new URLSearchParams();
+      if (query.skip != null) qs.set('skip', String(query.skip));
+      if (query.take != null) qs.set('take', String(query.take));
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return apiGet<CommunityForumThread[]>(`/community/groups/${groupId}/threads${suffix}`, token);
+    },
+    createThread: (groupId: string, body: { title: string; tags?: string[]; documentId?: string }, token: string) =>
+      apiPost<CommunityForumThread>(`/community/groups/${groupId}/threads`, body, token),
+    threadOne: (threadId: string, token?: string | null) =>
+      apiGet<CommunityForumThread>(`/community/threads/${threadId}`, token),
+    postsByThread: (threadId: string, query: { skip?: number; take?: number } = {}, token?: string | null) => {
+      const qs = new URLSearchParams();
+      if (query.skip != null) qs.set('skip', String(query.skip));
+      if (query.take != null) qs.set('take', String(query.take));
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return apiGet<CommunityForumPost[]>(`/community/threads/${threadId}/posts${suffix}`, token);
+    },
+    createPost: (
+      threadId: string,
+      body: {
+        content: string;
+        attachments?: Array<{ mediaId?: string; documentId?: string }>;
+        referencesLivingPersonData?: boolean;
+        hasConsentForPublicLivingData?: boolean;
+      },
+      token: string,
+    ) => apiPost<CommunityForumPost>(`/community/threads/${threadId}/posts`, body, token),
+    markHelpful: (postId: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/community/posts/${postId}/helpful`, {}, token),
+    graphql: <T = unknown>(body: { query: string; variables?: Record<string, unknown> }, token?: string | null) =>
+      apiPost<CommunityGraphqlResponse<T>>('/community/graphql', body, token),
+  },
+  familyStories: {
+    list: (token: string) =>
+      apiGet<import('@family/shared').FamilyStorySummaryDto[]>('/family-stories', token),
+    one: (id: string, token: string) =>
+      apiGet<import('@family/shared').FamilyStoryDetailDto>(`/family-stories/${id}`, token),
+    create: (body: Record<string, unknown>, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryCreateResultDto>('/family-stories', body, token),
+    update: (id: string, body: Record<string, unknown>, token: string) =>
+      apiPatch<import('@family/shared').FamilyStoryDetailDto>(`/family-stories/${id}`, body, token),
+    remove: (id: string, token: string) =>
+      apiRequest<{ ok: boolean }>(`/family-stories/${id}`, { method: 'DELETE', token }),
+    preview: (id: string, token: string) =>
+      apiGet<import('@family/shared').PublicFamilyStoryPayloadDto>(
+        `/family-stories/${id}/preview`,
+        token,
+      ),
+    generateNarrative: (id: string, body: { language?: string }, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryDetailDto>(
+        `/family-stories/${id}/generate-narrative`,
+        body,
+        token,
+      ),
+    rotateToken: (id: string, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryCreateResultDto>(
+        `/family-stories/${id}/rotate-token`,
+        {},
+        token,
+      ),
+    revokeToken: (id: string, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryDetailDto>(
+        `/family-stories/${id}/revoke-token`,
+        {},
+        token,
+      ),
+    publicByToken: (token: string) =>
+      apiGet<import('@family/shared').PublicFamilyStoryPayloadDto>(
+        `/public/family-stories/token/${encodeURIComponent(token)}`,
+      ),
+    publicPdfUrl: (token: string) =>
+      `${baseUrl}/public/family-stories/token/${encodeURIComponent(token)}/pdf`,
+  },
+  matching: {
+    profile: (token?: string | null) =>
+      apiGet<import('@family/shared').MatchProfileDto>('/matching/profile', token),
+    updateProfile: (isOptedIn: boolean, token: string) =>
+      apiPatch<import('@family/shared').MatchProfileDto>('/matching/profile', { isOptedIn }, token),
+    inbox: (token?: string | null) =>
+      apiGet<import('@family/shared').TreeMatchCandidateDto[]>('/matching/inbox', token),
+    personCandidates: (personId: string, token?: string | null) =>
+      apiGet<import('@family/shared').TreeMatchCandidateDto[]>(
+        `/matching/person/${personId}/candidates`,
+        token,
+      ),
+    runForTree: (familyId: string, token: string) =>
+      apiPost<import('@family/shared').TreeMatchRunDto>(`/matching/tree/${familyId}/run`, {}, token),
+    candidate: (candidateId: string, token?: string | null) =>
+      apiGet<import('@family/shared').TreeMatchCandidateDto & { mergeSuggestion?: unknown }>(
+        `/matching/candidate/${candidateId}`,
+        token,
+      ),
+    accept: (candidateId: string, token: string) =>
+      apiPost<import('@family/shared').TreeMatchCandidateDto & { mergeSuggestion?: unknown }>(
+        `/matching/candidate/${candidateId}/accept`,
+        {},
+        token,
+      ),
+    reject: (candidateId: string, token: string) =>
+      apiPost<import('@family/shared').TreeMatchCandidateDto>(
+        `/matching/candidate/${candidateId}/reject`,
+        {},
+        token,
+      ),
   },
 };
 
