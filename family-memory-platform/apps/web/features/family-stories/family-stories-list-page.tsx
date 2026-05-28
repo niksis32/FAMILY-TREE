@@ -35,9 +35,14 @@ export function FamilyStoriesListPage() {
           <h1 className="text-3xl font-semibold text-family-ink dark:text-white">{t('title')}</h1>
           <p className="mt-2 text-stone-500">{t('subtitle')}</p>
         </div>
-        <Link href="/stories/new">
-          <Button>{t('newStory')}</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/story-drafts">
+            <Button variant="secondary">Story drafts</Button>
+          </Link>
+          <Link href="/stories/new">
+            <Button>{t('newStory')}</Button>
+          </Link>
+        </div>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

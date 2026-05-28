@@ -5,6 +5,7 @@ import { PersonCard, PrivacyBadge } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, FormField, Input, PageHeader, Select, Textarea } from '@/components/ui';
 import { apiClient, ApiError, formatApiError } from '@/lib/api-client';
+import { GenerateStoryPanel } from '@/features/ai-storytelling/generate-story-panel';
 
 type PersonDetail = {
   id: string;
@@ -17,6 +18,7 @@ type PersonDetail = {
   privacyLevel?: string | null;
   biography?: string | null;
   primaryPhotoUrl?: string | null;
+  familyMembers?: Array<{ familyId: string; family?: { id: string; name?: string | null } | null }> | null;
 };
 
 function toDateInput(value?: string | null) {
@@ -208,16 +210,29 @@ export function PersonDetailsWorkspace({ id }: { id: string }) {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <PersonCard person={person} />
-          <Card>
-            <div className="flex flex-wrap gap-3">
-              <PrivacyBadge level={privacyForBadge(person.privacyLevel)} />
-            </div>
-            <h2 className="mt-6 text-xl font-semibold">Биография</h2>
-            <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">
-              {person.biography?.trim() ? person.biography : 'Биография пока не заполнена.'}
-            </p>
-            <p className="mt-6 text-xs text-stone-400">{status}</p>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <div className="flex flex-wrap gap-3">
+                <PrivacyBadge level={privacyForBadge(person.privacyLevel)} />
+              </div>
+              <h2 className="mt-6 text-xl font-semibold">Биография</h2>
+              <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">
+                {person.biography?.trim() ? person.biography : 'Биография пока не заполнена.'}
+              </p>
+              <p className="mt-6 text-xs text-stone-400">{status}</p>
+            </Card>
+
+            <GenerateStoryPanel
+              personId={person.id}
+              familyOptions={
+                person.familyMembers?.map((m) => ({
+                  id: m.family?.id ?? m.familyId,
+                  name: m.family?.name ?? null,
+                })) ?? null
+              }
+              token={session?.accessToken}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ export * from './person.model';
 export * from './relationship.rules';
 export * from './tree-builder';
 export * from './privacy-rules';
+export * from './policy-engine';
 export * from './gedcom-mapper';
 export * from './timeline-builder';
 export * from './validation-rules';

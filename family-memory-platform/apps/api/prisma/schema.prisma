@@ -47,6 +47,12 @@ model User {
   treeMatchRunsRequested     TreeMatchRun[]         @relation("TreeMatchRunRequester")
   treeMatchCandidatesReviewed TreeMatchCandidate[]  @relation("TreeMatchCandidateReviewer")
   familyStoriesCreated       FamilyStory[]          @relation("FamilyStoryCreator")
+  aiStoryDrafts              AiStoryDraft[]
+  workspaceInvitesSent       WorkspaceInvite[]    @relation("WorkspaceInviteInviter")
+  privacyRequests            PrivacyRequest[]
+  userConsents               UserConsent[]
+  publicSharesCreated        PublicShare[]      @relation("PublicShareCreator")
+  accessLogs                 AccessLog[]
 
   @@index([role])
   @@index([deletedAt])
@@ -132,7 +138,7 @@ model Person {
   birthDate    DateTime?
   deathDate    DateTime?
   isLiving     Boolean      @default(true)
-  privacyLevel PrivacyLevel @default(FAMILY)
+  privacyLevel PrivacyLevel @default(PRIVATE)
   biography    String?      @db.Text
   avatarMediaId String?     @unique
   createdAt    DateTime     @default(now())
@@ -162,13 +168,15 @@ model Person {
 }
 
 model Family {
-  id          String    @id @default(cuid())
-  workspaceId String?
-  name        String?
-  notes       String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                 String       @id @default(cuid())
+  workspaceId        String?
+  name               String?
+  notes              String?      @db.Text
+  hideLivingPersons  Boolean      @default(true)
+  treePrivacyLevel   PrivacyLevel @default(PRIVATE)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   members   FamilyMember[]
@@ -400,6 +408,7 @@ model GeographicName {
 model Media {
   id              String          @id @default(cuid())
   personId        String?
+  privacyLevel    PrivacyLevel    @default(PRIVATE)
   title           String?
   mimeType        String
   storageProvider StorageProvider @default(MINIO)
@@ -422,6 +431,7 @@ model Media {
 
   @@unique([bucket, storageKey])
   @@index([personId])
+  @@index([privacyLevel])
   @@index([mimeType])
   @@index([takenAt])
   @@index([deletedAt])
@@ -532,6 +542,7 @@ model Document {
   personId     String?
   mediaId      String?
   sourceId     String?
+  privacyLevel PrivacyLevel @default(FAMILY)
   title        String
   documentType DocumentType @default(OTHER)
   mimeType     String
@@ -549,6 +560,7 @@ model Document {
   forumThreads ForumThread[]
 
   @@index([personId])
+  @@index([privacyLevel])
   @@index([mediaId])
   @@index([sourceId])
   @@index([documentType])
@@ -617,17 +629,21 @@ model TimelineItem {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  action     String
-  entityType String
-  entityId   String?
-  payload    Json?
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String?
+  workspaceId String?
+  action      String
+  entityType  String
+  entityId    String?
+  payload     Json?
+  ipHash      String?
+  createdAt   DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
+  @@index([workspaceId, createdAt])
   @@index([createdAt])
 }
 
@@ -992,11 +1008,21 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  members  WorkspaceMember[]
-  families Family[]
-  matchRuns TreeMatchRun[]
+  tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  families      Family[]
+  matchRuns     TreeMatchRun[]
   familyStories FamilyStory[]
+  aiStoryDrafts AiStoryDraft[]
+  billingAccount BillingAccount?
+  subscription   WorkspaceSubscription?
+  featureFlags   FeatureFlag[]
+  usageLimits    UsageLimit[]
+  invites        WorkspaceInvite[]
+  auditLogs       AuditLog[]
+  privacyRequests PrivacyRequest[]
+  publicShares    PublicShare[]
+  accessLogs      AccessLog[]
 
   @@index([tenantId])
   @@unique([tenantId, name])
@@ -1129,6 +1155,29 @@ enum FamilyStoryScopeType {
   FAMILY_BRANCH
 }
 
+// --- AI Storytelling (PROMPT 11) ---
+
+enum AiStoryType {
+  PERSON
+  FAMILY
+  MIGRATION
+  DOCUMENT_SUMMARY
+  TIMELINE_NARRATIVE
+  ERA_CONTEXT
+}
+
+enum AiStoryMode {
+  DRY_BIOGRAPHY
+  ARTISTIC
+  ARCHIVE
+  FAMILY_BOOK
+}
+
+enum AiStoryDraftStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model FamilyStory {
   id                   String               @id @default(cuid())
   workspaceId          String?
@@ -1175,4 +1224,304 @@ model FamilyStoryView {
   story FamilyStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@index([storyId, viewedAt])
+}
+
+model AiStoryDraft {
+  id               String            @id @default(cuid())
+  workspaceId       String?
+  createdById       String
+  storyType         AiStoryType
+  mode              AiStoryMode
+  status            AiStoryDraftStatus @default(DRAFT)
+  language          String            @default("ru")
+  title             String?
+  scopePersonId     String?
+  scopeFamilyId     String?
+  scopeDocumentId   String?
+  narrativeText     String?           @db.Text
+  payloadJson       Json
+  uncertaintyScore  Float?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdBy User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([storyType])
+  @@index([mode])
+  @@index([status])
+  @@index([scopePersonId])
+  @@index([scopeDocumentId])
+  @@index([deletedAt])
+}
+
+// --- Commercial / SaaS foundation (PROMPT 12) — billing-ready, no payment gateway ---
+
+enum SubscriptionPlanCode {
+  FREE
+  FAMILY
+  RESEARCHER
+  PROFESSIONAL
+  ON_PREM
+}
+
+enum BillingAccountStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum WorkspaceSubscriptionStatus {
+  ACTIVE
+  TRIAL
+  CANCELLED
+  PAST_DUE
+}
+
+enum FeatureFlagScope {
+  GLOBAL
+  WORKSPACE
+  USER
+}
+
+enum UsageMetric {
+  FAMILIES
+  PERSONS
+  MEDIA_BYTES
+  AI_CREDITS
+  GEDCOM_EXPORTS
+  REPORT_EXPORTS
+}
+
+enum WorkspaceInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PrivacyRequestType {
+  EXPORT
+  DELETE
+  CONSENT_UPDATE
+}
+
+enum PrivacyRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Catalog of subscription tiers (seeded; no Stripe IDs yet).
+model SubscriptionPlan {
+  id           String               @id @default(cuid())
+  code         SubscriptionPlanCode @unique
+  name         String
+  description  String?              @db.Text
+  entitlements Json
+  isActive     Boolean              @default(true)
+  sortOrder    Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  subscriptions WorkspaceSubscription[]
+}
+
+/// Billing identity per workspace — ready for external customer id later.
+model BillingAccount {
+  id                 String               @id @default(cuid())
+  workspaceId        String               @unique
+  status             BillingAccountStatus @default(ACTIVE)
+  billingEmail       String?
+  externalCustomerId String?
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceSubscription {
+  id          String                      @id @default(cuid())
+  workspaceId String                      @unique
+  planId      String
+  status      WorkspaceSubscriptionStatus @default(ACTIVE)
+  periodStart DateTime                    @default(now())
+  periodEnd   DateTime?
+  trialEndsAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId])
+  @@index([status])
+}
+
+model FeatureFlag {
+  id          String           @id @default(cuid())
+  key         String
+  scope       FeatureFlagScope @default(WORKSPACE)
+  workspaceId String?
+  userId      String?
+  enabled     Boolean          @default(true)
+  value       Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([key, scope, workspaceId, userId])
+  @@index([workspaceId])
+  @@index([key])
+}
+
+model UsageLimit {
+  id          String      @id @default(cuid())
+  workspaceId String
+  metric      UsageMetric
+  used        BigInt      @default(0)
+  limitValue  BigInt
+  periodStart DateTime    @default(now())
+  periodEnd   DateTime?
+  updatedAt   DateTime    @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, metric, periodStart])
+  @@index([workspaceId])
+}
+
+model WorkspaceInvite {
+  id          String                @id @default(cuid())
+  workspaceId String
+  email       String
+  role        WorkspaceMemberRole   @default(EDITOR)
+  tokenHash   String                @unique
+  status      WorkspaceInviteStatus @default(PENDING)
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("WorkspaceInviteInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([email])
+}
+
+model PrivacyRequest {
+  id          String               @id @default(cuid())
+  userId      String
+  workspaceId String?
+  type        PrivacyRequestType
+  status      PrivacyRequestStatus @default(PENDING)
+  payload     Json?
+  resultUrl   String?
+  completedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+// --- PROMPT 13: Privacy & Security Center ---
+
+enum PublicShareResourceType {
+  PERSON
+  FAMILY_TREE
+  MEDIA_BUNDLE
+  FAMILY_STORY
+}
+
+enum AccessLogAction {
+  VIEW
+  EXPORT
+  AI_INFERENCE
+  PUBLIC_LINK_OPEN
+}
+
+enum UserConsentKey {
+  GDPR_DATA_PROCESSING
+  GLOBAL_MATCHING
+  AI_LOCAL_PROCESSING
+}
+
+model PublicShare {
+  id                String                  @id @default(cuid())
+  workspaceId       String?
+  createdById       String
+  resourceType      PublicShareResourceType
+  resourceId        String
+  familyStoryId     String?
+  label             String?
+  publicTokenHash   String                  @unique
+  hideLivingPersons Boolean                 @default(true)
+  tokenRevokedAt    DateTime?
+  expiresAt         DateTime?
+  viewCount         Int                     @default(0)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdBy User        @relation("PublicShareCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  accessLogs AccessLog[]
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([resourceType, resourceId])
+}
+
+model AccessLog {
+  id            String          @id @default(cuid())
+  workspaceId   String?
+  userId        String?
+  publicShareId String?
+  resourceType  String
+  resourceId    String?
+  action        AccessLogAction
+  ipHash        String?
+  userAgent     String?         @db.VarChar(512)
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  publicShare PublicShare? @relation(fields: [publicShareId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([publicShareId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+}
+
+model UserConsent {
+  id        String         @id @default(cuid())
+  userId    String
+  consentKey UserConsentKey
+  granted   Boolean        @default(false)
+  version   String         @default("1")
+  grantedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, consentKey])
+  @@index([userId])
 }

@@ -9,5 +9,6 @@ import { FamiliesService } from './families.service';
   imports: [AuthModule, PrismaModule],
   controllers: [FamiliesController],
   providers: [FamiliesService],
+  exports: [FamiliesService],
 })
 export class FamiliesModule {}

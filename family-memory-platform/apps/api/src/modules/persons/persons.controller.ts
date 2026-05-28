@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { GAMIFICATION_ACTIONS } from '@family/shared';
 import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -19,13 +20,17 @@ export class PersonsController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiBearerAuth()
+  findAll(@CurrentUser() user?: AuthenticatedUser) {
+    return this.service.findAll(user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiBearerAuth()
+  findOne(@Param('id') id: string, @CurrentUser() user?: AuthenticatedUser) {
+    return this.service.findOne(id, user);
   }
 
   @Post()

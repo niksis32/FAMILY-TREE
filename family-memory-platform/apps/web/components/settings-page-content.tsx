@@ -45,6 +45,24 @@ export function SettingsPageContent() {
             </Button>
           </Link>
         </Card>
+        <Card>
+          <h2 className="text-xl font-semibold">{t('commercial')}</h2>
+          <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">{t('commercialDesc')}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/settings/billing">
+              <Button type="button">{t('billing')}</Button>
+            </Link>
+            <Link href="/settings/team">
+              <Button type="button">{t('team')}</Button>
+            </Link>
+            <Link href="/settings/privacy-center">
+              <Button type="button">{t('privacyCenter')}</Button>
+            </Link>
+            <Link href="/settings/export">
+              <Button type="button">{t('export')}</Button>
+            </Link>
+          </div>
+        </Card>
       </div>
     </div>
   );

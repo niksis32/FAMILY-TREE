@@ -35,3 +35,6 @@ export * from './gamification';
 export * from './photo-intelligence';
 export * from './matching';
 export * from './family-stories';
+export * from './ai-storytelling';
+export * from './commercial';
+export * from './privacy';

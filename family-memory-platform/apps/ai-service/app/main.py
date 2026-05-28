@@ -6,6 +6,20 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from app.family_story import FamilyStoryNarrativeRequest, family_story_narrative_stub
+from app.storytelling import (
+    StoryDocumentSummaryRequest,
+    StoryEraContextRequest,
+    StoryFamilyRequest,
+    StoryMigrationRequest,
+    StoryPersonRequest,
+    StoryTimelineNarrativeRequest,
+    story_document_summary_stub,
+    story_era_context_stub,
+    story_family_stub,
+    story_migration_stub,
+    story_person_stub,
+    story_timeline_narrative_stub,
+)
 from app.document_intelligence import (
     DocumentExtractEntitiesRequest,
     DocumentOcrRequest,
@@ -203,3 +217,36 @@ def document_summarize(payload: DocumentSummarizeRequest):
 @app.post("/family-story/narrative")
 def family_story_narrative(payload: FamilyStoryNarrativeRequest):
     return family_story_narrative_stub(payload)
+
+
+# --- PROMPT 11 — AI Storytelling (stub contracts) ---
+
+
+@app.post("/story/person")
+def story_person(payload: StoryPersonRequest):
+    return story_person_stub(payload)
+
+
+@app.post("/story/timeline-narrative")
+def story_timeline_narrative(payload: StoryTimelineNarrativeRequest):
+    return story_timeline_narrative_stub(payload)
+
+
+@app.post("/story/document-summary")
+def story_document_summary(payload: StoryDocumentSummaryRequest):
+    return story_document_summary_stub(payload)
+
+
+@app.post("/story/family")
+def story_family(payload: StoryFamilyRequest):
+    return story_family_stub(payload)
+
+
+@app.post("/story/migration")
+def story_migration(payload: StoryMigrationRequest):
+    return story_migration_stub(payload)
+
+
+@app.post("/story/era-context")
+def story_era_context(payload: StoryEraContextRequest):
+    return story_era_context_stub(payload)

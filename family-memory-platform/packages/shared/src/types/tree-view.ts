@@ -46,6 +46,8 @@ export interface TreeViewNode {
   birthYear?: number | null;
   deathYear?: number | null;
   isLiving: boolean;
+  /** True when living/private person is masked for the current viewer */
+  isHidden?: boolean;
   generation: number;
   layoutRole: TreeLayoutRole;
   spouseGroupId?: string | null;

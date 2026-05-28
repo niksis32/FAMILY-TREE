@@ -539,6 +539,76 @@ export const apiClient = {
       token?: string | null,
     ) => apiPost<unknown>(`/document-intelligence/${documentId}/reject`, body, token),
   },
+  storytelling: {
+    generatePerson: (
+      personId: string,
+      body: import('@family/shared').GeneratePersonStoryRequestDto,
+      token?: string | null,
+    ) => apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/person/${personId}/generate`, body, token),
+    generateTimelineNarrative: (
+      personId: string,
+      body: import('@family/shared').GenerateTimelineNarrativeRequestDto,
+      token?: string | null,
+    ) =>
+      apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/timeline/${personId}/narrative`, body, token),
+    generateDocumentSummary: (
+      documentId: string,
+      body: import('@family/shared').GenerateDocumentSummaryRequestDto,
+      token?: string | null,
+    ) =>
+      apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/document/${documentId}/summary`, body, token),
+    generateFamily: (
+      familyId: string,
+      body: { mode?: import('@family/shared').StoryModeId; language?: string },
+      token?: string | null,
+    ) => apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/family/${familyId}/generate`, body, token),
+    generateMigration: (
+      body: {
+        mode?: import('@family/shared').StoryModeId;
+        language?: string;
+        personId?: string;
+        familyId?: string;
+        personIds?: string[];
+      },
+      token?: string | null,
+    ) => apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/migration/generate`, body, token),
+    generateEraContext: (
+      body: {
+        mode?: import('@family/shared').StoryModeId;
+        language?: string;
+        personId?: string;
+        familyId?: string;
+        yearFrom?: number;
+        yearTo?: number;
+      },
+      token?: string | null,
+    ) => apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/era-context`, body, token),
+    draftsList: (
+      query: {
+        type?: import('@family/shared').StoryTypeId;
+        personId?: string;
+        familyId?: string;
+        documentId?: string;
+        q?: string;
+      } = {},
+      token?: string | null,
+    ) => {
+      const qs = new URLSearchParams();
+      if (query.type) qs.set('type', query.type);
+      if (query.personId) qs.set('personId', query.personId);
+      if (query.familyId) qs.set('familyId', query.familyId);
+      if (query.documentId) qs.set('documentId', query.documentId);
+      if (query.q?.trim()) qs.set('q', query.q.trim());
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return apiGet<import('@family/shared').StoryDraftDto[]>(`/storytelling/drafts${suffix}`, token);
+    },
+    draftOne: (id: string, token?: string | null) =>
+      apiGet<import('@family/shared').StoryDraftDto>(`/storytelling/drafts/${id}`, token),
+    updateDraft: (id: string, body: import('@family/shared').UpdateStoryDraftRequestDto, token?: string | null) =>
+      apiPatch<import('@family/shared').StoryDraftDto>(`/storytelling/drafts/${id}`, body, token),
+    deleteDraft: (id: string, token?: string | null) =>
+      apiDelete<{ ok: boolean }>(`/storytelling/drafts/${id}`, token),
+  },
   sources: {
     list: (token?: string | null) => apiGet<SourceRecord[]>('/sources', token),
     create: (input: unknown, token?: string | null) => apiPost<SourceRecord>('/sources', input, token),
@@ -761,6 +831,159 @@ export const apiClient = {
       ),
     publicPdfUrl: (token: string) =>
       `${baseUrl}/public/family-stories/token/${encodeURIComponent(token)}/pdf`,
+  },
+  commercial: {
+    plans: () => apiGet<import('@family/shared').SubscriptionPlanSummary[]>('/subscription-plans'),
+    myWorkspaces: (token: string) =>
+      apiGet<{ id: string; name: string; tenantName: string; role: string; isDefault: boolean }[]>(
+        '/workspaces/me',
+        token,
+      ),
+    overview: (workspaceId: string, token: string) =>
+      apiGet<import('@family/shared').WorkspaceCommercialOverview>(
+        `/workspaces/${workspaceId}/commercial`,
+        token,
+      ),
+    members: (workspaceId: string, token: string) =>
+      apiGet<import('@family/shared').WorkspaceMemberSummary[]>(
+        `/workspaces/${workspaceId}/members`,
+        token,
+      ),
+    changePlan: (workspaceId: string, planCode: string, token: string) =>
+      apiPatch<import('@family/shared').WorkspaceCommercialOverview>(
+        `/workspaces/${workspaceId}/subscription`,
+        { planCode },
+        token,
+      ),
+    updateBillingEmail: (workspaceId: string, billingEmail: string, token: string) =>
+      apiPatch<import('@family/shared').WorkspaceCommercialOverview>(
+        `/workspaces/${workspaceId}/billing`,
+        { billingEmail },
+        token,
+      ),
+    invites: (workspaceId: string, token: string) =>
+      apiGet<import('@family/shared').WorkspaceInviteSummary[]>(
+        `/workspaces/${workspaceId}/invites`,
+        token,
+      ),
+    createInvite: (
+      workspaceId: string,
+      body: { email: string; role?: string },
+      token: string,
+    ) =>
+      apiPost<{ invite: import('@family/shared').WorkspaceInviteSummary; acceptToken: string }>(
+        `/workspaces/${workspaceId}/invites`,
+        body,
+        token,
+      ),
+    revokeInvite: (workspaceId: string, inviteId: string, token: string) =>
+      apiPost<{ id: string }>(`/workspaces/${workspaceId}/invites/${inviteId}/revoke`, {}, token),
+    acceptInvite: (tokenValue: string, token: string) =>
+      apiPost<{ workspaceId: string; workspaceName: string }>(
+        '/invites/accept',
+        { token: tokenValue },
+        token,
+      ),
+    auditLogs: (workspaceId: string, token: string) =>
+      apiGet<import('@family/shared').AuditLogEntry[]>(
+        `/workspaces/${workspaceId}/audit-logs`,
+        token,
+      ),
+    privacyCenter: (token: string) =>
+      apiGet<import('@family/shared').PrivacyCenterState>('/privacy/me', token),
+    updateConsent: (matchProfileOptIn: boolean, token: string) =>
+      apiPatch<import('@family/shared').PrivacyCenterState>(
+        '/privacy/consent',
+        { matchProfileOptIn },
+        token,
+      ),
+    requestExport: (token: string) =>
+      apiPost<import('@family/shared').PrivacyRequestSummary>('/privacy/export-request', {}, token),
+    requestDelete: (token: string) =>
+      apiPost<import('@family/shared').PrivacyRequestSummary>('/privacy/delete-request', {}, token),
+    exportGdpr: (workspaceId: string, token: string) =>
+      apiGet<Record<string, unknown>>(`/workspaces/${workspaceId}/export/gdpr`, token),
+    exportGedcom: (workspaceId: string, familyId: string, token: string) =>
+      apiGet<{ fileName: string; gedcomText: string }>(
+        `/workspaces/${workspaceId}/export/gedcom?familyId=${encodeURIComponent(familyId)}`,
+        token,
+      ),
+  },
+  privacy: {
+    securityCenter: (token: string) =>
+      apiGet<import('@family/shared').PrivacySecurityCenterState>('/privacy/security-center', token),
+    updateConsent: (
+      body: { consentKey: string; granted: boolean },
+      token: string,
+    ) =>
+      apiPatch<import('@family/shared').PrivacySecurityCenterState>(
+        '/privacy/consents',
+        body,
+        token,
+      ),
+    personSettings: (personId: string, token: string) =>
+      apiGet<import('@family/shared').PersonPrivacySettings>(
+        `/privacy/persons/${personId}`,
+        token,
+      ),
+    updatePerson: (
+      personId: string,
+      body: { privacyLevel?: string; isLiving?: boolean },
+      token: string,
+    ) =>
+      apiPatch<import('@family/shared').PersonPrivacySettings>(
+        `/privacy/persons/${personId}`,
+        body,
+        token,
+      ),
+    treeSettings: (familyId: string, token: string) =>
+      apiGet<import('@family/shared').TreePrivacySettings>(
+        `/privacy/families/${familyId}`,
+        token,
+      ),
+    updateTree: (
+      familyId: string,
+      body: { hideLivingPersons?: boolean; treePrivacyLevel?: string },
+      token: string,
+    ) =>
+      apiPatch<import('@family/shared').TreePrivacySettings>(
+        `/privacy/families/${familyId}`,
+        body,
+        token,
+      ),
+    publicShares: (token: string) =>
+      apiGet<import('@family/shared').PublicShareSummary[]>('/privacy/public-shares', token),
+    createPublicShare: (
+      body: {
+        resourceType: string;
+        resourceId: string;
+        label?: string;
+        hideLivingPersons?: boolean;
+        workspaceId?: string;
+        familyStoryId?: string;
+      },
+      token: string,
+    ) =>
+      apiPost<import('@family/shared').PublicShareCreateResult>(
+        '/privacy/public-shares',
+        body,
+        token,
+      ),
+    revokePublicShare: (shareId: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/privacy/public-shares/${shareId}/revoke`, {}, token),
+    accessLogs: (token: string, workspaceId?: string) =>
+      apiGet<import('@family/shared').AccessLogEntry[]>(
+        workspaceId
+          ? `/privacy/access-logs?workspaceId=${encodeURIComponent(workspaceId)}`
+          : '/privacy/access-logs',
+        token,
+      ),
+    accountDelete: (token: string) =>
+      apiPost<import('@family/shared').PrivacyRequestSummary>(
+        '/privacy/account-delete',
+        {},
+        token,
+      ),
   },
   matching: {
     profile: (token?: string | null) =>

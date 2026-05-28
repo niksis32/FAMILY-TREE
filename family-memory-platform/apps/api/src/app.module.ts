@@ -33,6 +33,9 @@ import { TreeModule } from './modules/tree/tree.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './common/health/health.module';
+import { StorytellingModule } from './modules/storytelling/storytelling.module';
+import { CommercialModule } from './modules/commercial/commercial.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 
 /**
  * Root application module — registers all MVP domain modules.
@@ -74,6 +77,9 @@ import { HealthModule } from './common/health/health.module';
     CommunityGraphqlModule,
     MatchingModule,
     FamilyStoriesModule,
+    StorytellingModule,
+    CommercialModule,
+    PrivacyModule,
   ],
 })
 export class AppModule {}

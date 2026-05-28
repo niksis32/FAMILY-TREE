@@ -1,5 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { TreeViewDataQueryDto } from './tree-view-data.dto';
 import { TreeService } from './tree.service';
 
@@ -9,8 +11,14 @@ export class TreeController {
   constructor(private readonly service: TreeService) {}
 
   @Get('person/:id/view-data')
-  viewData(@Param('id') id: string, @Query() query: TreeViewDataQueryDto) {
-    return this.service.getViewData(id, query);
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiBearerAuth()
+  viewData(
+    @Param('id') id: string,
+    @Query() query: TreeViewDataQueryDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.service.getViewData(id, query, user);
   }
 
   @Get('person/:id/ancestors')

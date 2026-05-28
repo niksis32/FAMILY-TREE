@@ -504,6 +504,112 @@ Error: listen EADDRINUSE: address already in use :::3000
 netstat -ano | Select-String ":3000"
 ```
 ********************************************************************
+********************************************************************
+********************************************************************
+
+****************************/  МОЙ ВАРИАНТ 
+
+********************************************************************
+********************************************************************
+********************************************************************
+
+
+********************************************************************
+////////////////////////4000
+********************************************************************
+
+
+Команды и так не пойдут дальше, пока предыдущая не завершится, если ты запускаешь их как один скрипт (или соединяешь через &&). Чтобы добавить явную задержку между шагами — вставляем sleep N.
+
+Вариант 1 (рекомендую): одна цепочка && + задержки
+
+```bash
+source ~/.nvm/nvm.sh && sleep 1 && \
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform" && sleep 1 && \
+pnpm install && sleep 2 && \
+pnpm docker:infra && sleep 2 && \
+pnpm db:migrate && sleep 1 && \
+node scripts/prisma-cli.mjs migrate status && sleep 1 && \
+pkill -f "dist/main.js" 2>/dev/null || true && sleep 1 && \
+pnpm api:build && sleep 1 && \
+pnpm api:start
+
+```
+&& гарантирует: следующая команда запустится только если предыдущая успешно завершилась.
+sleep N — задержка в секундах (поменяй значения под себя).
+
+Вариант 2: “строгий” bash-скрипт (остановится при любой ошибке)
+
+```bash
+set -euo pipefail
+source ~/.nvm/nvm.sh
+sleep 1
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+sleep 1
+pnpm install
+sleep 2
+pnpm docker:infra
+sleep 2
+pnpm db:migrate
+sleep 1
+node scripts/prisma-cli.mjs migrate status
+sleep 1
+pkill -f "dist/main.js" 2>/dev/null || true
+sleep 1
+pnpm api:build
+sleep 1
+pnpm api:start
+
+```
+Если хочешь, скажи какую задержку ставить (например 1/3/5 сек) и нужно ли, чтобы скрипт продолжал работу даже если pnpm db:migrate упадёт.
+
+
+******************************************************
+/////////////////////////////////3000
+******************************************************
+
+Вот то же самое, но в виде последовательного “скрипта”: каждая команда ждёт завершения предыдущей, плюс есть задержки sleep между шагами.
+
+Вариант 1 (рекомендую): через && + задержки
+
+```bash
+ss -ltnp | grep ":3000" && sleep 1 && \
+ps -ef | grep -E "next|node|pnpm" | grep -v grep && sleep 1 && \
+pkill -f "next dev --port 3000" || true && sleep 1 && \
+pkill -f "next-server" || true && sleep 1 && \
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform" && sleep 1 && \
+CI=true pnpm install --frozen-lockfile && sleep 1 && \
+source ~/.nvm/nvm.sh && sleep 1 && \
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform" && sleep 1 && \
+pnpm --filter @family/web dev
+
+```
+Вариант 2: “строгий” bash-режим (останавливается при ошибках, кроме pkill)
+
+```bash
+set -euo pipefail
+ss -ltnp | grep ":3000"
+sleep 1
+ps -ef | grep -E "next|node|pnpm" | grep -v grep
+sleep 1
+pkill -f "next dev --port 3000" || true
+sleep 1
+pkill -f "next-server" || true
+sleep 1
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+sleep 1
+CI=true pnpm install --frozen-lockfile
+sleep 1
+source ~/.nvm/nvm.sh
+sleep 1
+cd "/mnt/d/CURSOR/FAMILY TREE/family-memory-platform"
+sleep 1
+pnpm --filter @family/web dev
+```
+
+
+
+********************************************************************
 ## После изменений в коде: перезапустить Web/Node.js
 ********************************************************************
 

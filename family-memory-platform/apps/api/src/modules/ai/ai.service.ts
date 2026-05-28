@@ -1,5 +1,6 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AiAuditService } from '../privacy/ai-audit.service';
 import type {
   OcrPreviewDto,
   PhotoDetectFacesDto,
@@ -23,11 +24,20 @@ type AiFeature =
   | 'doc.suggest-events'
   | 'doc.suggest-relationships'
   | 'doc.summarize'
-  | 'family-story.narrative';
+  | 'family-story.narrative'
+  | 'story.person'
+  | 'story.timeline-narrative'
+  | 'story.document-summary'
+  | 'story.family'
+  | 'story.migration'
+  | 'story.era-context';
 
 @Injectable()
 export class AiService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly aiAudit: AiAuditService,
+  ) {}
 
   health() {
     return this.request('health', 'GET', '/health');
@@ -96,6 +106,31 @@ export class AiService {
     return this.request('family-story.narrative', 'POST', '/family-story/narrative', body);
   }
 
+  /** PROMPT 11 — AI Storytelling: thin proxy routes */
+  storyPerson(body: Record<string, unknown>) {
+    return this.request('story.person', 'POST', '/story/person', body);
+  }
+
+  storyTimelineNarrative(body: Record<string, unknown>) {
+    return this.request('story.timeline-narrative', 'POST', '/story/timeline-narrative', body);
+  }
+
+  storyDocumentSummary(body: Record<string, unknown>) {
+    return this.request('story.document-summary', 'POST', '/story/document-summary', body);
+  }
+
+  storyFamily(body: Record<string, unknown>) {
+    return this.request('story.family', 'POST', '/story/family', body);
+  }
+
+  storyMigration(body: Record<string, unknown>) {
+    return this.request('story.migration', 'POST', '/story/migration', body);
+  }
+
+  storyEraContext(body: Record<string, unknown>) {
+    return this.request('story.era-context', 'POST', '/story/era-context', body);
+  }
+
   isAiEnabled() {
     return this.isEnabled();
   }
@@ -108,7 +143,13 @@ export class AiService {
     return null;
   }
 
-  private async request(feature: AiFeature, method: 'GET' | 'POST', path: string, body?: unknown) {
+  private async request(
+    feature: AiFeature,
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+    audit?: { userId?: string; workspaceId?: string; scope?: Record<string, string> },
+  ) {
     if (!this.isEnabled()) {
       return this.disabled(feature);
     }
@@ -116,6 +157,13 @@ export class AiService {
     const baseUrl = this.config.get<string>('AI_SERVICE_URL') ?? 'http://localhost:8000';
 
     try {
+      await this.aiAudit.logOperation({
+        feature,
+        userId: audit?.userId,
+        workspaceId: audit?.workspaceId,
+        scope: audit?.scope,
+      });
+
       const response = await fetch(`${baseUrl}${path}`, {
         method,
         headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,

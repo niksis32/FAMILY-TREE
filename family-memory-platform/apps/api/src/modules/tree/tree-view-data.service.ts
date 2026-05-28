@@ -1,4 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
+import { AccessControlService } from '../privacy/access-control.service';
+import { PolicyEngineService } from '../privacy/policy-engine.service';
 import type {
   TreeGenerationBand,
   TreeLayoutRole,
@@ -31,6 +34,7 @@ type DbPerson = {
   birthDate: Date | null;
   deathDate: Date | null;
   isLiving: boolean;
+  privacyLevel: string;
   avatarMediaId: string | null;
 };
 
@@ -41,9 +45,16 @@ export class TreeViewDataService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly access: AccessControlService,
+    private readonly policy: PolicyEngineService,
   ) {}
 
-  async getViewData(rootPersonId: string, query: TreeViewDataQuery = {}): Promise<TreeViewDataResponse> {
+  async getViewData(
+    rootPersonId: string,
+    query: TreeViewDataQuery = {},
+    user?: AuthenticatedUser,
+  ): Promise<TreeViewDataResponse> {
+    const viewer = this.access.viewerFromUser(user ?? null);
     const scope = query.scope ?? 'full';
     const depth = query.depth ?? DEFAULT_DEPTH;
 
@@ -82,7 +93,16 @@ export class TreeViewDataService {
       .map((r) => this.toEdge(r));
 
     const spouseGroups = this.buildSpouseGroups(personIds, relationships, generations);
-    const nodes = await this.buildNodes(personIds, personsById, generations, spouseGroups, rootPersonId);
+    const hideLiving = await this.resolveHideLiving(rootPersonId);
+    const nodes = await this.buildNodes(
+      personIds,
+      personsById,
+      generations,
+      spouseGroups,
+      rootPersonId,
+      viewer,
+      hideLiving,
+    );
 
     const events = await this.loadEvents(personIds);
     const places = await this.buildPlacesFromEvents(events, personIds);
@@ -140,10 +160,20 @@ export class TreeViewDataService {
         birthDate: true,
         deathDate: true,
         isLiving: true,
+        privacyLevel: true,
         avatarMediaId: true,
       },
     });
     return new Map(rows.map((p) => [p.id, p as DbPerson]));
+  }
+
+  private async resolveHideLiving(rootPersonId: string): Promise<boolean> {
+    const member = await this.prisma.familyMember.findFirst({
+      where: { personId: rootPersonId, deletedAt: null },
+      select: { familyId: true },
+    });
+    if (!member) return true;
+    return this.access.familyHideLiving(member.familyId);
   }
 
   private collectGenerations(
@@ -350,6 +380,8 @@ export class TreeViewDataService {
     generations: Map<string, number>,
     spouseGroups: Map<string, string>,
     rootPersonId: string,
+    viewer: ReturnType<AccessControlService['viewerFromUser']>,
+    hideLivingPersons: boolean,
   ): Promise<TreeViewNode[]> {
     const familyMembers = await this.prisma.familyMember.findMany({
       where: { personId: { in: personIds }, deletedAt: null },
@@ -380,23 +412,40 @@ export class TreeViewDataService {
       const person = personsById.get(id);
       if (!person) continue;
       const generation = generations.get(id) ?? 0;
+      const policyPerson = {
+        id: person.id,
+        givenName: person.givenName,
+        familyName: person.familyName,
+        birthDate: person.birthDate?.toISOString() ?? null,
+        deathDate: person.deathDate?.toISOString() ?? null,
+        isLiving: person.isLiving,
+        privacyLevel: person.privacyLevel.toLowerCase(),
+      };
+      const avatarUrl = avatarUrls.get(id) ?? null;
+      const redacted = this.policy.applyTreeNodeRedaction(
+        policyPerson,
+        viewer,
+        hideLivingPersons,
+        avatarUrl,
+      );
       nodes.push({
         id: person.id,
         personId: person.id,
-        label: [person.givenName, person.familyName].filter(Boolean).join(' '),
-        givenName: person.givenName,
-        familyName: person.familyName,
+        label: redacted.label,
+        givenName: redacted.givenName,
+        familyName: redacted.familyName,
         gender: person.gender,
-        birthDate: person.birthDate?.toISOString() ?? null,
-        deathDate: person.deathDate?.toISOString() ?? null,
-        birthYear: person.birthDate?.getFullYear() ?? null,
-        deathYear: person.deathDate?.getFullYear() ?? null,
-        isLiving: person.isLiving,
+        birthDate: redacted.birthDate,
+        deathDate: redacted.deathDate,
+        birthYear: redacted.birthYear,
+        deathYear: redacted.deathYear,
+        isLiving: redacted.isLiving,
+        isHidden: redacted.isHidden,
         generation,
         layoutRole: this.resolveLayoutRole(id, rootPersonId, generation),
         spouseGroupId: spouseGroups.get(id) ?? null,
         familyIds: familiesByPerson.get(id) ?? [],
-        avatarUrl: avatarUrls.get(id) ?? null,
+        avatarUrl: redacted.avatarUrl,
       });
     }
     return nodes.sort((a, b) => a.generation - b.generation || a.label.localeCompare(b.label, 'ru'));

@@ -332,7 +332,13 @@
       "privacy": "Приватность по умолчанию",
       "import": "Импорт данных",
       "importDesc": "GEDCOM import поддерживает preview перед записью в PostgreSQL и базовый mapping персон, семей, связей, событий и источников.",
-      "openGedcom": "Открыть GEDCOM import"
+      "openGedcom": "Открыть GEDCOM import",
+      "commercial": "Коммерция и workspace",
+      "commercialDesc": "Тарифы, команда, privacy center и экспорт данных (PROMPT 12 — без платёжного шлюза).",
+      "billing": "Биллинг",
+      "team": "Команда",
+      "privacyCenter": "Privacy center",
+      "export": "Экспорт"
     },
     "settingsImport": {
       "title": "GEDCOM import",
