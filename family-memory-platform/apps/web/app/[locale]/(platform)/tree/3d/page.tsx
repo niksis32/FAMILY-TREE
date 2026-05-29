@@ -1,14 +1,14 @@
 import { getTranslations } from 'next-intl/server';
-import { MediaGallery } from '@/components/media-gallery';
+import { TreeExperienceShell } from '@/features/tree-experience/tree-experience-shell';
 import { PageHero } from '@family/ui';
 
-export default async function MediaPage() {
-  const t = await getTranslations('pages.media');
+export default async function Tree3dPage() {
+  const t = await getTranslations('pages.tree3d');
 
   return (
     <div className="space-y-8">
       <PageHero eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
-      <MediaGallery />
+      <TreeExperienceShell initialDisplayMode="three-d" />
     </div>
   );
 }

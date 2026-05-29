@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
-import { Badge, Button, Card, PageHeader } from '@/components/ui';
+import { PageHero } from '@family/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import { apiClient, formatApiError, type CommunityGroupRecord } from '@/lib/api-client';
 
 type FeedAuthor = { id: string; displayName: string | null };
@@ -75,7 +76,8 @@ export function CommunityHubPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <PageHero
+        eyebrow={t('eyebrow')}
         title={t('title')}
         description={t('description')}
         action={

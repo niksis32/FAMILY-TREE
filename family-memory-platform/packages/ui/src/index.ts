@@ -5,3 +5,5 @@
 
 export * from './components';
 export * from './theme';
+export * from './premium';
+export { cn } from './lib/cn';

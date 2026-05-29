@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ImageIcon } from 'lucide-react';
 import type { BulkTaggingMediaItem, PersonSummary } from '@family/shared';
+import { RecordList, WorkspacePanel } from '@family/ui';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card } from '@/components/ui';
+import { Button, FormField, Select } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
 import { apiClient } from '@/lib/api-client';
 import { PhotoViewerWithTags } from './photo-viewer-with-tags';
@@ -43,65 +45,60 @@ export function BulkTaggingWorkspace() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-      <Card className="p-4">
-        <h3 className="font-semibold">{t('bulkQueueTitle')}</h3>
-        <p className="mt-1 text-sm text-stone-500">{t('bulkQueueHint', { count: queue.length })}</p>
-        <ul className="mt-4 max-h-[70vh] space-y-2 overflow-y-auto">
-          {queue.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${
-                  activeId === item.id ? 'border-family-primary bg-family-primary/5' : ''
-                }`}
-                onClick={() => setActiveId(item.id)}
-              >
-                <p className="font-medium">{item.title ?? item.id}</p>
-                <p className="text-xs text-stone-500">
-                  {t('bulkItemStats', {
-                    untagged: item.untaggedFaceCount,
-                    tagged: item.taggedFaceCount,
-                  })}
-                </p>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Card>
+    <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
+      <WorkspacePanel title={t('bulkQueueTitle')} description={t('bulkQueueHint', { count: queue.length })}>
+        <RecordList
+          emptyTitle={t('bulkEmpty')}
+          items={queue.map((item) => ({
+            id: item.id,
+            title: item.title ?? item.id,
+            subtitle: t('bulkItemStats', {
+              untagged: item.untaggedFaceCount,
+              tagged: item.taggedFaceCount,
+            }),
+            active: activeId === item.id,
+            onSelect: () => setActiveId(item.id),
+          }))}
+        />
+      </WorkspacePanel>
 
-      <div className="space-y-4">
+      <WorkspacePanel
+        title={t('bulkEditorTitle')}
+        description={activeId ? t('bulkEditorActive') : t('bulkEmpty')}
+        action={
+          activeId ? (
+            <Link href={`/media/${activeId}`} className="text-sm font-semibold text-family-primary dark:text-family-accent">
+              {t('openFullPage')} →
+            </Link>
+          ) : null
+        }
+      >
         {activeId ? (
-          <>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="text-sm">
-                <span className="text-stone-500">{t('bulkAssignAll')}</span>
-                <select
-                  className="ml-2 rounded-xl border bg-transparent px-3 py-2"
-                  value={bulkPersonId}
-                  onChange={(e) => setBulkPersonId(e.target.value)}
-                >
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-family-accent/20 bg-family-accent/5 p-4 dark:bg-slate-950/50">
+              <FormField label={t('bulkAssignAll')} className="min-w-[12rem] flex-1">
+                <Select value={bulkPersonId} onChange={(e) => setBulkPersonId(e.target.value)}>
                   <option value="">{t('selectPersonPlaceholder')}</option>
                   {persons.map((p) => (
                     <option key={p.id} value={p.id}>
                       {[p.givenName, p.familyName].filter(Boolean).join(' ')}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </FormField>
               <Button onClick={() => void assignAllUntagged()} disabled={!bulkPersonId}>
                 {t('applyBulkAssign')}
               </Button>
-              <Link href={`/media/${activeId}`} className="text-sm text-family-primary hover:underline">
-                {t('openFullPage')}
-              </Link>
             </div>
             <PhotoViewerWithTags mediaId={activeId} />
-          </>
+          </div>
         ) : (
-          <p className="text-stone-500">{t('bulkEmpty')}</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center text-stone-500">
+            <ImageIcon className="mb-3 h-10 w-10 text-family-accent/60" />
+            <p>{t('bulkSelectHint')}</p>
+          </div>
         )}
-      </div>
+      </WorkspacePanel>
     </div>
   );
 }

@@ -2,12 +2,15 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { FileText, Plus, Sparkles } from 'lucide-react';
+import { RecordList, WorkspacePanel } from '@family/ui';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card, EmptyState, Input, Select, Textarea } from '@/components/ui';
+import { Button, FormField, Input, Select, Textarea } from '@/components/ui';
 import { apiClient, type CitationRecord, type DocumentRecord, type SourceRecord } from '@/lib/api-client';
 import { useFormatApiError } from '@/lib/use-format-api-error';
 import { DocumentIntelligenceModal } from '@/features/document-intelligence/document-intelligence-modal';
+import { cn } from '@/lib/utils';
 
 const DOCUMENT_TYPE_KEYS = [
   'BIRTH_CERTIFICATE',
@@ -19,6 +22,8 @@ const DOCUMENT_TYPE_KEYS = [
   'MILITARY_RECORD',
   'OTHER',
 ] as const;
+
+type WorkspaceTab = 'documents' | 'sources' | 'citations';
 
 function useArchiveDocumentTypeLabel() {
   const t = useTranslations('archiveDocumentTypes');
@@ -36,6 +41,9 @@ export function DocumentsWorkspace() {
   const tDocType = useTranslations('archiveDocumentTypes');
   const documentTypeLabel = useArchiveDocumentTypeLabel();
   const formatApiError = useFormatApiError();
+
+  const [tab, setTab] = useState<WorkspaceTab>('documents');
+  const [showForm, setShowForm] = useState(false);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
   const [citations, setCitations] = useState<CitationRecord[]>([]);
@@ -54,6 +62,7 @@ export function DocumentsWorkspace() {
   const [status, setStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [intelligenceDocId, setIntelligenceDocId] = useState<string | null>(null);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   async function load() {
     setStatus(t('loading'));
@@ -106,6 +115,7 @@ export function DocumentsWorkspace() {
         sourceId: '',
         description: '',
       });
+      setShowForm(false);
       await load();
       setStatus(t('documentCreated'));
     } catch (error) {
@@ -130,6 +140,7 @@ export function DocumentsWorkspace() {
         session?.accessToken,
       );
       setSourceForm({ title: '', author: '', repository: '', url: '', notes: '' });
+      setShowForm(false);
       await load();
       setStatus(t('sourceCreated'));
     } catch (error) {
@@ -153,6 +164,7 @@ export function DocumentsWorkspace() {
         session?.accessToken,
       );
       setCitationForm({ sourceId: '', personId: '', page: '', detail: '' });
+      setShowForm(false);
       await load();
       setStatus(t('citationCreated'));
     } catch (error) {
@@ -161,6 +173,12 @@ export function DocumentsWorkspace() {
       setIsSaving(false);
     }
   }
+
+  const tabs: { id: WorkspaceTab; label: string; count: number }[] = [
+    { id: 'documents', label: t('tabDocuments'), count: documents.length },
+    { id: 'sources', label: t('tabSources'), count: sources.length },
+    { id: 'citations', label: t('tabCitations'), count: citations.length },
+  ];
 
   return (
     <div className="space-y-6">
@@ -172,200 +190,208 @@ export function DocumentsWorkspace() {
           onClose={() => setIntelligenceDocId(null)}
         />
       ) : null}
-      <p className="text-sm text-stone-500 dark:text-slate-400">{status}</p>
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card>
-          <h2 className="text-xl font-semibold">{t('documentMetaTitle')}</h2>
-          <form className="mt-5 space-y-4" onSubmit={createDocument}>
-            <Input
-              value={documentForm.title}
-              onChange={(event) => setDocumentForm({ ...documentForm, title: event.target.value })}
-              placeholder={t('titlePh')}
-              required
-            />
-            <Select
-              value={documentForm.documentType}
-              onChange={(event) => setDocumentForm({ ...documentForm, documentType: event.target.value })}
-            >
-              {DOCUMENT_TYPE_KEYS.map((type) => (
-                <option key={type} value={type}>
-                  {tDocType(type)}
-                </option>
-              ))}
-            </Select>
-            <Input
-              value={documentForm.storageKey}
-              onChange={(event) => setDocumentForm({ ...documentForm, storageKey: event.target.value })}
-              placeholder={t('minioKeyPh')}
-              required
-            />
-            <Input
-              value={documentForm.personId}
-              onChange={(event) => setDocumentForm({ ...documentForm, personId: event.target.value })}
-              placeholder={t('personIdPh')}
-            />
-            <Input
-              value={documentForm.sourceId}
-              onChange={(event) => setDocumentForm({ ...documentForm, sourceId: event.target.value })}
-              placeholder={t('sourceIdPh')}
-            />
-            <Textarea
-              value={documentForm.description}
-              onChange={(event) => setDocumentForm({ ...documentForm, description: event.target.value })}
-              placeholder={t('descriptionPh')}
-            />
-            <Button disabled={isSaving || !session} type="submit">
-              {t('createDocument')}
-            </Button>
-          </form>
-        </Card>
 
-        <Card>
-          <h2 className="text-xl font-semibold">{t('sourceTitle')}</h2>
-          <form className="mt-5 space-y-4" onSubmit={createSource}>
-            <Input
-              value={sourceForm.title}
-              onChange={(event) => setSourceForm({ ...sourceForm, title: event.target.value })}
-              placeholder={t('sourceNamePh')}
-              required
-            />
-            <Input
-              value={sourceForm.author}
-              onChange={(event) => setSourceForm({ ...sourceForm, author: event.target.value })}
-              placeholder={t('authorPh')}
-            />
-            <Input
-              value={sourceForm.repository}
-              onChange={(event) => setSourceForm({ ...sourceForm, repository: event.target.value })}
-              placeholder={t('repositoryPh')}
-            />
-            <Input
-              value={sourceForm.url}
-              onChange={(event) => setSourceForm({ ...sourceForm, url: event.target.value })}
-              placeholder="URL"
-            />
-            <Textarea
-              value={sourceForm.notes}
-              onChange={(event) => setSourceForm({ ...sourceForm, notes: event.target.value })}
-              placeholder={t('notesPh')}
-            />
-            <Button disabled={isSaving || !session} type="submit">
-              {t('createSource')}
-            </Button>
-          </form>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-semibold">{t('citationTitle')}</h2>
-          <form className="mt-5 space-y-4" onSubmit={createCitation}>
-            <Input
-              value={citationForm.sourceId}
-              onChange={(event) => setCitationForm({ ...citationForm, sourceId: event.target.value })}
-              placeholder={t('sourceIdPh')}
-              required
-            />
-            <Input
-              value={citationForm.personId}
-              onChange={(event) => setCitationForm({ ...citationForm, personId: event.target.value })}
-              placeholder={t('personIdPh')}
-            />
-            <Input
-              value={citationForm.page}
-              onChange={(event) => setCitationForm({ ...citationForm, page: event.target.value })}
-              placeholder={t('pagePh')}
-            />
-            <Textarea
-              value={citationForm.detail}
-              onChange={(event) => setCitationForm({ ...citationForm, detail: event.target.value })}
-              placeholder={t('citationDetailPh')}
-            />
-            <Button disabled={isSaving || !session} type="submit">
-              {t('createCitation')}
-            </Button>
-          </form>
-        </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-family-accent/15 bg-family-accent/5 px-4 py-3 text-sm text-stone-600 dark:text-slate-300">
+        <span>{status}</span>
+        <Link href="/ai-lab" className="inline-flex items-center gap-1 font-semibold text-family-primary dark:text-family-accent">
+          <Sparkles className="h-4 w-4" />
+          {t('aiLabLink')}
+        </Link>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card>
-          <h2 className="text-xl font-semibold">{t('listDocuments')}</h2>
-          <div className="mt-4 space-y-3">
-            {documents.length === 0 ? <EmptyState title={t('noDocuments')} description={t('backendEmpty')} /> : null}
-            {documents.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950"
-              >
-                <p className="font-semibold">{item.title}</p>
-                <p className="mt-1 text-stone-500 dark:text-slate-400">{documentTypeLabel(item.documentType)}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={!session}
-                    onClick={() => setIntelligenceDocId(item.id)}
-                  >
-                    {t('intelligenceModal')}
-                  </Button>
-                  <Link
-                    href={`/documents/${item.id}/intelligence`}
-                    className="inline-flex items-center justify-center rounded-xl border border-family-primary/30 bg-white px-3 py-1.5 text-xs font-semibold text-family-primary hover:bg-stone-50 dark:bg-slate-900 dark:text-family-accent dark:hover:bg-slate-800"
-                  >
-                    {t('intelligenceFullPage')}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <List
-          title={t('listSources')}
-          empty={t('noSources')}
-          backendEmpty={t('backendEmpty')}
-          items={sources.map((item) => ({
-            id: item.id,
-            title: item.title,
-            subtitle: item.repository ?? item.author ?? item.id,
-          }))}
-        />
-        <List
-          title={t('listCitations')}
-          empty={t('noCitations')}
-          backendEmpty={t('backendEmpty')}
-          items={citations.map((item) => ({
-            id: item.id,
-            title: item.sourceId,
-            subtitle: item.detail ?? item.page ?? item.id,
-          }))}
-        />
-      </div>
-    </div>
-  );
-}
-
-function List({
-  title,
-  empty,
-  backendEmpty,
-  items,
-}: {
-  title: string;
-  empty: string;
-  backendEmpty: string;
-  items: Array<{ id: string; title: string; subtitle: string }>;
-}) {
-  return (
-    <Card>
-      <h2 className="text-xl font-semibold">{title}</h2>
-      <div className="mt-4 space-y-3">
-        {items.length === 0 ? <EmptyState title={empty} description={backendEmpty} /> : null}
-        {items.map((item) => (
-          <div key={item.id} className="rounded-2xl border bg-stone-50 p-4 text-sm dark:bg-slate-950">
-            <p className="font-semibold">{item.title}</p>
-            <p className="mt-1 text-stone-500 dark:text-slate-400">{item.subtitle}</p>
-          </div>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setTab(item.id);
+              setShowForm(false);
+            }}
+            className={cn(
+              'rounded-2xl px-4 py-2 text-sm font-semibold transition',
+              tab === item.id
+                ? 'bg-family-primary text-white shadow-md dark:bg-family-accent dark:text-family-ink'
+                : 'bg-white/80 text-stone-600 hover:bg-stone-100 dark:bg-slate-900 dark:text-slate-300',
+            )}
+          >
+            {item.label}
+            <span className="ml-2 opacity-70">({item.count})</span>
+          </button>
         ))}
       </div>
-    </Card>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <WorkspacePanel
+          title={tab === 'documents' ? t('listDocuments') : tab === 'sources' ? t('listSources') : t('listCitations')}
+          description={t('listHint')}
+          action={
+            <Button type="button" variant="secondary" onClick={() => setShowForm((v) => !v)}>
+              <Plus className="mr-1 inline h-4 w-4" />
+              {showForm ? t('hideForm') : t('showForm')}
+            </Button>
+          }
+        >
+          {tab === 'documents' ? (
+            <RecordList
+              emptyTitle={t('noDocuments')}
+              emptyDescription={t('backendEmpty')}
+              items={documents.map((item) => ({
+                id: item.id,
+                title: item.title,
+                subtitle: documentTypeLabel(item.documentType),
+                meta: item.storageKey,
+                active: selectedDocId === item.id,
+                onSelect: () => setSelectedDocId(item.id),
+                actions: (
+                  <>
+                    <Button type="button" variant="secondary" disabled={!session} onClick={() => setIntelligenceDocId(item.id)}>
+                      {t('intelligenceModal')}
+                    </Button>
+                    <Link
+                      href={`/documents/${item.id}/intelligence`}
+                      className="inline-flex items-center justify-center rounded-xl border px-3 py-2 text-xs font-semibold text-family-primary dark:text-family-accent"
+                    >
+                      {t('intelligenceFullPage')}
+                    </Link>
+                  </>
+                ),
+              }))}
+            />
+          ) : null}
+
+          {tab === 'sources' ? (
+            <RecordList
+              emptyTitle={t('noSources')}
+              emptyDescription={t('backendEmpty')}
+              items={sources.map((item) => ({
+                id: item.id,
+                title: item.title,
+                subtitle: item.repository ?? item.author ?? item.id,
+              }))}
+            />
+          ) : null}
+
+          {tab === 'citations' ? (
+            <RecordList
+              emptyTitle={t('noCitations')}
+              emptyDescription={t('backendEmpty')}
+              items={citations.map((item) => ({
+                id: item.id,
+                title: item.sourceId,
+                subtitle: item.detail ?? item.page ?? item.id,
+              }))}
+            />
+          ) : null}
+        </WorkspacePanel>
+
+        {showForm ? (
+          <WorkspacePanel
+            title={
+              tab === 'documents'
+                ? t('documentMetaTitle')
+                : tab === 'sources'
+                  ? t('sourceTitle')
+                  : t('citationTitle')
+            }
+            description={t('formHint')}
+          >
+            {tab === 'documents' ? (
+              <form className="space-y-4" onSubmit={createDocument}>
+                <FormField label={t('titlePh')}>
+                  <Input
+                    value={documentForm.title}
+                    onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
+                    required
+                  />
+                </FormField>
+                <FormField label={t('typeLabel')}>
+                  <Select
+                    value={documentForm.documentType}
+                    onChange={(e) => setDocumentForm({ ...documentForm, documentType: e.target.value })}
+                  >
+                    {DOCUMENT_TYPE_KEYS.map((type) => (
+                      <option key={type} value={type}>
+                        {tDocType(type)}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label={t('minioKeyPh')}>
+                  <Input
+                    value={documentForm.storageKey}
+                    onChange={(e) => setDocumentForm({ ...documentForm, storageKey: e.target.value })}
+                    required
+                  />
+                </FormField>
+                <FormField label={t('personIdPh')}>
+                  <Input
+                    value={documentForm.personId}
+                    onChange={(e) => setDocumentForm({ ...documentForm, personId: e.target.value })}
+                  />
+                </FormField>
+                <FormField label={t('descriptionPh')}>
+                  <Textarea
+                    value={documentForm.description}
+                    onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
+                  />
+                </FormField>
+                <Button disabled={isSaving || !session} type="submit">
+                  {t('createDocument')}
+                </Button>
+              </form>
+            ) : null}
+
+            {tab === 'sources' ? (
+              <form className="space-y-4" onSubmit={createSource}>
+                <FormField label={t('sourceNamePh')}>
+                  <Input value={sourceForm.title} onChange={(e) => setSourceForm({ ...sourceForm, title: e.target.value })} required />
+                </FormField>
+                <FormField label={t('authorPh')}>
+                  <Input value={sourceForm.author} onChange={(e) => setSourceForm({ ...sourceForm, author: e.target.value })} />
+                </FormField>
+                <FormField label={t('repositoryPh')}>
+                  <Input value={sourceForm.repository} onChange={(e) => setSourceForm({ ...sourceForm, repository: e.target.value })} />
+                </FormField>
+                <Button disabled={isSaving || !session} type="submit">
+                  {t('createSource')}
+                </Button>
+              </form>
+            ) : null}
+
+            {tab === 'citations' ? (
+              <form className="space-y-4" onSubmit={createCitation}>
+                <FormField label={t('sourceIdPh')}>
+                  <Input
+                    value={citationForm.sourceId}
+                    onChange={(e) => setCitationForm({ ...citationForm, sourceId: e.target.value })}
+                    required
+                  />
+                </FormField>
+                <FormField label={t('pagePh')}>
+                  <Input value={citationForm.page} onChange={(e) => setCitationForm({ ...citationForm, page: e.target.value })} />
+                </FormField>
+                <Button disabled={isSaving || !session} type="submit">
+                  {t('createCitation')}
+                </Button>
+              </form>
+            ) : null}
+          </WorkspacePanel>
+        ) : (
+          <WorkspacePanel title={t('workspaceTipsTitle')} description={t('workspaceTipsDesc')}>
+            <ul className="space-y-3 text-sm text-stone-600 dark:text-slate-300">
+              <li className="flex gap-2">
+                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-family-accent" />
+                {t('tipIntelligence')}
+              </li>
+              <li className="flex gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-family-accent" />
+                {t('tipAiLab')}
+              </li>
+            </ul>
+          </WorkspacePanel>
+        )}
+      </div>
+    </div>
   );
 }

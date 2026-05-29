@@ -25,7 +25,8 @@
     "persons": "People",
     "families": "Families",
     "tree": "Tree",
-    "map": "Historical map",
+    "tree3d": "3D Tree",
+    "map": "Map",
     "research": "Research",
     "timeline": "Timeline",
     "media": "Media",
@@ -33,8 +34,69 @@
     "search": "Search",
     "settings": "Settings",
     "community": "Community",
-    "matching": "Match center",
-    "stories": "Family stories"
+    "matching": "Matches",
+    "stories": "Stories",
+    "aiLab": "AI Lab",
+    "groups": {
+      "explore": "Explore",
+      "records": "Records",
+      "intelligence": "Intelligence",
+      "social": "Social"
+    }
+  },
+  "premiumDashboard": {
+    "eyebrow": "Genealogy intelligence",
+    "title": "Family memory dashboard",
+    "description": "Your archive at a glance — tree, media, documents, and AI-assisted research in one premium workspace.",
+    "addPerson": "Add person",
+    "statPersons": "People",
+    "statFamilies": "Families",
+    "statMedia": "Media",
+    "statDocuments": "Documents",
+    "hintPersons": "Profiles linked to your tree",
+    "hintFamilies": "Branches and privacy scopes",
+    "hintMedia": "Photos, video, voice memories",
+    "hintDocuments": "Archive sources & OCR pipeline",
+    "quickActionsTitle": "Quick actions",
+    "actionTree": "Open tree",
+    "actionTreeDesc": "Classic, graph, timeline & map views from one dataset.",
+    "actionAi": "AI Lab",
+    "actionAiDesc": "Document OCR, photo tagging, matches & story drafts.",
+    "actionMap": "Migration map",
+    "actionMapDesc": "Routes, events, and historical places on the globe.",
+    "actionResearch": "Research progress",
+    "actionResearchDesc": "Quests, gaps, mysteries & discovery score."
+  },
+  "aiLab": {
+    "eyebrow": "AI intelligence",
+    "title": "AI Lab",
+    "description": "Document intelligence, photo analysis, relative matching, and narrative tools — curated for genealogists.",
+    "refresh": "Refresh",
+    "storyDrafts": "Story drafts",
+    "storyDraftsDesc": "AI-assisted family narratives with privacy controls.",
+    "photoIntel": "Photo intelligence",
+    "photoIntelDesc": "Face tagging, bulk review, and media-person links.",
+    "docIntel": "Document intelligence",
+    "docIntelDesc": "OCR, entities, suggested events & citations.",
+    "matches": "Relative matches",
+    "matchesDesc": "Cross-tree candidates with explainable scores.",
+    "recentDocuments": "Recent documents",
+    "recentDocumentsHint": "Jump into OCR & extraction for your latest uploads.",
+    "matchSuggestions": "Match suggestions",
+    "matchSuggestionsHint": "Inbox candidates awaiting your review.",
+    "loading": "Loading AI workspace…",
+    "emptyDocuments": "No documents yet. Upload archives to begin.",
+    "emptyMatches": "No pending matches. Run matching from a family tree.",
+    "openIntel": "Open intelligence",
+    "confidence": "Score {score}%",
+    "review": "Review",
+    "photoWorkspace": "Photo intelligence workspace",
+    "photoWorkspaceDesc": "{count} media items in your archive — open bulk tagging to link faces to people.",
+    "openTagging": "Open tagging workspace",
+    "matchProfileTitle": "Matching consent",
+    "matchOptIn": "You opted in to relative matching across workspaces.",
+    "matchOptOut": "Matching is off. Enable in privacy center to discover relatives.",
+    "privacyLink": "Privacy center"
   },
   "familyStories": {
     "title": "Public family stories",
@@ -92,10 +154,14 @@
     "loading": "Loading matches…"
   },
   "shell": {
-    "brandTag": "AI Genealogy",
+    "brandTag": "Genealogy intelligence",
     "brandTitle": "Family Memory",
-    "tagline": "Self-hosted family platform",
+    "tagline": "Premium self-hosted family archive",
     "mvpWorkspace": "MVP Workspace",
+    "workspaceLabel": "Signed in as",
+    "mainNav": "Main navigation",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
     "defaultDisplayName": "Family Platform Admin",
     "lightTheme": "Light theme",
     "darkTheme": "Dark theme",
@@ -103,6 +169,7 @@
   },
   "community": {
     "hub": {
+      "eyebrow": "Collaborative research",
       "title": "Community",
       "description": "International space for family history — groups, discussions, and shared discoveries.",
       "feedEyebrow": "Latest discussions",
@@ -306,16 +373,24 @@
       "description": "Manage family lines, generations, and privacy policies for tree branches."
     },
     "tree": {
+      "eyebrow": "Tree experience",
       "title": "Family tree",
       "description": "Tree Experience 2.0: one dataset, five views (Classic, Graph, 3D, Timeline, Map). Switch modes like map layers; filters apply on the server.",
       "rendererNote": "GET /tree/person/:id/view-data feeds all renderers. Legacy ancestors/descendants/full endpoints remain as thin wrappers.",
       "rendererTitle": "Tree Experience 2.0"
     },
+    "tree3d": {
+      "eyebrow": "Immersive view",
+      "title": "3D family tree",
+      "description": "Spatial genealogy graph with WebGL — explore generations in depth with person insight on the side."
+    },
     "media": {
+      "eyebrow": "Photo intelligence",
       "title": "Media archive",
-      "description": "Photos, video, and voice stories: files in MinIO, metadata in PostgreSQL."
+      "description": "Photos, video, and voice stories: files in MinIO, metadata in PostgreSQL. Open tagging for AI face suggestions."
     },
     "documents": {
+      "eyebrow": "Document intelligence",
       "title": "Documents",
       "description": "Archive sources, OCR pipeline, review status, and links to persons, families, and events."
     },
@@ -341,6 +416,7 @@
       "description": "Preview before importing .ged: basic tags INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR, NOTE."
     },
     "research": {
+      "eyebrow": "Research progress",
       "title": "Family research",
       "description": "Track discovery progress, close evidence gaps, and pursue structured research cases across your archive."
     }
@@ -551,7 +627,8 @@
       "yearTo": "Year to"
     },
     "insight": {
-      "title": "Person insight",
+      "eyebrow": "Person insight",
+      "title": "Selected profile",
       "selected": "Selected",
       "living": "Living",
       "deceased": "Deceased",
@@ -616,9 +693,11 @@
     "noMetadata": "No media metadata yet",
     "loadFailed": "Failed to load media metadata",
     "emptyTitle": "No media",
-    "emptyDesc": "Upload the first file via the MinIO uploader."
+    "emptyDesc": "Upload the first file via the MinIO uploader.",
+    "imageCount": "{count} images with preview"
   },
   "photoIntelligence": {
+    "workspaceEyebrow": "Photo intelligence workspace",
     "photoViewer": "Photo intelligence",
     "photoViewerDesc": "Tag faces, link people from your tree, and review AI insights. Manual tagging works when AI is off.",
     "loading": "Loading photo workspace…",
@@ -662,7 +741,10 @@
     "bulkItemStats": "{untagged} untagged · {tagged} tagged",
     "bulkAssignAll": "Assign all untagged faces to",
     "applyBulkAssign": "Apply to current photo",
-    "bulkEmpty": "All photos are fully tagged — great work!"
+    "bulkEmpty": "All photos are fully tagged — great work!",
+    "bulkEditorTitle": "Tagging editor",
+    "bulkEditorActive": "Assign faces and confirm AI suggestions for the selected photo.",
+    "bulkSelectHint": "Select a photo from the queue to start tagging."
   },
   "documentsWorkspace": {
     "loading": "Loading documents, sources and citations…",
@@ -699,7 +781,32 @@
     "noCitations": "No citations",
     "backendEmpty": "Backend returned an empty list.",
     "intelligenceModal": "AI analysis",
-    "intelligenceFullPage": "Full workspace"
+    "intelligenceFullPage": "Full workspace",
+    "tabDocuments": "Documents",
+    "tabSources": "Sources",
+    "tabCitations": "Citations",
+    "listHint": "Select a row for actions. Use + Add to register new archive records.",
+    "showForm": "Add record",
+    "hideForm": "Hide form",
+    "formHint": "Fields map to PostgreSQL metadata; files live in MinIO.",
+    "typeLabel": "Document type",
+    "aiLabLink": "Open AI Lab",
+    "workspaceTipsTitle": "Document intelligence",
+    "workspaceTipsDesc": "Run OCR and entity extraction from the list or AI Lab.",
+    "tipIntelligence": "Use AI analysis for quick OCR pipeline preview, then open the full workspace to confirm events.",
+    "tipAiLab": "AI Lab aggregates documents, photo tagging, and relative matches."
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "trigger": "Search & commands",
+    "placeholder": "Search people, documents, places… or jump to a page",
+    "searching": "Searching archive…",
+    "noResults": "No matching commands or search hits",
+    "addPerson": "Add person",
+    "openAiLab": "AI Lab",
+    "openDocuments": "Documents archive",
+    "openMedia": "Media archive",
+    "openSearchPage": "Advanced search page"
   },
   "documentIntelligence": {
     "pageTitle": "Document intelligence",

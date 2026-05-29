@@ -1,18 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { TreeExperienceShell } from '@/features/tree-experience/tree-experience-shell';
-import { PageHeader } from '@/components/ui';
+import { PageHero } from '@family/ui';
 
 export default async function TreePage() {
   const t = await getTranslations('pages.tree');
 
   return (
     <div className="space-y-8">
-      <PageHeader title={t('title')} description={t('description')} />
-      <TreeExperienceShell />
-      <section className="rounded-3xl border bg-white/85 p-6 shadow-premium dark:bg-slate-900/80">
-        <h2 className="text-xl font-semibold">{t('rendererTitle')}</h2>
-        <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-slate-300">{t('rendererNote')}</p>
-      </section>
+      <PageHero eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
+      <TreeExperienceShell initialDisplayMode="classic" />
     </div>
   );
 }

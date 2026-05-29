@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GamificationDashboardPayload } from '@family/shared';
 import { useAuth } from '@/components/auth-provider';
-import { PageHeader } from '@/components/ui';
+import { PageHero } from '@family/ui';
 import { AchievementBadges } from '@/features/gamification/achievement-badges';
 import { FamilyMysteryCard } from '@/features/gamification/family-mystery-card';
 import { MissingDataWidget } from '@/features/gamification/missing-data-widget';
@@ -38,7 +38,7 @@ export function GamificationDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title={tPages('title')} description={tPages('description')} />
+      <PageHero eyebrow={tPages('eyebrow')} title={tPages('title')} description={tPages('description')} />
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
       {(!isReady || (!data && !error)) && <p className="text-sm text-stone-500">{t('loading')}</p>}

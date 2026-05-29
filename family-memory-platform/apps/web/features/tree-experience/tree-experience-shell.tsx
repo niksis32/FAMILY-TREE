@@ -20,13 +20,17 @@ function personSurname(person: Pick<PersonSummary, 'familyName'>) {
   return person.familyName?.trim() || '';
 }
 
-export function TreeExperienceShell() {
+export function TreeExperienceShell({
+  initialDisplayMode = 'classic',
+}: {
+  initialDisplayMode?: TreeDisplayMode;
+}) {
   const { session } = useAuth();
   const t = useTranslations('treeExperience');
   const [persons, setPersons] = useState<PersonSummary[]>([]);
   const [rootPersonId, setRootPersonId] = useState('');
   const [filters, setFilters] = useState<TreeViewDataQuery>({ scope: 'full', depth: 10 });
-  const [displayMode, setDisplayMode] = useState<TreeDisplayMode>('classic');
+  const [displayMode, setDisplayMode] = useState<TreeDisplayMode>(initialDisplayMode);
   const [data, setData] = useState<TreeViewDataResponse | null>(null);
   const [selectedNode, setSelectedNode] = useState<TreeViewNode | null>(null);
   const [loading, setLoading] = useState(false);

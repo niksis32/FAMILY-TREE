@@ -10,6 +10,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['"Cormorant Garamond"', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        sans: ['"DM Sans"', 'system-ui', 'Segoe UI', 'sans-serif'],
+      },
       colors: {
         family: {
           primary: '#1e3a5f',
@@ -22,6 +26,10 @@ const config: Config = {
       },
       boxShadow: {
         premium: '0 24px 80px -32px rgba(15, 23, 42, 0.45)',
+        'premium-sm': '0 12px 40px -20px rgba(15, 23, 42, 0.28)',
+      },
+      transitionTimingFunction: {
+        premium: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
     },
   },

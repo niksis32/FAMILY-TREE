@@ -23,16 +23,78 @@
     "persons": "Люди",
     "families": "Семьи",
     "tree": "Древо",
-    "map": "Историческая карта",
-    "research": "Расследование",
+    "tree3d": "3D Древо",
+    "map": "Карта",
+    "research": "Исследование",
     "timeline": "Хронология",
     "media": "Медиа",
     "documents": "Документы",
     "search": "Поиск",
     "settings": "Настройки",
     "community": "Сообщество",
-    "matching": "Центр совпадений",
-    "stories": "Семейные истории"
+    "matching": "Совпадения",
+    "stories": "Истории",
+    "aiLab": "AI Lab",
+    "groups": {
+      "explore": "Исследование",
+      "records": "Архив",
+      "intelligence": "Интеллект",
+      "social": "Сообщество"
+    }
+  },
+  "premiumDashboard": {
+    "eyebrow": "Генеалогический интеллект",
+    "title": "Панель семейной памяти",
+    "description": "Архив в одном окне — древо, медиа, документы и AI-исследование в premium-интерфейсе.",
+    "addPerson": "Добавить персону",
+    "statPersons": "Люди",
+    "statFamilies": "Семьи",
+    "statMedia": "Медиа",
+    "statDocuments": "Документы",
+    "hintPersons": "Профили, связанные с древом",
+    "hintFamilies": "Ветки и политики приватности",
+    "hintMedia": "Фото, видео, голосовые воспоминания",
+    "hintDocuments": "Архивные источники и OCR",
+    "quickActionsTitle": "Быстрые действия",
+    "actionTree": "Открыть древо",
+    "actionTreeDesc": "Классика, граф, хронология и карта из одного набора данных.",
+    "actionAi": "AI Lab",
+    "actionAiDesc": "OCR документов, теги на фото, совпадения и черновики историй.",
+    "actionMap": "Карта миграций",
+    "actionMapDesc": "Маршруты, события и исторические места на глобусе.",
+    "actionResearch": "Прогресс исследования",
+    "actionResearchDesc": "Квесты, пробелы, тайны и discovery score."
+  },
+  "aiLab": {
+    "eyebrow": "AI-интеллект",
+    "title": "AI Lab",
+    "description": "Анализ документов и фото, поиск родственников и нарративы — в одном рабочем пространстве.",
+    "refresh": "Обновить",
+    "storyDrafts": "Черновики историй",
+    "storyDraftsDesc": "AI-рассказы с контролем приватности.",
+    "photoIntel": "Фото-интеллект",
+    "photoIntelDesc": "Теги лиц, массовая проверка, связи с людьми.",
+    "docIntel": "Документ-интеллект",
+    "docIntelDesc": "OCR, сущности, события и цитаты.",
+    "matches": "Совпадения",
+    "matchesDesc": "Кандидаты между деревьями с объяснимым score.",
+    "recentDocuments": "Недавние документы",
+    "recentDocumentsHint": "Перейти к OCR и извлечению для последних загрузок.",
+    "matchSuggestions": "Предложения совпадений",
+    "matchSuggestionsHint": "Кандидаты в inbox, ожидающие решения.",
+    "loading": "Загрузка AI Lab…",
+    "emptyDocuments": "Документов пока нет. Загрузите архивные файлы.",
+    "emptyMatches": "Нет ожидающих совпадений. Запустите сканирование из семьи.",
+    "openIntel": "Открыть анализ",
+    "confidence": "Оценка {score}%",
+    "review": "Проверить",
+    "photoWorkspace": "Фото-интеллект",
+    "photoWorkspaceDesc": "{count} медиа в архиве — откройте массовую разметку лиц.",
+    "openTagging": "Разметка фото",
+    "matchProfileTitle": "Согласие на матчинг",
+    "matchOptIn": "Вы участвуете в поиске родственников между workspace.",
+    "matchOptOut": "Матчинг выключен. Включите в центре приватности.",
+    "privacyLink": "Центр приватности"
   },
   "familyStories": {
     "title": "Публичные семейные истории",
@@ -90,10 +152,14 @@
     "loading": "Загрузка…"
   },
   "shell": {
-    "brandTag": "AI ГЕНЕАЛОГИЯ",
+    "brandTag": "Генеалогический интеллект",
     "brandTitle": "Family Memory",
-    "tagline": "Self-hosted семейная платформа",
+    "tagline": "Premium self-hosted семейный архив",
     "mvpWorkspace": "MVP-рабочая область",
+    "workspaceLabel": "Вы вошли как",
+    "mainNav": "Основная навигация",
+    "openMenu": "Открыть меню",
+    "closeMenu": "Закрыть меню",
     "defaultDisplayName": "Админ платформы",
     "lightTheme": "Светлая тема",
     "darkTheme": "Тёмная тема",
@@ -101,6 +167,7 @@
   },
   "community": {
     "hub": {
+      "eyebrow": "Совместное исследование",
       "title": "Сообщество",
       "description": "Международное пространство для истории семьи — группы, обсуждения и общие находки.",
       "feedEyebrow": "Свежие обсуждения",
@@ -304,16 +371,24 @@
       "description": "Управление семейными линиями, поколениями и политиками приватности для отдельных веток древа."
     },
     "tree": {
+      "eyebrow": "Tree Experience",
       "title": "Семейное древо",
       "description": "Tree Experience 2.0: одни данные — пять режимов (2D, схема, 3D, timeline, карта). Переключатель как слои карты; фильтры на сервере.",
       "rendererNote": "GET /tree/person/:id/view-data питает все рендеры. Старые endpoints ancestors/descendants/full — thin-wrapper для совместимости.",
       "rendererTitle": "Tree Experience 2.0"
     },
+    "tree3d": {
+      "eyebrow": "Иммерсивный режим",
+      "title": "3D семейное древо",
+      "description": "Пространственный граф в WebGL — поколения в глубине и Person Insight справа."
+    },
     "media": {
+      "eyebrow": "Фото-интеллект",
       "title": "Медиаархив",
-      "description": "Фото, видео и voice stories: файлы физически уходят в MinIO, а metadata сохраняется в PostgreSQL."
+      "description": "Фото, видео и voice stories: MinIO + PostgreSQL. Разметка лиц — в workspace тегирования."
     },
     "documents": {
+      "eyebrow": "Документ-интеллект",
       "title": "Документы",
       "description": "Архивные источники, OCR pipeline, статусы проверки и связь документов с персонами, семьями и событиями."
     },
@@ -345,6 +420,7 @@
       "description": "Preview перед импортом .ged: базовые теги INDI, FAM, NAME, SEX, BIRT, DEAT, FAMS, FAMC, HUSB, WIFE, CHIL, MARR, SOUR и NOTE."
     },
     "research": {
+      "eyebrow": "Прогресс исследования",
       "title": "Семейное расследование",
       "description": "Прогресс исследования, пробелы в доказательной базе и структурированные research cases по архиву семьи."
     }
@@ -542,7 +618,8 @@
       "yearTo": "Год до"
     },
     "insight": {
-      "title": "Карточка персоны",
+      "eyebrow": "Person Insight",
+      "title": "Выбранный профиль",
       "selected": "Выбрано",
       "living": "Жив",
       "deceased": "Умер(ла)",
@@ -607,9 +684,11 @@
     "noMetadata": "Media metadata пока нет",
     "loadFailed": "Не удалось загрузить media metadata",
     "emptyTitle": "Медиа нет",
-    "emptyDesc": "Загрузите первый файл через MinIO uploader."
+    "emptyDesc": "Загрузите первый файл через MinIO uploader.",
+    "imageCount": "Превью изображений: {count}"
   },
   "photoIntelligence": {
+    "workspaceEyebrow": "Фото-интеллект workspace",
     "photoViewer": "Фото и лица",
     "photoViewerDesc": "Разметка лиц, привязка к персонам дерева и AI-подсказки. Без AI доступна ручная разметка.",
     "loading": "Загрузка фото…",
@@ -653,7 +732,10 @@
     "bulkItemStats": "без персоны: {untagged} · с персоной: {tagged}",
     "bulkAssignAll": "Назначить все неназначенные лица",
     "applyBulkAssign": "Применить к текущему фото",
-    "bulkEmpty": "Все фото размечены — отличная работа!"
+    "bulkEmpty": "Все фото размечены — отличная работа!",
+    "bulkEditorTitle": "Редактор разметки",
+    "bulkEditorActive": "Назначьте лица и проверьте AI-подсказки для выбранного фото.",
+    "bulkSelectHint": "Выберите фото в очереди слева."
   },
   "documentsWorkspace": {
     "loading": "Загружаем documents/sources/citations...",
@@ -690,7 +772,32 @@
     "noCitations": "Цитат нет",
     "backendEmpty": "Backend вернул пустой список.",
     "intelligenceModal": "Анализ AI",
-    "intelligenceFullPage": "Полный экран"
+    "intelligenceFullPage": "Полный экран",
+    "tabDocuments": "Документы",
+    "tabSources": "Источники",
+    "tabCitations": "Цитаты",
+    "listHint": "Выберите строку для действий. Кнопка «Добавить» — новая запись.",
+    "showForm": "Добавить",
+    "hideForm": "Скрыть форму",
+    "formHint": "Метаданные в PostgreSQL; файлы — в MinIO.",
+    "typeLabel": "Тип документа",
+    "aiLabLink": "Открыть AI Lab",
+    "workspaceTipsTitle": "Документ-интеллект",
+    "workspaceTipsDesc": "OCR и извлечение сущностей — из списка или AI Lab.",
+    "tipIntelligence": "Быстрый OCR в модалке, полное подтверждение событий — на отдельной странице.",
+    "tipAiLab": "AI Lab объединяет документы, фото и совпадения."
+  },
+  "commandPalette": {
+    "title": "Командная палитра",
+    "trigger": "Поиск и команды",
+    "placeholder": "Люди, документы, места… или переход на страницу",
+    "searching": "Поиск в архиве…",
+    "noResults": "Ничего не найдено",
+    "addPerson": "Добавить персону",
+    "openAiLab": "AI Lab",
+    "openDocuments": "Архив документов",
+    "openMedia": "Медиаархив",
+    "openSearchPage": "Расширенный поиск"
   },
   "documentIntelligence": {
     "pageTitle": "Интеллект по документу",

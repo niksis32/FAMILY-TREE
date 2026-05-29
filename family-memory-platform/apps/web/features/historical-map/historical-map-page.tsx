@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { HistoricalMapMode, MapPayload } from '@family/shared';
 import { useAuth } from '@/components/auth-provider';
-import { Badge, Card, FormField, Select } from '@/components/ui';
+import { PageHero } from '@family/ui';
+import { Card, FormField, Select } from '@/components/ui';
 import { apiClient, formatApiError } from '@/lib/api-client';
 import { formatPersonLabel } from '@/lib/person-display';
 import type { PersonSummary } from '@family/shared';
@@ -164,11 +165,7 @@ export function HistoricalMapPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge>{t('badge')}</Badge>
-        <h1 className="mt-3 font-serif text-3xl font-semibold text-family-ink dark:text-amber-50">{t('title')}</h1>
-        <p className="mt-2 max-w-3xl text-sm text-stone-500 dark:text-slate-400">{t('subtitle')}</p>
-      </div>
+      <PageHero eyebrow={t('badge')} title={t('title')} description={t('subtitle')} />
 
       <Card className="grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-4">
         <FormField label={t('sourceKind')}>

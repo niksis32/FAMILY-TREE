@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { ModalShell } from '@family/ui';
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui';
 import { PhotoViewerWithTags } from './photo-viewer-with-tags';
@@ -15,21 +16,24 @@ export function PhotoViewerModal({ mediaId, title, onClose }: PhotoViewerModalPr
   const t = useTranslations('photoIntelligence');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-950">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">{title ?? t('photoViewer')}</h2>
-            <Link href={`/media/${mediaId}`} className="text-sm text-family-primary hover:underline">
-              {t('openFullPage')}
-            </Link>
-          </div>
+    <ModalShell
+      open
+      onClose={onClose}
+      title={title ?? t('photoViewer')}
+      subtitle={t('photoViewerDesc')}
+      size="xl"
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link href={`/media/${mediaId}`} className="text-sm font-semibold text-family-primary dark:text-family-accent">
+            {t('openFullPage')} →
+          </Link>
           <Button variant="ghost" onClick={onClose}>
             {t('close')}
           </Button>
         </div>
-        <PhotoViewerWithTags mediaId={mediaId} compact />
-      </div>
-    </div>
+      }
+    >
+      <PhotoViewerWithTags mediaId={mediaId} compact />
+    </ModalShell>
   );
 }

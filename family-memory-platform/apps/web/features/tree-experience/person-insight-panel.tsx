@@ -20,8 +20,9 @@ export function PersonInsightPanel({
   const events = data?.events.filter((e) => e.personId === selectedNode?.personId).slice(0, 6) ?? [];
 
   return (
-    <Card className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto">
-      <h2 className="text-xl font-semibold">{t('insight.title')}</h2>
+    <Card className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto border-family-accent/20 bg-gradient-to-b from-white to-family-surface/80 dark:from-slate-900 dark:to-slate-950">
+      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-family-accent">{t('insight.eyebrow')}</p>
+      <h2 className="font-serif mt-1 text-xl font-semibold text-family-ink dark:text-white">{t('insight.title')}</h2>
 
       <AnimatePresence mode="wait">
         {selectedNode ? (
@@ -32,7 +33,7 @@ export function PersonInsightPanel({
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
-            <div className="mt-4 rounded-2xl border border-family-accent/40 bg-family-accent/5 p-4 dark:border-cyan-800/40 dark:bg-slate-950/80">
+            <div className="mt-4 rounded-2xl border border-family-accent/30 bg-gradient-to-br from-family-accent/8 to-white p-4 shadow-sm dark:from-family-accent/10 dark:to-slate-950/90">
               {selectedNode.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <motion.img
