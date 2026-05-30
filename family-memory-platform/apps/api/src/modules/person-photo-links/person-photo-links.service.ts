@@ -7,6 +7,7 @@ import {
   type PersonMatchSuggestion,
   type PhotoWorkspacePayload,
 } from '@family/shared';
+import { RedisService } from '../../common/redis/redis.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import { AiService } from '../ai/ai.service';
@@ -19,6 +20,7 @@ export class PersonPhotoLinksService {
     private readonly mediaService: MediaService,
     private readonly aiService: AiService,
     private readonly config: ConfigService,
+    private readonly redis: RedisService,
   ) {}
 
   async getWorkspace(mediaId: string): Promise<PhotoWorkspacePayload> {
@@ -96,6 +98,7 @@ export class PersonPhotoLinksService {
           }
         : null,
       aiEnabled: this.config.get<string>('AI_SERVICE_ENABLED') === 'true',
+      aiQueueAvailable: this.redis.isAvailable(),
     };
   }
 

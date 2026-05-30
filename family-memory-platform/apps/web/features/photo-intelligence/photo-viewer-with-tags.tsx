@@ -8,6 +8,7 @@ import { Button, Card } from '@/components/ui';
 import { apiClient } from '@/lib/api-client';
 import { FaceBoxOverlay } from './face-box-overlay';
 import { FaceTagEditor } from './face-tag-editor';
+import { PhotoAiDegradationBanner } from './photo-ai-degradation-banner';
 import { PersonTagPopover } from './person-tag-popover';
 import { SuggestedPersonMatchPanel } from './suggested-person-match-panel';
 import { usePhotoWorkspace } from './use-photo-workspace';
@@ -95,9 +96,10 @@ export function PhotoViewerWithTags({ mediaId, compact }: PhotoViewerWithTagsPro
   }, [editorLabel, editorNote, editorPersonId, mediaId, reload, selectedTagId, session?.accessToken]);
 
   const enqueueAnalysis = useCallback(async () => {
+    if (!workspace?.aiQueueAvailable || !workspace.aiEnabled) return;
     await apiClient.photoIntelligence.enqueueAnalysis(mediaId, session?.accessToken);
     await reload();
-  }, [mediaId, reload, session?.accessToken]);
+  }, [mediaId, reload, session?.accessToken, workspace?.aiEnabled, workspace?.aiQueueAvailable]);
 
   const addComment = useCallback(async () => {
     if (!commentBody.trim()) return;
@@ -116,8 +118,16 @@ export function PhotoViewerWithTags({ mediaId, compact }: PhotoViewerWithTagsPro
 
   if (!workspace) return null;
 
+  const canRunAiAnalysis = workspace.aiEnabled && workspace.aiQueueAvailable;
+  const aiButtonLabel = !workspace.aiEnabled
+    ? t('aiDisabled')
+    : !workspace.aiQueueAvailable
+      ? t('aiQueueUnavailableButton')
+      : t('runAiAnalysis');
+
   return (
     <div className={compact ? 'space-y-4' : 'grid gap-6 xl:grid-cols-[1.4fr_0.9fr]'}>
+      {!workspace.aiQueueAvailable ? <PhotoAiDegradationBanner /> : null}
       <div className="space-y-3">
         <div
           ref={imageRef}
@@ -150,9 +160,9 @@ export function PhotoViewerWithTags({ mediaId, compact }: PhotoViewerWithTagsPro
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => void enqueueAnalysis()} disabled={!workspace.aiEnabled}>
-            {workspace.aiEnabled ? t('runAiAnalysis') : t('aiDisabled')}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={() => void enqueueAnalysis()} disabled={!canRunAiAnalysis}>
+            {aiButtonLabel}
           </Button>
           <span className="text-xs text-stone-500 self-center">
             {workspace.analysisJob
@@ -160,6 +170,11 @@ export function PhotoViewerWithTags({ mediaId, compact }: PhotoViewerWithTagsPro
               : t('noAnalysisYet')}
           </span>
         </div>
+        {workspace.analysisJob?.status === 'SKIPPED' ? (
+          <p className="text-xs text-amber-800 dark:text-amber-200/90">
+            {workspace.analysisJob.error ?? t('analysisSkippedReason')}
+          </p>
+        ) : null}
         {workspace.insight?.aiDescription ? (
           <p className="text-sm text-stone-600 dark:text-slate-300">{workspace.insight.aiDescription}</p>
         ) : null}

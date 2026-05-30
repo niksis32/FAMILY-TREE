@@ -15,7 +15,15 @@ export class OcrPreviewDto {
 
   @IsOptional()
   @IsString()
+  downloadUrl?: string;
+
+  @IsOptional()
+  @IsString()
   textHint?: string;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class RelationshipSuggestDto {

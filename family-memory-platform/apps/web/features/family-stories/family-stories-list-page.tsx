@@ -62,7 +62,7 @@ export function FamilyStoriesListPage() {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link href={`/stories/${story.id}/edit`}>
-                  <Button variant="secondary" size="sm">
+                  <Button variant="secondary">
                     Edit
                   </Button>
                 </Link>

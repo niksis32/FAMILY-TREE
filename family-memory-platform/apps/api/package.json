@@ -30,6 +30,7 @@
     "@nestjs/platform-express": "^10.4.15",
     "graphql": "^16.10.0",
     "@nestjs/swagger": "^8.1.0",
+    "@nestjs/throttler": "^6.4.0",
     "@prisma/client": "^6.1.0",
     "bullmq": "^5.34.5",
     "class-transformer": "^0.5.1",

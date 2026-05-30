@@ -18,11 +18,11 @@ const CONSENT_LABELS: Record<string, string> = {
 
 export function PrivacyCenterPage() {
   const { session } = useAuth();
-  const token = session?.token ?? null;
+  const token = session?.accessToken ?? null;
   const [center, setCenter] = useState<PrivacySecurityCenterState | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [personId, setPersonId] = useState('seed-person-ivan');
-  const [familyId, setFamilyId] = useState('seed-family-petrov');
+  const personId = 'seed-person-ivan';
+  const familyId = 'seed-family-petrov';
 
   const load = useCallback(async () => {
     if (!token) return;

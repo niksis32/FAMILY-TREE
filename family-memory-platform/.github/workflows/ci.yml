@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -36,8 +41,11 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build
-        run: pnpm build
+      - name: Build workspace packages
+        run: pnpm exec turbo run build --filter=@family/web^...
+
+      - name: Next.js build (web green gate)
+        run: pnpm exec turbo run build --filter=@family/web
 
   docker-config:
     runs-on: ubuntu-latest

@@ -16,6 +16,7 @@ import type {
   TreeViewNode,
   TreeViewPlace,
 } from '@family/shared';
+import { getParentChildDirection, normalizeRelationshipType } from '@family/genealogy-core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 
@@ -209,7 +210,7 @@ export class TreeViewDataService {
 
     if (mode === 'full') {
       for (const relationship of relationships) {
-        const type = relationship.type.toLowerCase();
+        const type = normalizeRelationshipType(relationship.type);
         if (type === 'spouse' || type === 'partner' || type === 'sibling') {
           if (generations.has(relationship.fromPersonId)) {
             const gen = generations.get(relationship.fromPersonId)!;
@@ -263,7 +264,7 @@ export class TreeViewDataService {
     const adjacency = new Map<string, string[]>();
 
     for (const relationship of relationships) {
-      const link = this.parentChildDirection(relationship);
+      const link = getParentChildDirection(relationship);
       if (!link) continue;
 
       const parentId = link.parentId;
@@ -360,7 +361,7 @@ export class TreeViewDataService {
     let groupCounter = 0;
 
     for (const relationship of relationships) {
-      const type = relationship.type.toLowerCase();
+      const type = normalizeRelationshipType(relationship.type);
       if (type !== 'spouse' && type !== 'partner') continue;
       if (!idSet.has(relationship.fromPersonId) || !idSet.has(relationship.toPersonId)) continue;
       if (generations.get(relationship.fromPersonId) !== generations.get(relationship.toPersonId)) continue;
@@ -616,19 +617,8 @@ export class TreeViewDataService {
       }));
   }
 
-  private parentChildDirection(relationship: DbRelationship) {
-    const type = relationship.type.toLowerCase();
-    if (type === 'parent' || type === 'adoptive_parent') {
-      return { parentId: relationship.fromPersonId, childId: relationship.toPersonId };
-    }
-    if (type === 'child' || type === 'adoptive_child') {
-      return { parentId: relationship.toPersonId, childId: relationship.fromPersonId };
-    }
-    return null;
-  }
-
   private toEdge(relationship: DbRelationship): TreeViewEdge {
-    const direction = this.parentChildDirection(relationship);
+    const direction = getParentChildDirection(relationship);
     return {
       id: relationship.id,
       source: direction?.parentId ?? relationship.fromPersonId,

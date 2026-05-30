@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TreeViewDataQuery } from '@family/shared';
 import { useAuth } from '@/components/auth-provider';
-import { Badge, Card, FormField, Select } from '@/components/ui';
+import { Badge, Card, FormField } from '@/components/ui';
+import { PersonSearchCombobox } from '@/components/person-search-combobox';
 import { apiClient, formatApiError } from '@/lib/api-client';
-import { formatPersonLabel } from '@/lib/person-display';
 import type { PersonSummary } from '@family/shared';
 import { TreeViewDataProvider } from './tree-view-data-context';
 import type { TreeDisplayMode } from './tree-view-data-context';
@@ -125,21 +125,16 @@ export function TreeExperienceShell({
 
             <div className="grid gap-4 lg:grid-cols-2">
               <FormField label={t('rootPerson')}>
-                <Select
+                <PersonSearchCombobox
+                  persons={personsBySurname}
                   value={rootPersonId}
-                  onChange={(e) => {
-                    setRootPersonId(e.target.value);
+                  onChange={(personId) => {
+                    setRootPersonId(personId);
                     setSelectedNode(null);
                   }}
                   disabled={personsBySurname.length === 0}
-                >
-                  <option value="">{t('pickRoot')}</option>
-                  {personsBySurname.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {formatPersonLabel(person)}
-                    </option>
-                  ))}
-                </Select>
+                  placeholder={t('pickRoot')}
+                />
               </FormField>
             </div>
 

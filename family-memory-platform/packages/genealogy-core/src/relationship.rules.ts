@@ -11,20 +11,31 @@ const INVERSE_MAP: Record<RelationshipType, RelationshipType> = {
   unknown: 'unknown',
 };
 
-export function getInverseRelationship(type: RelationshipType): RelationshipType {
-  return INVERSE_MAP[type];
+/** Prisma/API enums use `PARENT`; core model uses `parent`. */
+export function normalizeRelationshipType(type: string): RelationshipType {
+  return type.trim().toLowerCase() as RelationshipType;
+}
+
+export function getInverseRelationship(type: RelationshipType | string): RelationshipType {
+  return INVERSE_MAP[normalizeRelationshipType(type)];
 }
 
 export function isBidirectionalSymmetric(type: RelationshipType): boolean {
   return type === 'spouse' || type === 'sibling' || type === 'partner';
 }
 
-export function getParentChildDirection(relationship: Relationship): { parentId: string; childId: string } | null {
-  if (relationship.type === 'parent' || relationship.type === 'adoptive_parent') {
+export function getParentChildDirection(relationship: {
+  fromPersonId: string;
+  toPersonId: string;
+  type: string;
+}): { parentId: string; childId: string } | null {
+  const type = normalizeRelationshipType(relationship.type);
+
+  if (type === 'parent' || type === 'adoptive_parent') {
     return { parentId: relationship.fromPersonId, childId: relationship.toPersonId };
   }
 
-  if (relationship.type === 'child' || relationship.type === 'adoptive_child') {
+  if (type === 'child' || type === 'adoptive_child') {
     return { parentId: relationship.toPersonId, childId: relationship.fromPersonId };
   }
 

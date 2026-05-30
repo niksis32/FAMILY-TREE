@@ -297,6 +297,9 @@
     "selectPersonPrompt": "Select a person to load the timeline.",
     "selectPersonShort": "Select a person.",
     "loadingTimeline": "Loading life timeline…",
+    "loadingPersonsDesc": "Fetching people from the API…",
+    "loadErrorTitle": "Could not load timeline",
+    "loadPersonsErrorTitle": "Could not load people",
     "eventsCount": "Events: {count}",
     "noPersonsTitle": "No persons yet",
     "noPersonsDesc": "Create a person first on the People page.",
@@ -501,6 +504,10 @@
     "hasAvatar": "Has avatar and media in the family archive.",
     "addAvatarHint": "Add an avatar and documents when creating the person."
   },
+  "personSearchCombobox": {
+    "searchPlaceholder": "Search by name…",
+    "noMatches": "No matching people"
+  },
   "familiesWorkspace": {
     "loading": "Loading families and relationships…",
     "loadingBackend": "Loading families and relationships from backend…",
@@ -704,6 +711,11 @@
     "manualFace": "Manual face",
     "runAiAnalysis": "Run AI analysis",
     "aiDisabled": "AI disabled (manual tagging available)",
+    "aiQueueUnavailableButton": "AI queue unavailable",
+    "redisQueueUnavailableTitle": "Background AI queue is off",
+    "redisQueueUnavailableBody": "Automatic face detection runs through Redis (BullMQ). Without REDIS_URL you can still draw face boxes and link people manually.",
+    "redisQueueUnavailableHint": "Set REDIS_URL (e.g. redis://localhost:6379) and restart the API, or start Redis via docker compose.",
+    "analysisSkippedReason": "Analysis was skipped because the queue is unavailable.",
     "analysisStatus": "Analysis: {status}",
     "noAnalysisYet": "No analysis queued yet",
     "unassignedFace": "Face not linked to a person yet",

@@ -39,7 +39,14 @@ export function RelationshipBadge({ type }: { type: RelationshipType }) {
   return <Badge tone="blue">{label[type]}</Badge>;
 }
 
-export function PersonCard({ person }: { person: PersonSummary }) {
+export function PersonCard({
+  person,
+}: {
+  person: Pick<
+    PersonSummary,
+    'id' | 'givenName' | 'patronymic' | 'familyName' | 'birthDate' | 'deathDate' | 'privacyLevel' | 'primaryPhotoUrl'
+  >;
+}) {
   const t = useTranslations('personCard');
   const tCommon = useTranslations('common');
   const birthYear = person.birthDate?.slice(0, 4);

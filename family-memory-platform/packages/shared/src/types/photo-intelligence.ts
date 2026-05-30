@@ -100,7 +100,10 @@ export interface PhotoWorkspacePayload {
   insight?: PhotoInsightRecord | null;
   comments: MediaCommentRecord[];
   analysisJob?: PhotoAnalysisJobRecord | null;
+  /** AI service (MediaPipe) reachable when true */
   aiEnabled: boolean;
+  /** BullMQ photo-analysis queue; requires REDIS_URL */
+  aiQueueAvailable: boolean;
 }
 
 export interface BulkTaggingMediaItem {

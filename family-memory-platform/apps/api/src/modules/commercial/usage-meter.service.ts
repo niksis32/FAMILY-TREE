@@ -35,9 +35,9 @@ export class UsageMeterService {
 
     const mediaAgg = await this.prisma.media.aggregate({
       _sum: { sizeBytes: true },
-      where: { deletedAt: null },
+      where: { workspaceId, deletedAt: null },
     });
-    const mediaBytes = BigInt(mediaAgg._sum.sizeBytes ?? 0);
+    const mediaBytes = BigInt(mediaAgg._sum?.sizeBytes ?? 0);
 
     const limits: { metric: UsageMetric; used: bigint; limit: bigint }[] = [
       { metric: 'FAMILIES', used: BigInt(families), limit: BigInt(entitlements.maxFamilies) },

@@ -1,8 +1,10 @@
-"""Document intelligence — OCR, NER, suggestions (stub contracts for PROMPT 7)."""
+"""Document intelligence — OCR, NER, suggestions (PROMPT 7)."""
 
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from app.ocr_engine import run_ocr_from_url, tesseract_available
 
 
 class DocumentOcrRequest(BaseModel):
@@ -10,6 +12,7 @@ class DocumentOcrRequest(BaseModel):
     file_name: str | None = Field(default=None, alias="fileName")
     mime_type: str | None = Field(default=None, alias="mimeType")
     storage_key: str | None = Field(default=None, alias="storageKey")
+    download_url: str | None = Field(default=None, alias="downloadUrl")
     language: str = "ru"
     text_hint: str | None = Field(default=None, alias="textHint")
 
@@ -59,8 +62,7 @@ class DocumentSummarizeRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-def _stub_pages_from_hint(req: DocumentOcrRequest) -> list[dict[str, Any]]:
-    text = (req.text_hint or "").strip() or "(no stored OCR text — run OCR pipeline or paste textHint from API)"
+def _hint_pages(text: str) -> list[dict[str, Any]]:
     return [
         {
             "page": 1,
@@ -76,14 +78,59 @@ def _stub_pages_from_hint(req: DocumentOcrRequest) -> list[dict[str, Any]]:
     ]
 
 
-def document_ocr_stub(req: DocumentOcrRequest) -> dict[str, Any]:
+async def document_ocr(req: DocumentOcrRequest) -> dict[str, Any]:
+    if req.download_url and tesseract_available():
+        try:
+            result = await run_ocr_from_url(req.download_url, req.mime_type, req.language)
+            return {
+                "status": "ok",
+                "feature": "document.ocr",
+                "documentId": req.document_id,
+                "language": result["language"],
+                "engine": result["engine"],
+                "averageConfidence": result["averageConfidence"],
+                "pages": result["pages"],
+            }
+        except Exception as exc:  # noqa: BLE001
+            hint = (req.text_hint or "").strip()
+            if hint:
+                return {
+                    "status": "fallback",
+                    "feature": "document.ocr",
+                    "documentId": req.document_id,
+                    "language": req.language,
+                    "engine": "text-hint",
+                    "pages": _hint_pages(hint),
+                    "message": f"OCR failed ({exc}); returned stored textHint.",
+                }
+            return {
+                "status": "error",
+                "feature": "document.ocr",
+                "documentId": req.document_id,
+                "language": req.language,
+                "pages": [],
+                "message": str(exc),
+            }
+
+    hint = (req.text_hint or "").strip()
+    if hint:
+        return {
+            "status": "hint",
+            "feature": "document.ocr",
+            "documentId": req.document_id,
+            "language": req.language,
+            "engine": "text-hint",
+            "pages": _hint_pages(hint),
+            "message": "No downloadUrl or Tesseract unavailable — returned textHint only.",
+        }
+
     return {
-        "status": "stub",
+        "status": "unavailable",
         "feature": "document.ocr",
         "documentId": req.document_id,
         "language": req.language,
-        "pages": _stub_pages_from_hint(req),
-        "message": "OCR is stubbed. Connect Tesseract/PaddleOCR and PDF rasterization for production.",
+        "pages": _hint_pages("(no stored OCR text — upload a file and run OCR with AI profile enabled)"),
+        "message": "Provide downloadUrl and enable Tesseract (docker profile ai) for real OCR.",
     }
 
 

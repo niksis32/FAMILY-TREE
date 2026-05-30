@@ -8,7 +8,7 @@ import { useAuth } from '@/components/auth-provider';
 
 export function SettingsPrivacyPage() {
   const { session } = useAuth();
-  const token = session?.token ?? null;
+  const token = session?.accessToken ?? null;
   const [center, setCenter] = useState<PrivacyCenterState | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 

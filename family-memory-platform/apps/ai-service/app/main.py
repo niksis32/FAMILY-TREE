@@ -27,11 +27,12 @@ from app.document_intelligence import (
     DocumentSuggestRelationshipsRequest,
     DocumentSummarizeRequest,
     document_extract_entities_stub,
-    document_ocr_stub,
+    document_ocr,
     document_suggest_events_stub,
     document_suggest_relationships_stub,
     document_summarize_stub,
 )
+from app.ocr_engine import tesseract_available
 from app.photo import (
     PhotoImageRequest,
     PhotoSuggestRequest,
@@ -53,7 +54,9 @@ class OcrPreviewRequest(BaseModel):
     document_id: str | None = Field(default=None, alias="documentId")
     file_name: str | None = Field(default=None, alias="fileName")
     mime_type: str | None = Field(default=None, alias="mimeType")
+    download_url: str | None = Field(default=None, alias="downloadUrl")
     text_hint: str | None = Field(default=None, alias="textHint")
+    language: str = "ru"
 
 
 class RelationshipSuggestRequest(BaseModel):
@@ -77,7 +80,7 @@ def health():
         "service": "family-ai",
         "optional": True,
         "implemented": [
-            "ocr.stub",
+            "ocr.tesseract" if tesseract_available() else "ocr.hint-only",
             "photo.mediapipe",
             "relationship.stub",
             "timeline.stub",
@@ -89,21 +92,40 @@ def health():
             "family-story.narrative",
         ],
         "mediapipe": mediapipe_module is not None,
+        "tesseract": tesseract_available(),
         "futureEngines": ["paddleocr", "local-llm", "face-embeddings"],
     }
 
 
 @app.post("/ocr/preview")
-def ocr_preview_stub(payload: OcrPreviewRequest):
+async def ocr_preview(payload: OcrPreviewRequest):
+    doc_id = payload.document_id or "preview"
+    result = await document_ocr(
+        DocumentOcrRequest(
+            documentId=doc_id,
+            fileName=payload.file_name,
+            mimeType=payload.mime_type,
+            downloadUrl=payload.download_url,
+            language=payload.language,
+            textHint=payload.text_hint,
+        )
+    )
+    pages = result.get("pages") or []
+    text = " ".join(
+        block.get("text", "")
+        for page in pages
+        for block in page.get("blocks", [])
+    ).strip()
     return {
-        "status": "stub",
+        "status": result.get("status", "ok"),
         "feature": "ocr.preview",
         "documentId": payload.document_id,
         "fileName": payload.file_name,
         "mimeType": payload.mime_type,
-        "text": payload.text_hint or "",
-        "confidence": 0,
-        "message": "OCR preview is disabled in MVP. Plug in Tesseract/PaddleOCR later.",
+        "text": text or payload.text_hint or "",
+        "confidence": result.get("averageConfidence", 0),
+        "engine": result.get("engine"),
+        "message": result.get("message"),
     }
 
 
@@ -190,8 +212,8 @@ async def photo_estimate_period(payload: PhotoImageRequest):
 
 
 @app.post("/document/ocr")
-def document_ocr(payload: DocumentOcrRequest):
-    return document_ocr_stub(payload)
+async def document_ocr_route(payload: DocumentOcrRequest):
+    return await document_ocr(payload)
 
 
 @app.post("/document/extract-entities")

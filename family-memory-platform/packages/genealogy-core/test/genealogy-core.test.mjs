@@ -24,6 +24,11 @@ const relationships = [
   { id: 'r2', fromPersonId: 'parent', toPersonId: 'child', type: 'parent' },
 ];
 
+const prismaRelationships = [
+  { id: 'r1', fromPersonId: 'grandparent', toPersonId: 'parent', type: 'PARENT' },
+  { id: 'r2', fromPersonId: 'parent', toPersonId: 'child', type: 'PARENT' },
+];
+
 describe('@family/genealogy-core tree builders', () => {
   it('builds ancestor tree from parent-child relationships', () => {
     const tree = buildAncestorTree('child', relationships);
@@ -41,6 +46,16 @@ describe('@family/genealogy-core tree builders', () => {
     assert.equal(tree.direction, 'descendants');
     assert.equal(tree.nodes.children[0].personId, 'parent');
     assert.equal(tree.nodes.children[0].children[0].personId, 'child');
+  });
+
+  it('builds ancestor/descendant trees with Prisma uppercase PARENT enum', () => {
+    const ancestors = buildAncestorTree('child', prismaRelationships);
+    assert.equal(ancestors.nodes.children[0].personId, 'parent');
+    assert.equal(ancestors.nodes.children[0].children[0].personId, 'grandparent');
+
+    const descendants = buildDescendantTree('grandparent', prismaRelationships);
+    assert.equal(descendants.nodes.children[0].personId, 'parent');
+    assert.equal(descendants.nodes.children[0].children[0].personId, 'child');
   });
 });
 

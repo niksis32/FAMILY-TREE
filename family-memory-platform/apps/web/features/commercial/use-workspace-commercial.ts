@@ -7,7 +7,7 @@ import { api, formatApiError } from '@/lib/api-client';
 
 export function useWorkspaceCommercial() {
   const { session } = useAuth();
-  const token = session?.token ?? null;
+  const token = session?.accessToken ?? null;
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [overview, setOverview] = useState<WorkspaceCommercialOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function useWorkspaceCommercial() {
     setError(null);
     try {
       const workspaces = await api.commercial.myWorkspaces(token);
-      const primary = workspaces.find((w) => w.isDefault) ?? workspaces[0];
+      const primary = workspaces.find((w: { isDefault: boolean }) => w.isDefault) ?? workspaces[0];
       if (!primary) {
         setError('Workspace не найден');
         setLoading(false);

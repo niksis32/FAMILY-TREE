@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useAuth } from '@/components/auth-provider';
 import { TreeCanvas } from '@/components/tree-canvas';
 import { Badge, Button, Card, FormField, Select } from '@/components/ui';
+import { PersonSearchCombobox } from '@/components/person-search-combobox';
 import { apiClient, formatApiError, type TreeGraphResponse, type TreePersonNode, type TreeViewMode } from '@/lib/api-client';
 import { formatPersonLabel } from '@/lib/person-display';
 import type { PersonSummary } from '@family/shared';
@@ -157,21 +158,16 @@ export function TreeExplorer() {
             </FormField>
 
             <FormField label={t('rootPerson')}>
-              <Select
+              <PersonSearchCombobox
+                persons={personsBySurname}
                 value={rootPersonId}
-                onChange={(event) => {
-                  setRootPersonId(event.target.value);
+                onChange={(personId) => {
+                  setRootPersonId(personId);
                   setSelectedPerson(null);
                 }}
                 disabled={personsBySurname.length === 0}
-              >
-                <option value="">{tCommon('notSelected')}</option>
-                {personsBySurname.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {formatPersonLabel(person)}
-                  </option>
-                ))}
-              </Select>
+                placeholder={tCommon('notSelected')}
+              />
             </FormField>
           </div>
 

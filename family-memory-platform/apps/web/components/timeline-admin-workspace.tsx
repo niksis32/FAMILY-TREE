@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card, EmptyState, FormField, Input, Select, Textarea } from '@/components/ui';
+import { Button, Card, EmptyState, FormField, Select, Textarea } from '@/components/ui';
 import { apiClient, type EventRecord, type FamilyRecord, type PlaceRecord } from '@/lib/api-client';
 import { useApiEventTypeLabel, useApiEventTypeOptions } from '@/lib/use-event-type-labels';
 import { useFormatApiError } from '@/lib/use-format-api-error';

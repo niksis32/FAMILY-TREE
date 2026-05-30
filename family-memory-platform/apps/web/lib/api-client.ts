@@ -1031,3 +1031,6 @@ function buildMapQueryParams(query: import('@family/shared').MapQuery) {
   if (query.generationMax != null) params.set('generationMax', String(query.generationMax));
   return params;
 }
+
+/** Alias for legacy imports in commercial/privacy modules. Prefer `apiClient`. */
+export const api = apiClient;

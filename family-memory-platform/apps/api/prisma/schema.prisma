@@ -131,6 +131,7 @@ enum DocumentType {
 
 model Person {
   id           String       @id @default(cuid())
+  workspaceId  String
   givenName    String
   patronymic   String?
   familyName   String?
@@ -145,6 +146,7 @@ model Person {
   updatedAt    DateTime     @updatedAt
   deletedAt    DateTime?
 
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   avatarMedia       Media?  @relation("PersonAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
   relationshipsFrom Relationship[] @relation("fromPerson")
   relationshipsTo   Relationship[] @relation("toPerson")
@@ -159,6 +161,7 @@ model Person {
   matchCandidatesAsSource TreeMatchCandidate[] @relation("MatchSourcePerson")
   matchCandidatesAsTarget TreeMatchCandidate[] @relation("MatchTargetPerson")
 
+  @@index([workspaceId])
   @@index([familyName, givenName])
   @@index([birthDate])
   @@index([deathDate])
@@ -232,6 +235,7 @@ model Relationship {
 
   @@index([fromPersonId])
   @@index([toPersonId])
+  @@index([fromPersonId, toPersonId])
   @@index([type])
   @@index([sourceId])
   @@index([deletedAt])
@@ -407,6 +411,7 @@ model GeographicName {
 
 model Media {
   id              String          @id @default(cuid())
+  workspaceId     String
   personId        String?
   privacyLevel    PrivacyLevel    @default(PRIVATE)
   title           String?
@@ -420,6 +425,7 @@ model Media {
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
 
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   person        Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
   personAvatar  Person?     @relation("PersonAvatar")
   documents     Document[]
@@ -430,6 +436,7 @@ model Media {
   analysisJobs  PhotoAnalysisJob[]
 
   @@unique([bucket, storageKey])
+  @@index([workspaceId])
   @@index([personId])
   @@index([privacyLevel])
   @@index([mimeType])
@@ -539,6 +546,7 @@ model PhotoAnalysisJob {
 
 model Document {
   id           String       @id @default(cuid())
+  workspaceId  String
   personId     String?
   mediaId      String?
   sourceId     String?
@@ -554,11 +562,13 @@ model Document {
   updatedAt    DateTime     @updatedAt
   deletedAt    DateTime?
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   media  Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   source Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   forumThreads ForumThread[]
 
+  @@index([workspaceId])
   @@index([personId])
   @@index([privacyLevel])
   @@index([mediaId])
@@ -1010,6 +1020,9 @@ model Workspace {
 
   tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   members       WorkspaceMember[]
+  persons       Person[]
+  media         Media[]
+  documents     Document[]
   families      Family[]
   matchRuns     TreeMatchRun[]
   familyStories FamilyStory[]

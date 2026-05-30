@@ -295,6 +295,9 @@
     "selectPersonPrompt": "Выберите персону для загрузки хронологии.",
     "selectPersonShort": "Выберите персону.",
     "loadingTimeline": "Загружаем хронологию жизни...",
+    "loadingPersonsDesc": "Загружаем список персон из API…",
+    "loadErrorTitle": "Не удалось загрузить хронологию",
+    "loadPersonsErrorTitle": "Не удалось загрузить список персон",
     "eventsCount": "Событий: {count}",
     "noPersonsTitle": "Персон нет",
     "noPersonsDesc": "Сначала создайте персону на странице «Люди».",
@@ -505,6 +508,10 @@
     "hasAvatar": "Есть аватар и медиа в архиве семьи.",
     "addAvatarHint": "Добавьте аватар и документы при создании персоны."
   },
+  "personSearchCombobox": {
+    "searchPlaceholder": "Поиск по имени…",
+    "noMatches": "Нет подходящих персон"
+  },
   "familiesWorkspace": {
     "loading": "Загружаем семьи и связи...",
     "loadingBackend": "Загружаем семьи и связи из backend...",
@@ -695,6 +702,11 @@
     "manualFace": "Лицо (вручную)",
     "runAiAnalysis": "Запустить AI-анализ",
     "aiDisabled": "AI выключен (ручная разметка доступна)",
+    "aiQueueUnavailableButton": "Очередь AI недоступна",
+    "redisQueueUnavailableTitle": "Фоновая очередь AI отключена",
+    "redisQueueUnavailableBody": "Автоопределение лиц идёт через Redis (BullMQ). Без REDIS_URL можно по-прежнему рисовать рамки лиц и привязывать персон вручную.",
+    "redisQueueUnavailableHint": "Укажите REDIS_URL (например redis://localhost:6379) и перезапустите API, либо поднимите Redis через docker compose.",
+    "analysisSkippedReason": "Анализ пропущен: очередь недоступна.",
     "analysisStatus": "Анализ: {status}",
     "noAnalysisYet": "Анализ ещё не ставился в очередь",
     "unassignedFace": "Лицо ещё не привязано к персоне",

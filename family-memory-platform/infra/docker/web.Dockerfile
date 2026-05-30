@@ -18,6 +18,8 @@ CMD ["pnpm", "run", "dev"]
 
 FROM deps AS builder
 COPY . .
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @family/web run build
 

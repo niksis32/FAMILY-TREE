@@ -2,10 +2,34 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+const SEED_TENANT_ID = 'seed-tenant-default';
+const SEED_WORKSPACE_ID = 'seed-workspace-default';
+
 async function main() {
   const { loadGeographySeed } = await import('../../../scripts/geography/seed-loader.mjs');
   const geoCounts = await loadGeographySeed(prisma);
   console.log('Geography seed:', geoCounts);
+
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: 'seed-default' },
+    update: { name: 'Seed tenant' },
+    create: {
+      id: SEED_TENANT_ID,
+      slug: 'seed-default',
+      name: 'Seed tenant',
+    },
+  });
+
+  const workspace = await prisma.workspace.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: 'Default workspace' } },
+    update: { isDefault: true },
+    create: {
+      id: SEED_WORKSPACE_ID,
+      tenantId: tenant.id,
+      name: 'Default workspace',
+      isDefault: true,
+    },
+  });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.local' },
@@ -23,8 +47,24 @@ async function main() {
     },
   });
 
+  await prisma.workspaceMember.upsert({
+    where: {
+      workspaceId_userId: {
+        workspaceId: workspace.id,
+        userId: admin.id,
+      },
+    },
+    update: { role: 'OWNER' },
+    create: {
+      workspaceId: workspace.id,
+      userId: admin.id,
+      role: 'OWNER',
+    },
+  });
+
   const ivan = await upsertPerson({
     id: 'seed-person-ivan',
+    workspaceId: workspace.id,
     givenName: 'Иван',
     familyName: 'Петров',
     gender: 'MALE',
@@ -36,6 +76,7 @@ async function main() {
 
   const maria = await upsertPerson({
     id: 'seed-person-maria',
+    workspaceId: workspace.id,
     givenName: 'Мария',
     familyName: 'Петрова',
     gender: 'FEMALE',
@@ -46,6 +87,7 @@ async function main() {
 
   const anna = await upsertPerson({
     id: 'seed-person-anna',
+    workspaceId: workspace.id,
     givenName: 'Анна',
     familyName: 'Петрова',
     gender: 'FEMALE',
@@ -60,10 +102,12 @@ async function main() {
     update: {
       name: 'Семья Петровых',
       notes: 'Демо-семья для проверки CRUD, дерева и timeline.',
+      workspaceId: workspace.id,
       deletedAt: null,
     },
     create: {
       id: 'seed-family-petrov',
+      workspaceId: workspace.id,
       name: 'Семья Петровых',
       notes: 'Демо-семья для проверки CRUD, дерева и timeline.',
     },
@@ -127,7 +171,7 @@ async function main() {
     },
   });
 
-  console.log(`Seed completed. Admin: ${admin.email}, family: ${family.name}`);
+  console.log(`Seed completed. Admin: ${admin.email}, workspace: ${workspace.id}, family: ${family.name}`);
 }
 
 async function upsertPerson(data) {

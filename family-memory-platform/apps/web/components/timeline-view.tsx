@@ -2,7 +2,7 @@
 
 import { Link } from '@/i18n/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { intlLocale } from '@/i18n/config';
 import { Badge, Button, Card, EmptyState, FormField, Select } from '@/components/ui';
@@ -36,54 +36,68 @@ export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
   const [selectedTypes, setSelectedTypes] = useState<Set<TimelineEventType>>(new Set());
   const [timeline, setTimeline] = useState<PersonTimelineResponse>(emptyTimeline);
   const [status, setStatus] = useState('');
+  const [personsLoading, setPersonsLoading] = useState(false);
+  const [personsError, setPersonsError] = useState<string | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [timelineLoaded, setTimelineLoaded] = useState(false);
+
+  const loadPersons = useCallback(async () => {
+    setPersonsLoading(true);
+    setPersonsError(null);
+    try {
+      const list = await apiClient.persons.list(session?.accessToken);
+      setPersons(list);
+    } catch (error) {
+      setPersons([]);
+      setPersonsError(formatApiError(error));
+    } finally {
+      setPersonsLoading(false);
+    }
+  }, [session?.accessToken, formatApiError]);
+
+  const loadTimeline = useCallback(async () => {
+    if (!personId.trim()) {
+      setTimeline(emptyTimeline);
+      setTimelineError(null);
+      setTimelineLoaded(false);
+      setStatus(t('selectPersonShort'));
+      return;
+    }
+
+    setTimelineLoading(true);
+    setTimelineError(null);
+    setTimelineLoaded(false);
+    setTimeline(emptyTimeline);
+    setStatus(t('loadingTimeline'));
+
+    try {
+      const data = await apiClient.timeline.person(personId.trim(), session?.accessToken);
+      setTimeline(data);
+      setSelectedTypes(new Set());
+      setTimelineLoaded(true);
+      setStatus(t('eventsCount', { count: data.events.length }));
+    } catch (error) {
+      setTimeline(emptyTimeline);
+      setTimelineLoaded(false);
+      setTimelineError(formatApiError(error));
+      setStatus('');
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, [personId, session?.accessToken, t, formatApiError]);
 
   useEffect(() => {
     setStatus(t('selectPersonPrompt'));
   }, [t]);
 
   useEffect(() => {
-    async function loadPersons() {
-      try {
-        const list = await apiClient.persons.list(session?.accessToken);
-        setPersons(list);
-      } catch (error) {
-        setStatus(formatApiError(error));
-      }
-    }
     void loadPersons();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken]);
+  }, [loadPersons]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadTimeline() {
-      if (!personId.trim()) {
-        setTimeline(emptyTimeline);
-        setStatus(t('selectPersonShort'));
-        return;
-      }
-      setStatus(t('loadingTimeline'));
-
-      try {
-        const data = await apiClient.timeline.person(personId.trim(), session?.accessToken);
-        if (cancelled) return;
-        setTimeline(data);
-        setSelectedTypes(new Set());
-        setStatus(t('eventsCount', { count: data.events.length }));
-      } catch (error) {
-        if (cancelled) return;
-        setTimeline(emptyTimeline);
-        setStatus(formatApiError(error));
-      }
-    }
-
     void loadTimeline();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [personId, session?.accessToken, t, formatApiError]);
+  }, [loadTimeline]);
 
   useEffect(() => {
     onActivePersonChange?.(personId);
@@ -118,7 +132,7 @@ export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
               <Select
                 value={personId}
                 onChange={(event) => setPersonId(event.target.value)}
-                disabled={persons.length === 0}
+                disabled={persons.length === 0 || personsLoading}
               >
                 <option value="">{tCommon('notSelected')}</option>
                 {persons.map((person) => (
@@ -133,12 +147,38 @@ export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
             </Button>
           </div>
         </div>
-        <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">{status}</p>
+        {status ? <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">{status}</p> : null}
       </Card>
 
-      {persons.length === 0 ? <EmptyState title={t('noPersonsTitle')} description={t('noPersonsDesc')} /> : null}
+      {personsLoading ? (
+        <EmptyState title={tCommon('loading')} description={t('loadingPersonsDesc')} />
+      ) : null}
 
-      {timeline.availableTypes.length > 0 ? (
+      {personsError ? (
+        <ErrorEmptyState
+          title={t('loadPersonsErrorTitle')}
+          description={personsError}
+          retryLabel={tCommon('refresh')}
+          retrying={personsLoading}
+          onRetry={() => void loadPersons()}
+        />
+      ) : null}
+
+      {!personsLoading && !personsError && persons.length === 0 ? (
+        <EmptyState title={t('noPersonsTitle')} description={t('noPersonsDesc')} />
+      ) : null}
+
+      {timelineError && personId ? (
+        <ErrorEmptyState
+          title={t('loadErrorTitle')}
+          description={timelineError}
+          retryLabel={tCommon('refresh')}
+          retrying={timelineLoading}
+          onRetry={() => void loadTimeline()}
+        />
+      ) : null}
+
+      {!timelineError && timeline.availableTypes.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {sortTimelineFilterTypes(timeline.availableTypes).map((type) => (
             <Button
@@ -153,14 +193,41 @@ export function TimelineView({ onActivePersonChange }: TimelineViewProps) {
         </div>
       ) : null}
 
-      {visibleEvents.length === 0 && personId ? (
+      {timelineLoaded && !timelineError && visibleEvents.length === 0 && personId ? (
         <EmptyState title={t('noEventsTitle')} description={t('noEventsDesc')} />
       ) : null}
 
-      <div className="relative space-y-5 before:absolute before:left-5 before:top-3 before:h-[calc(100%-24px)] before:w-px before:bg-family-accent/40">
-        {visibleEvents.map((event) => (
-          <TimelineCard key={event.id} event={event} locale={locale} />
-        ))}
+      {!timelineError && !timelineLoading && visibleEvents.length > 0 ? (
+        <div className="relative space-y-5 before:absolute before:left-5 before:top-3 before:h-[calc(100%-24px)] before:w-px before:bg-family-accent/40">
+          {visibleEvents.map((event) => (
+            <TimelineCard key={event.id} event={event} locale={locale} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ErrorEmptyState({
+  title,
+  description,
+  retryLabel,
+  retrying,
+  onRetry,
+}: {
+  title: string;
+  description: string;
+  retryLabel: string;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <EmptyState title={title} description={description} />
+      <div className="flex justify-center">
+        <Button type="button" variant="secondary" onClick={onRetry} disabled={retrying}>
+          {retryLabel}
+        </Button>
       </div>
     </div>
   );
@@ -206,7 +273,6 @@ function RelatedAssets({
   href: string;
   items: TimelineEntry['relatedDocuments'];
 }) {
-  const t = useTranslations('timelineView');
   const tCommon = useTranslations('common');
 
   return (

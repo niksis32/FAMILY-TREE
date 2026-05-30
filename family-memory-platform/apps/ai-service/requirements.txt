@@ -1,4 +1,4 @@
-# AI service dependencies — enable when implementing OCR / ML features
+# AI service dependencies — OCR (Tesseract), photo (MediaPipe)
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 pydantic==2.10.3
@@ -8,3 +8,5 @@ mediapipe==0.10.18
 opencv-python-headless==4.10.0.84
 numpy==2.1.3
 Pillow==11.0.0
+pytesseract==0.3.13
+pymupdf==1.25.1

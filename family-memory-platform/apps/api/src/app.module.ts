@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { resolveRootEnvPath } from './config/load-root-env';
+import { CommonInterceptorsModule } from './common/common-interceptors.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -49,6 +50,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
       envFilePath: resolveRootEnvPath(),
       expandVariables: true,
     }),
+    CommonInterceptorsModule,
     PrismaModule,
     RedisModule,
     HealthModule,

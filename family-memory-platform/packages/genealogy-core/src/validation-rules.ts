@@ -1,5 +1,10 @@
 import type { Gender, Person, PrivacyLevel, Relationship, RelationshipType } from './person.model';
-import { detectRelationshipCycles, isBidirectionalSymmetric, validateParentChildAge } from './relationship.rules';
+import {
+  detectRelationshipCycles,
+  isBidirectionalSymmetric,
+  normalizeRelationshipType,
+  validateParentChildAge,
+} from './relationship.rules';
 
 export interface ValidationIssue {
   code: string;
@@ -189,5 +194,8 @@ function isAllowedPrivacyLevel(value: string): value is PrivacyLevel {
 }
 
 function isAllowedRelationshipType(value: string): value is RelationshipType {
-  return ['parent', 'child', 'spouse', 'sibling', 'partner', 'adoptive_parent', 'adoptive_child', 'unknown'].includes(value);
+  const normalized = normalizeRelationshipType(value);
+  return ['parent', 'child', 'spouse', 'sibling', 'partner', 'adoptive_parent', 'adoptive_child', 'unknown'].includes(
+    normalized,
+  );
 }

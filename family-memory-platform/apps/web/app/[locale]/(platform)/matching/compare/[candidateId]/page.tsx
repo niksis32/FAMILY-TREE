@@ -25,7 +25,13 @@ export default function CompareMatchPage() {
     if (!token || !params.candidateId) return;
     try {
       const data = await apiClient.matching.candidate(params.candidateId, token);
-      setCandidate(data);
+      setCandidate({
+        ...data,
+        mergeSuggestion:
+          data.mergeSuggestion && typeof data.mergeSuggestion === 'object'
+            ? (data.mergeSuggestion as { message?: string })
+            : undefined,
+      });
     } catch (e) {
       setError(formatApiError(e));
     }

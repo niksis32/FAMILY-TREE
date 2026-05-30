@@ -37,11 +37,13 @@ export class DocumentIntelligenceService {
 
   async runOcr(dto: OcrDocumentDto) {
     const doc = await this.documents.findOne(dto.documentId);
+    const presigned = await this.documents.getPresignedDownloadUrl(dto.documentId);
     const aiResult = await this.ai.documentOcr({
       documentId: doc.id,
       fileName: doc.title,
       mimeType: doc.mimeType,
       storageKey: doc.storageKey,
+      downloadUrl: presigned.downloadUrl,
       language: dto.language ?? 'ru',
       textHint: doc.ocrText ?? '',
     });

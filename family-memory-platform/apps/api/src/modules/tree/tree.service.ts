@@ -4,6 +4,7 @@ import { TreeViewDataService } from './tree-view-data.service';
 import type { TreeViewDataQuery } from '@family/shared';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
 
+/** Legacy graph scopes — parent-child traversal via TreeViewDataService + genealogy-core (`PARENT` enum). */
 @Injectable()
 export class TreeService {
   constructor(private readonly viewData: TreeViewDataService) {}

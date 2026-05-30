@@ -94,7 +94,7 @@ export function AiLabPage() {
               documents.map((doc) => (
                 <li key={doc.id} className="flex items-center justify-between gap-4 px-6 py-4">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-family-ink dark:text-white">{doc.title || doc.fileName}</p>
+                    <p className="truncate font-medium text-family-ink dark:text-white">{doc.title || doc.storageKey}</p>
                     <p className="text-xs text-stone-500">{doc.mimeType}</p>
                   </div>
                   <Link href={`/documents/${doc.id}/intelligence`}>

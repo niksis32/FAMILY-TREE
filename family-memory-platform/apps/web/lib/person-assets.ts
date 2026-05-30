@@ -1,8 +1,5 @@
 import { apiClient, type DocumentRecord, type MediaUploadUrlResponse } from '@/lib/api-client';
 
-const MEDIA_ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,audio/mpeg';
-const DOCUMENT_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
-
 export type DocumentTypeOption =
   | 'PASSPORT'
   | 'BIRTH_CERTIFICATE'

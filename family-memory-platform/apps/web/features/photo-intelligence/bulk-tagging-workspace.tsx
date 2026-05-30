@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Button, FormField, Select } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
 import { apiClient } from '@/lib/api-client';
+import { PhotoAiDegradationBanner } from './photo-ai-degradation-banner';
 import { PhotoViewerWithTags } from './photo-viewer-with-tags';
 
 export function BulkTaggingWorkspace() {
@@ -18,6 +19,7 @@ export function BulkTaggingWorkspace() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [persons, setPersons] = useState<PersonSummary[]>([]);
   const [bulkPersonId, setBulkPersonId] = useState('');
+  const [aiQueueAvailable, setAiQueueAvailable] = useState<boolean | null>(null);
 
   const reloadQueue = () => {
     void apiClient.photoIntelligence.bulkQueue(session?.accessToken).then((items) => {
@@ -32,6 +34,17 @@ export function BulkTaggingWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken]);
 
+  useEffect(() => {
+    const probeId = activeId ?? queue[0]?.id;
+    if (!probeId || !session?.accessToken) {
+      setAiQueueAvailable(null);
+      return;
+    }
+    void apiClient.photoIntelligence.workspace(probeId, session.accessToken).then((ws) => {
+      setAiQueueAvailable(ws.aiQueueAvailable);
+    });
+  }, [activeId, queue, session?.accessToken]);
+
   const assignAllUntagged = async () => {
     if (!activeId || !bulkPersonId) return;
     const workspace = await apiClient.photoIntelligence.workspace(activeId, session?.accessToken);
@@ -45,7 +58,9 @@ export function BulkTaggingWorkspace() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
+    <div className="space-y-4">
+      {aiQueueAvailable === false && !activeId ? <PhotoAiDegradationBanner /> : null}
+      <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
       <WorkspacePanel title={t('bulkQueueTitle')} description={t('bulkQueueHint', { count: queue.length })}>
         <RecordList
           emptyTitle={t('bulkEmpty')}
@@ -99,6 +114,7 @@ export function BulkTaggingWorkspace() {
           </div>
         )}
       </WorkspacePanel>
+      </div>
     </div>
   );
 }
