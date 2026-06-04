@@ -127,6 +127,40 @@ export function buildHiddenDisplayName(): string {
   return 'Living person';
 }
 
+export function buildPrivatePersonDisplayName(): string {
+  return 'Private person';
+}
+
+export interface RedactedTreeNodeFields {
+  label: string;
+  givenName: string;
+  familyName: string | null;
+  birthDate: string | null;
+  deathDate: string | null;
+  birthYear: number | null;
+  deathYear: number | null;
+  isLiving: boolean;
+  isHidden: boolean;
+  avatarUrl: string | null;
+}
+
+export function redactHiddenTreeNodeFields(person: PolicyPersonRecord): RedactedTreeNodeFields {
+  const living = isLivingPerson(person);
+  const label = living ? buildHiddenDisplayName() : buildPrivatePersonDisplayName();
+  return {
+    label,
+    givenName: living ? 'Living' : 'Private',
+    familyName: 'person',
+    birthDate: null,
+    deathDate: null,
+    birthYear: null,
+    deathYear: null,
+    isLiving: living,
+    isHidden: true,
+    avatarUrl: null,
+  };
+}
+
 export function canViewMedia(
   media: PolicyMediaRecord,
   viewer: PolicyViewerContext,
@@ -140,7 +174,9 @@ export function canViewMedia(
   }
 
   if (mediaLevel === 'public') return true;
-  if (mediaLevel === 'private') return viewer.isAuthenticated && viewer.isFamilyMember;
+  if (mediaLevel === 'private') {
+    return viewer.isAuthenticated && viewer.isFamilyMember && viewer.role !== 'viewer';
+  }
   return viewer.isAuthenticated && viewer.isFamilyMember;
 }
 
@@ -152,7 +188,9 @@ export function canViewDocument(
   const docLevel = normalizePrivacyLevel(doc.privacyLevel as string);
   if (docLevel === 'public') return true;
   if (person && !canViewPerson(person, viewer)) return false;
-  if (docLevel === 'private') return viewer.isAuthenticated && viewer.isFamilyMember;
+  if (docLevel === 'private') {
+    return viewer.isAuthenticated && viewer.isFamilyMember && viewer.role !== 'viewer';
+  }
   return viewer.isAuthenticated && viewer.isFamilyMember;
 }
 

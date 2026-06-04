@@ -8,7 +8,7 @@
   "scripts": {
     "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
     "dev": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --watch",
-    "test": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node --test \"test/**/*.test.mjs\""
+    "test": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node --test test/genealogy-core.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

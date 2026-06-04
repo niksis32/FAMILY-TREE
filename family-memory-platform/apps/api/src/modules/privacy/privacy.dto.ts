@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdatePersonPrivacyDto {
   @IsOptional()
@@ -51,4 +51,13 @@ export class CreatePublicShareDto {
   @IsOptional()
   @IsString()
   familyStoryId?: string;
+
+  /** ISO-8601; omit for default TTL (90 days) */
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  neverExpires?: boolean;
 }

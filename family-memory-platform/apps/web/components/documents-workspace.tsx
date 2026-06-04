@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Button, FormField, Input, Select, Textarea } from '@/components/ui';
 import { apiClient, type CitationRecord, type DocumentRecord, type SourceRecord } from '@/lib/api-client';
 import { useFormatApiError } from '@/lib/use-format-api-error';
+import { DocumentFileUploader } from '@/components/document-file-uploader';
 import { DocumentIntelligenceModal } from '@/features/document-intelligence/document-intelligence-modal';
 import { cn } from '@/lib/utils';
 
@@ -198,6 +199,8 @@ export function DocumentsWorkspace() {
           {t('aiLabLink')}
         </Link>
       </div>
+
+      {tab === 'documents' ? <DocumentFileUploader onUploaded={() => void load()} /> : null}
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (

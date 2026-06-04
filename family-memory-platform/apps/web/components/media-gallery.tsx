@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ImageIcon, Sparkles, Tag } from 'lucide-react';
+import { ImageIcon, Sparkles, Tag, Trash2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
+import { MediaPreview } from '@/components/media-preview';
 import { Button } from '@/components/ui';
 import { PhotoViewerModal } from '@/features/photo-intelligence/photo-viewer-modal';
 import { apiClient } from '@/lib/api-client';
@@ -19,7 +20,7 @@ interface MediaRecord {
   storageKey: string;
 }
 
-export function MediaGallery() {
+export function MediaGallery({ refreshKey = 0 }: { refreshKey?: number }) {
   const { session } = useAuth();
   const t = useTranslations('mediaGallery');
   const tPhoto = useTranslations('photoIntelligence');
@@ -28,45 +29,47 @@ export function MediaGallery() {
   const [status, setStatus] = useState('');
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [modalMediaId, setModalMediaId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setStatus(t('loading'));
+    try {
+      const data = (await apiClient.media.list(session?.accessToken)) as MediaRecord[];
+      setItems(data);
+      setStatus(data.length ? t('filesCount', { count: data.length }) : t('noMetadata'));
+
+      const entries = await Promise.all(
+        data.map(async (item) => {
+          try {
+            const dl = await apiClient.media.downloadUrl(item.id, session?.accessToken);
+            return [item.id, dl.downloadUrl] as const;
+          } catch {
+            return [item.id, ''] as const;
+          }
+        }),
+      );
+      setPreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+    } catch (error) {
+      setStatus(formatApiError(error));
+    }
+  }, [session?.accessToken, t, formatApiError]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setStatus(t('loading'));
-      try {
-        const data = (await apiClient.media.list(session?.accessToken)) as MediaRecord[];
-        if (cancelled) return;
-        setItems(data);
-        setStatus(data.length ? t('filesCount', { count: data.length }) : t('noMetadata'));
-
-        const imageItems = data.filter((item) => item.mimeType.startsWith('image/'));
-        const entries = await Promise.all(
-          imageItems.map(async (item) => {
-            try {
-              const dl = await apiClient.media.downloadUrl(item.id, session?.accessToken);
-              return [item.id, dl.downloadUrl] as const;
-            } catch {
-              return [item.id, ''] as const;
-            }
-          }),
-        );
-        if (!cancelled) {
-          setPreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
-        }
-      } catch (error) {
-        if (cancelled) return;
-        setStatus(formatApiError(error));
-      }
-    }
-
     void load();
+  }, [load, refreshKey]);
 
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken]);
+  async function removeMedia(id: string) {
+    if (!session?.accessToken || !window.confirm(t('deleteConfirm'))) return;
+    setDeletingId(id);
+    try {
+      await apiClient.media.remove(id, session.accessToken);
+      await load();
+    } catch (error) {
+      setStatus(formatApiError(error));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const modalItem = items.find((item) => item.id === modalMediaId);
   const imageCount = items.filter((i) => i.mimeType.startsWith('image/')).length;
@@ -118,18 +121,7 @@ export function MediaGallery() {
                   }}
                 >
                   <div className="relative aspect-[4/3] bg-gradient-to-br from-family-primary/80 to-slate-800">
-                    {preview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={preview}
-                        alt={item.title ?? item.storageKey}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-white/40">
-                        <ImageIcon className="h-12 w-12" />
-                      </div>
-                    )}
+                    <MediaPreview mimeType={item.mimeType} downloadUrl={preview} title={item.title} />
                     {isImage ? (
                       <span className="absolute bottom-3 left-3 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur">
                         {tPhoto('quickView')}
@@ -142,8 +134,8 @@ export function MediaGallery() {
                     {item.title ?? item.storageKey}
                   </h3>
                   <p className="mt-1 truncate text-xs text-stone-500">{item.mimeType}</p>
-                  {isImage ? (
-                    <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {isImage ? (
                       <button
                         type="button"
                         className={cn(
@@ -153,14 +145,32 @@ export function MediaGallery() {
                       >
                         {tPhoto('quickView')}
                       </button>
-                      <Link
-                        href={`/media/${item.id}`}
+                    ) : preview ? (
+                      <a
+                        href={preview}
+                        target="_blank"
+                        rel="noreferrer"
                         className="rounded-xl border px-3 py-1.5 text-xs font-semibold text-stone-600 dark:text-slate-300"
                       >
-                        {tPhoto('openFullPage')}
-                      </Link>
-                    </div>
-                  ) : null}
+                        {t('openFile')}
+                      </a>
+                    ) : null}
+                    <Link
+                      href={`/media/${item.id}`}
+                      className="rounded-xl border px-3 py-1.5 text-xs font-semibold text-stone-600 dark:text-slate-300"
+                    >
+                      {tPhoto('openFullPage')}
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={deletingId === item.id}
+                      className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 dark:border-red-900 dark:text-red-400"
+                      onClick={() => void removeMedia(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t('delete')}
+                    </button>
+                  </div>
                 </div>
               </article>
             );

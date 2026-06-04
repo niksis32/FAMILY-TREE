@@ -60,6 +60,18 @@ Do not expose:
 - Living persons should be hidden or reduced for public views.
 - Future OCR output should inherit document privacy.
 
+### Privacy enforcement (PROMPT PRIVACY-ENFORCE-1)
+
+| Control | Status | Notes |
+|---|---|---|
+| Tree API masks `PRIVATE` / living per `privacyLevel` + workspace role | Done | `TreeViewDataService` + `PolicyEngineService` |
+| Search excludes `PRIVATE` at index time; filters hits by membership + policy | Done | `SearchService` + `SearchPrivacyService` |
+| Public share links: expiry + revoke | Done | Default TTL 90d; UI in Privacy Center |
+| Cross-tenant privacy audit (ADMIN) | Done | `GET /privacy/cross-tenant-audit` |
+| Matching excludes `PRIVATE` persons | Done | See matching module |
+| Automatic GDPR DELETE workflow | Planned | Privacy requests model only |
+| IP hash in access logs | Planned | Model present; full audit UI partial |
+
 ## AI security
 
 AI service is optional and disabled by default.
@@ -84,6 +96,8 @@ Suggested policy:
 
 ## Production checklist
 
+### Infrastructure
+
 - [ ] `.env` contains no default values.
 - [ ] HTTPS is enabled.
 - [ ] Infrastructure ports are closed.
@@ -92,3 +106,13 @@ Suggested policy:
 - [ ] Restore was tested.
 - [ ] Swagger exposure is intentional.
 - [ ] Logs do not print secrets.
+
+### Privacy & access control
+
+- [x] `Person.privacyLevel` enforced in tree view API (workspace membership + role).
+- [x] Search index excludes `PRIVATE` persons/documents; API filters by viewer context.
+- [x] Public share tokens support `expiresAt` and manual revoke.
+- [x] Public link open rejects expired/revoked tokens.
+- [ ] Row-level workspace isolation on all legacy routes (partial — see workspace migrations).
+- [ ] Full GDPR account DELETE automation.
+- [ ] Commercial usage limits enforced on all write routes.

@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import {
+  COMMUNITY_GRAPHQL_DEFAULT_RATE_LIMIT,
+  COMMUNITY_SPAM_HTTP_POST_LIMIT_DEFAULT,
+  COMMUNITY_SPAM_HTTP_THREAD_LIMIT_DEFAULT,
+} from '@family/shared';
 import { resolveRootEnvPath } from './config/load-root-env';
 import { CommonInterceptorsModule } from './common/common-interceptors.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -12,6 +18,7 @@ import { CommunityGroupsModule } from './modules/community-groups/community-grou
 import { CommunityModerationModule } from './modules/community-moderation/community-moderation.module';
 import { CommunityResearchModule } from './modules/community-research/community-research.module';
 import { DocumentIntelligenceModule } from './modules/document-intelligence/document-intelligence.module';
+import { DocumentOcrModule } from './modules/document-ocr/document-ocr.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EventsModule } from './modules/events/events.module';
 import { FamiliesModule } from './modules/families/families.module';
@@ -35,6 +42,7 @@ import { TreeModule } from './modules/tree/tree.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './common/health/health.module';
+import { MinioStorageModule } from './common/storage/minio-storage.module';
 import { StorytellingModule } from './modules/storytelling/storytelling.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
@@ -50,9 +58,39 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
       envFilePath: resolveRootEnvPath(),
       expandVariables: true,
     }),
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120 },
+      { name: 'auth-login', ttl: 60_000, limit: 5 },
+      {
+        name: 'community-graphql',
+        ttl: 60_000,
+        limit: Number.parseInt(
+          process.env.COMMUNITY_GRAPHQL_RATE_LIMIT ?? String(COMMUNITY_GRAPHQL_DEFAULT_RATE_LIMIT),
+          10,
+        ) || COMMUNITY_GRAPHQL_DEFAULT_RATE_LIMIT,
+      },
+      {
+        name: 'community-forum-post',
+        ttl: 60_000,
+        limit: Number.parseInt(
+          process.env.COMMUNITY_SPAM_HTTP_POST_LIMIT ?? String(COMMUNITY_SPAM_HTTP_POST_LIMIT_DEFAULT),
+          10,
+        ) || COMMUNITY_SPAM_HTTP_POST_LIMIT_DEFAULT,
+      },
+      {
+        name: 'community-forum-thread',
+        ttl: 60_000,
+        limit: Number.parseInt(
+          process.env.COMMUNITY_SPAM_HTTP_THREAD_LIMIT ?? String(COMMUNITY_SPAM_HTTP_THREAD_LIMIT_DEFAULT),
+          10,
+        ) || COMMUNITY_SPAM_HTTP_THREAD_LIMIT_DEFAULT,
+      },
+      { name: 'community-forum-helpful', ttl: 60_000, limit: 30 },
+    ]),
     CommonInterceptorsModule,
     PrismaModule,
     RedisModule,
+    MinioStorageModule,
     HealthModule,
     AiModule,
     AuthModule,
@@ -62,12 +100,13 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
     RelationshipsModule,
     EventsModule,
     PlacesModule,
-    MediaModule,
-    FaceTagsModule,
     PersonPhotoLinksModule,
+    FaceTagsModule,
+    MediaModule,
     PhotoAnalysisModule,
     DocumentsModule,
     DocumentIntelligenceModule,
+    DocumentOcrModule,
     SourcesModule,
     CitationsModule,
     TimelineModule,

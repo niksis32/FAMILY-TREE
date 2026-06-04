@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText, GitBranch, Image, Map, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
@@ -9,41 +9,47 @@ import { MetricTile, PageHero, QuickActionCard } from '@family/ui';
 import { PremiumLink } from '@/lib/premium-link';
 import { Button } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, formatApiError } from '@/lib/api-client';
 
 export function PremiumDashboard() {
-  const { session } = useAuth();
+  const { session, isReady } = useAuth();
   const t = useTranslations('premiumDashboard');
   const [stats, setStats] = useState({ persons: 0, families: 0, media: 0, documents: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    if (!session?.accessToken) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const [persons, families, media, documents] = await Promise.all([
+        apiClient.persons.list(session.accessToken),
+        apiClient.families.list(session.accessToken),
+        apiClient.media.list(session.accessToken),
+        apiClient.documents.list(session.accessToken),
+      ]);
+      setStats({
+        persons: persons.length,
+        families: families.length,
+        media: media.length,
+        documents: documents.length,
+      });
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.accessToken]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [persons, families, media, documents] = await Promise.all([
-          apiClient.persons.list(session?.accessToken),
-          apiClient.families.list(session?.accessToken),
-          apiClient.media.list(session?.accessToken),
-          apiClient.documents.list(session?.accessToken),
-        ]);
-        if (!cancelled) {
-          setStats({
-            persons: persons.length,
-            families: families.length,
-            media: media.length,
-            documents: documents.length,
-          });
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+    if (!isReady) return;
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.accessToken]);
+  }, [isReady, load]);
 
   return (
     <div className="space-y-8">
@@ -57,6 +63,12 @@ export function PremiumDashboard() {
           </Link>
         }
       />
+
+      {error ? (
+        <p className="text-sm text-rose-600" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricTile label={t('statPersons')} value={loading ? '…' : String(stats.persons)} hint={t('hintPersons')} icon={<Users className="h-4 w-4" />} tone="ink" />

@@ -249,8 +249,8 @@ export function HistoricalMapPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="relative">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+        <div className="relative min-w-0">
           {loading && <p className="mb-2 text-sm text-stone-500">{t('loading')}</p>}
           {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
           {!loading && payload && payload.places.length === 0 && (
@@ -266,7 +266,7 @@ export function HistoricalMapPage() {
             onOpen3DTree={(id) => router.push(`/tree?personId=${id}&mode=three-d`)}
           />
         </div>
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <MapTimelineSlider minYear={yearBounds.min} maxYear={yearBounds.max} timelineHref={timelineHref} />
           {(mode === 'person-route' || mode === 'family-migration') && <MigrationPlayer />}
           {payload && (

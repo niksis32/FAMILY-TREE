@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { UserRole } from '@prisma/client';
+import type { UserRole, WorkspaceMemberRole } from '@prisma/client';
 import {
   buildPolicyViewer,
   canViewDocument,
@@ -10,6 +10,7 @@ import {
   type PolicyMediaRecord,
   type PolicyPersonRecord,
   type PolicyViewerContext,
+  type ViewerRole,
 } from '@family/genealogy-core';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -32,6 +33,46 @@ export class AccessControlService {
       userId: user.id,
       role: roleMap[user.role] ?? 'viewer',
       isFamilyMember: user.role !== 'VIEWER' || isPublicLink,
+      isPublicLink,
+    });
+  }
+
+  async viewerForWorkspace(
+    user: { id: string; role: UserRole } | null | undefined,
+    workspaceId: string,
+    isPublicLink = false,
+  ): Promise<PolicyViewerContext> {
+    if (!user) {
+      return buildPolicyViewer({ isPublicLink });
+    }
+
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      select: { role: true },
+    });
+
+    if (!member) {
+      if (user.role === 'ADMIN') {
+        return buildPolicyViewer({
+          userId: user.id,
+          role: 'admin',
+          isFamilyMember: true,
+          isPublicLink,
+        });
+      }
+
+      return buildPolicyViewer({
+        userId: user.id,
+        role: 'anonymous',
+        isFamilyMember: false,
+        isPublicLink,
+      });
+    }
+
+    return buildPolicyViewer({
+      userId: user.id,
+      role: this.workspaceRoleToViewerRole(member.role),
+      isFamilyMember: true,
       isPublicLink,
     });
   }
@@ -85,6 +126,12 @@ export class AccessControlService {
       select: { hideLivingPersons: true },
     });
     return family?.hideLivingPersons ?? true;
+  }
+
+  private workspaceRoleToViewerRole(role: WorkspaceMemberRole): ViewerRole {
+    if (role === 'OWNER') return 'admin';
+    if (role === 'EDITOR') return 'editor';
+    return 'viewer';
   }
 
   private toPolicyPerson(p: {

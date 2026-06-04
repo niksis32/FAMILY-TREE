@@ -5,11 +5,12 @@ import { CommunityGroupsModule } from '../community-groups/community-groups.modu
 import { CommunityReputationModule } from '../community-reputation/community-reputation.module';
 import { CommunityForumController } from './community-forum.controller';
 import { CommunityForumService } from './community-forum.service';
+import { CommunitySpamGuardService } from './community-spam-guard.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, CommunityGroupsModule, CommunityReputationModule],
   controllers: [CommunityForumController],
-  providers: [CommunityForumService],
+  providers: [CommunityForumService, CommunitySpamGuardService],
   exports: [CommunityForumService],
 })
 export class CommunityForumModule {}

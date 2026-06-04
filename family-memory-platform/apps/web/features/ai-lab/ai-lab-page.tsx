@@ -76,7 +76,7 @@ export function AiLabPage() {
         <QuickActionCard LinkComponent={PremiumLink} href="/matching" title={t('matches')} description={t('matchesDesc')} icon={<Shuffle className="h-5 w-5" />} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-2">
         <Card className="!p-0 overflow-hidden">
           <div className="border-b border-stone-200/80 bg-family-primary/5 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/50">
             <div className="flex items-center gap-2">

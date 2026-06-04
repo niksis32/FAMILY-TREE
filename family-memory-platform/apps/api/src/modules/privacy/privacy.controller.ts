@@ -22,7 +22,10 @@ import {
   UpdateTreePrivacyDto,
   UpdateUserConsentDto,
 } from './privacy.dto';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { CommercialService } from '../commercial/commercial.service';
+import { CrossTenantPrivacyAuditService } from './cross-tenant-privacy-audit.service';
 
 @ApiTags('privacy')
 @Controller()
@@ -31,6 +34,7 @@ export class PrivacyController {
     private readonly center: PrivacyCenterService,
     private readonly publicLinks: PublicLinkService,
     private readonly audit: PrivacyAuditService,
+    private readonly crossTenantAuditService: CrossTenantPrivacyAuditService,
     private readonly commercial: CommercialService,
   ) {}
 
@@ -103,6 +107,7 @@ export class PrivacyController {
       label: dto.label,
       hideLivingPersons: dto.hideLivingPersons,
       familyStoryId: dto.familyStoryId,
+      expiresAt: dto.neverExpires ? null : dto.expiresAt ? new Date(dto.expiresAt) : undefined,
     });
   }
 
@@ -111,6 +116,20 @@ export class PrivacyController {
   @ApiBearerAuth()
   revokeShare(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.publicLinks.revoke(user.id, id);
+  }
+
+  @Get('privacy/cross-tenant-audit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  crossTenantAudit(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.crossTenantAuditService.runAudit({
+      workspaceId: workspaceId?.trim() || undefined,
+      userId: user.id,
+    });
   }
 
   @Get('privacy/access-logs')

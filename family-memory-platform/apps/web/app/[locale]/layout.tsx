@@ -1,8 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { AuthProvider } from '@/components/auth-provider';
-import { ThemeProvider } from '@/components/theme-provider';
+import { HtmlLocaleAttrs } from '@/components/html-locale-attrs';
 import { APP_LOCALES, type AppLocale } from '@family/shared';
 
 export function generateStaticParams() {
@@ -21,17 +20,11 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   const messages = await getMessages();
-  const dir = locale === 'ar' || locale === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
-      <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </ThemeProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <HtmlLocaleAttrs />
+      {children}
+    </NextIntlClientProvider>
   );
 }

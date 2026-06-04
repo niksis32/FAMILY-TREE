@@ -25,33 +25,33 @@ export class DocumentIntelligenceController {
   constructor(private readonly service: DocumentIntelligenceService) {}
 
   @Post('ocr')
-  runOcr(@Body() dto: OcrDocumentDto) {
-    return this.service.runOcr(dto);
+  runOcr(@Body() dto: OcrDocumentDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.runOcr(user, dto);
   }
 
   @Post('entities')
-  extractEntities(@Body() dto: ExtractEntitiesDto) {
-    return this.service.extractEntities(dto);
+  extractEntities(@Body() dto: ExtractEntitiesDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.extractEntities(user, dto);
   }
 
   @Post('events')
-  suggestEvents(@Body() dto: SuggestEventsDto) {
-    return this.service.suggestEvents(dto);
+  suggestEvents(@Body() dto: SuggestEventsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.suggestEvents(user, dto);
   }
 
   @Post('relationships')
-  suggestRelationships(@Body() dto: SuggestRelationshipsDto) {
-    return this.service.suggestRelationships(dto);
+  suggestRelationships(@Body() dto: SuggestRelationshipsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.suggestRelationships(user, dto);
   }
 
   @Post('summary')
-  summarize(@Body() dto: SummarizeDocumentDto) {
-    return this.service.summarize(dto);
+  summarize(@Body() dto: SummarizeDocumentDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.summarize(user, dto);
   }
 
   @Get(':documentId/results')
-  getResults(@Param('documentId') documentId: string) {
-    return this.service.getResults(documentId);
+  getResults(@Param('documentId') documentId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.getResults(user, documentId);
   }
 
   @Post(':documentId/confirm-event')
@@ -60,12 +60,16 @@ export class DocumentIntelligenceController {
     @Body() dto: CreateEventDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.confirmEvent(documentId, dto, user.id);
+    return this.service.confirmEvent(user, documentId, dto);
   }
 
   @Post(':documentId/confirm-relationship')
-  confirmRelationship(@Param('documentId') documentId: string, @Body() dto: CreateRelationshipDto) {
-    return this.service.confirmRelationship(documentId, dto);
+  confirmRelationship(
+    @Param('documentId') documentId: string,
+    @Body() dto: CreateRelationshipDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.confirmRelationship(user, documentId, dto);
   }
 
   @Post(':documentId/confirm-citation')
@@ -74,11 +78,15 @@ export class DocumentIntelligenceController {
     @Body() dto: CreateCitationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.confirmCitation(documentId, dto, user.id);
+    return this.service.confirmCitation(user, documentId, dto);
   }
 
   @Post(':documentId/reject')
-  reject(@Param('documentId') documentId: string, @Body() dto: RejectSuggestionDto) {
-    return this.service.rejectSuggestion(documentId, dto);
+  reject(
+    @Param('documentId') documentId: string,
+    @Body() dto: RejectSuggestionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.service.rejectSuggestion(user, documentId, dto);
   }
 }

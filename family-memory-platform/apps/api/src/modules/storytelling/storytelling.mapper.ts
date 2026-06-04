@@ -23,9 +23,23 @@ export function toStoryDraftDto(draft: AiStoryDraft): StoryDraftDto {
     claims: Array.isArray(obj.claims) ? (obj.claims as StoryDraftDto['claims']) : [],
     warnings: Array.isArray(obj.warnings) ? (obj.warnings as StoryDraftDto['warnings']) : [],
     uncertaintyScore: typeof draft.uncertaintyScore === 'number' ? draft.uncertaintyScore : null,
+    factCheckScore: readFactCheckScore(obj),
+    factCheckPassed: readFactCheckPassed(obj),
     createdAt: draft.createdAt.toISOString(),
     updatedAt: draft.updatedAt.toISOString(),
   };
+}
+
+function readFactCheckScore(obj: Record<string, unknown>): number | null {
+  const service = obj.service && typeof obj.service === 'object' ? (obj.service as Record<string, unknown>) : null;
+  const factCheck = service?.factCheck && typeof service.factCheck === 'object' ? (service.factCheck as Record<string, unknown>) : null;
+  return typeof factCheck?.score === 'number' ? factCheck.score : null;
+}
+
+function readFactCheckPassed(obj: Record<string, unknown>): boolean | null {
+  const service = obj.service && typeof obj.service === 'object' ? (obj.service as Record<string, unknown>) : null;
+  const factCheck = service?.factCheck && typeof service.factCheck === 'object' ? (service.factCheck as Record<string, unknown>) : null;
+  return typeof factCheck?.passed === 'boolean' ? factCheck.passed : null;
 }
 
 function toStoryTypeId(v: AiStoryDraft['storyType']): StoryDraftDto['storyType'] {

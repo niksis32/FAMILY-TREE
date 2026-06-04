@@ -62,10 +62,15 @@ services:
     volumes:
       - meili_data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7700/health"]
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sf -H "Authorization: Bearer $${MEILI_MASTER_KEY}" http://127.0.0.1:7700/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   # Optional graph layer — enable with: docker compose --profile graph up -d
   neo4j:
@@ -91,6 +96,12 @@ services:
       - ai
     environment:
       AI_SERVICE_ENABLED: "true"
+      LOCAL_LLM_ENABLED: "${LOCAL_LLM_ENABLED:-false}"
+      LOCAL_LLM_PROVIDER: "${LOCAL_LLM_PROVIDER:-ollama}"
+      LOCAL_LLM_BASE_URL: "${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434}"
+      LOCAL_LLM_MODEL: "${LOCAL_LLM_MODEL:-llama3.2}"
+      LOCAL_LLM_TIMEOUT_SEC: "${LOCAL_LLM_TIMEOUT_SEC:-120}"
+      LOCAL_LLM_MAX_TOKENS: "${LOCAL_LLM_MAX_TOKENS:-2048}"
     expose:
       - "8000"
 

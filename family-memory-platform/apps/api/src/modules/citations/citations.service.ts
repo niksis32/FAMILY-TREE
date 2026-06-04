@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import type { CreateCitationDto, UpdateCitationDto } from './citations.dto';
 
 @Injectable()
@@ -25,7 +27,14 @@ export class CitationsService {
   }
 
   create(dto: CreateCitationDto) {
-    return this.prisma.citation.create({ data: dto });
+    return this.prisma.citation.create({
+      data: workspaceScopedCreateData<Prisma.CitationUncheckedCreateInput>({
+        sourceId: dto.sourceId,
+        personId: dto.personId,
+        page: dto.page,
+        detail: dto.detail,
+      }),
+    });
   }
 
   async update(id: string, dto: UpdateCitationDto) {

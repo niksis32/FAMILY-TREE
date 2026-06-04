@@ -131,5 +131,6 @@ export function scorePersonMatch(source: PersonMatchSnapshot, target: PersonMatc
   return {
     score: score >= MIN_SCORE ? score : 0,
     reasons: score >= MIN_SCORE ? reasons : [],
+    scoringMethod: 'heuristic',
   };
 }

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateModerationReportDto, ModerationResolveDto } from './community-moderation.dto';
+import { ModeratePostDto } from './community-moderation-post.dto';
 import { CommunityModerationService } from './community-moderation.service';
 
 @ApiTags('community-moderation')
@@ -26,6 +27,34 @@ export class CommunityModerationController {
   @Roles('ADMIN')
   listOpen() {
     return this.moderation.listOpenReports();
+  }
+
+  @Get('queue')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  queue() {
+    return this.moderation.getQueue();
+  }
+
+  @Post('posts/:id/approve')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  approvePost(@Param('id') postId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.moderation.approvePost(postId, user.id);
+  }
+
+  @Post('posts/:id/hide')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  hidePost(
+    @Param('id') postId: string,
+    @Body() dto: ModeratePostDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.moderation.hidePost(postId, user.id, dto);
   }
 
   @Post('reports/:id/resolve')

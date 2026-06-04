@@ -1,5 +1,6 @@
 'use client';
 
+import { ColorDot } from '@family/ui';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import type { ThreeHighlightMode } from '@family/tree-experience';
@@ -26,7 +27,7 @@ export function TreeLegend({ highlightMode }: { highlightMode: ThreeHighlightMod
       <ul className="space-y-1.5">
         {SWATCHES.map((item) => (
           <li key={item.key} className="flex items-center gap-2 text-slate-400">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+            <ColorDot color={item.color} className="h-2.5 w-2.5" />
             {t(item.key)}
           </li>
         ))}

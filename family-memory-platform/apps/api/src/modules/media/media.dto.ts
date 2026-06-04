@@ -40,8 +40,8 @@ export class CreateMediaMetadataDto extends CreateUploadUrlDto {
 }
 
 export class LinkMediaDto {
-  @IsIn(['person', 'family', 'event', 'document', 'source'])
-  entityType!: 'person' | 'family' | 'event' | 'document' | 'source';
+  @IsIn(['person', 'family', 'event', 'document', 'source', 'story', 'message'])
+  entityType!: 'person' | 'family' | 'event' | 'document' | 'source' | 'story' | 'message';
 
   @IsString()
   @IsNotEmpty()

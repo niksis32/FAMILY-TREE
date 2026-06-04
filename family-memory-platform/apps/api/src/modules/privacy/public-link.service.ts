@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { PublicShareResourceType } from '@prisma/client';
-import type { PublicShareCreateResult, PublicShareSummary } from '@family/shared';
+import type { PublicShareCreateResult, PublicShareStatus, PublicShareSummary } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrivacyAuditService } from './privacy-audit.service';
 import { generatePublicShareToken, hashPublicShareToken } from './privacy-tokens';
@@ -16,7 +16,7 @@ export class PublicLinkService {
 
   async listForUser(userId: string): Promise<PublicShareSummary[]> {
     const rows = await this.prisma.publicShare.findMany({
-      where: { createdById: userId, tokenRevokedAt: null },
+      where: { createdById: userId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -30,9 +30,10 @@ export class PublicLinkService {
     resourceId: string;
     label?: string;
     hideLivingPersons?: boolean;
-    expiresAt?: Date;
+    expiresAt?: Date | null;
     familyStoryId?: string;
   }): Promise<PublicShareCreateResult> {
+    const expiresAt = this.resolveExpiresAt(params.expiresAt);
     const { raw, hash } = generatePublicShareToken();
     const share = await this.prisma.publicShare.create({
       data: {
@@ -44,7 +45,7 @@ export class PublicLinkService {
         label: params.label,
         hideLivingPersons: params.hideLivingPersons ?? true,
         publicTokenHash: hash,
-        expiresAt: params.expiresAt,
+        expiresAt,
       },
     });
 
@@ -67,6 +68,7 @@ export class PublicLinkService {
   async revoke(userId: string, shareId: string) {
     const share = await this.prisma.publicShare.findFirst({ where: { id: shareId, createdById: userId } });
     if (!share) throw new NotFoundException('Public share not found');
+    if (share.tokenRevokedAt) throw new BadRequestException('Public share already revoked');
     await this.prisma.publicShare.update({
       where: { id: shareId },
       data: { tokenRevokedAt: new Date() },
@@ -136,6 +138,25 @@ export class PublicLinkService {
     return { share: this.mapSummary(share), payload: { type: share.resourceType, resourceId: share.resourceId } };
   }
 
+  private resolveExpiresAt(expiresAt?: Date | null): Date | null {
+    if (expiresAt === null) return null;
+
+    const fallback = new Date();
+    fallback.setUTCDate(fallback.getUTCDate() + 90);
+
+    const resolved = expiresAt ?? fallback;
+    if (resolved.getTime() <= Date.now()) {
+      throw new BadRequestException('expiresAt must be in the future');
+    }
+    return resolved;
+  }
+
+  private shareStatus(share: { tokenRevokedAt: Date | null; expiresAt: Date | null }): PublicShareStatus {
+    if (share.tokenRevokedAt) return 'revoked';
+    if (share.expiresAt && share.expiresAt < new Date()) return 'expired';
+    return 'active';
+  }
+
   private mapSummary(share: {
     id: string;
     resourceType: string;
@@ -157,6 +178,7 @@ export class PublicLinkService {
       tokenRevokedAt: share.tokenRevokedAt?.toISOString() ?? null,
       expiresAt: share.expiresAt?.toISOString() ?? null,
       createdAt: share.createdAt.toISOString(),
+      status: this.shareStatus(share),
     };
   }
 }

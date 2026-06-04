@@ -9,7 +9,7 @@ export class PersonMatchLoader {
 
   async loadSnapshot(personId: string, workspaceId: string): Promise<PersonMatchSnapshot | null> {
     const person = await this.prisma.person.findFirst({
-      where: { id: personId, deletedAt: null },
+      where: { id: personId, workspaceId, deletedAt: null },
       include: {
         nameAliases: true,
         events: {
@@ -65,6 +65,8 @@ export class PersonMatchLoader {
     return {
       personId: person.id,
       workspaceId,
+      privacyLevel: person.privacyLevel,
+      isLiving: person.isLiving,
       givenName: person.givenName,
       patronymic: person.patronymic,
       familyName: person.familyName,

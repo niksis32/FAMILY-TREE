@@ -1,6 +1,7 @@
 'use client';
 
 import type { PhotoFaceTagRecord } from '@family/shared';
+import { PercentBox } from '@family/ui';
 import { cn } from '@/lib/utils';
 
 interface FaceBoxOverlayProps {
@@ -14,20 +15,19 @@ export function FaceBoxOverlay({ tags, selectedTagId, draftBox, onSelectTag }: F
   return (
     <div className="pointer-events-none absolute inset-0">
       {tags.map((tag) => (
-        <button
+        <PercentBox
           key={tag.id}
+          as="button"
           type="button"
+          x={tag.x}
+          y={tag.y}
+          width={tag.width}
+          height={tag.height}
           className={cn(
-            'pointer-events-auto absolute rounded-md border-2 transition',
+            'pointer-events-auto rounded-md border-2 transition',
             tag.personId ? 'border-emerald-400/90 bg-emerald-400/10' : 'border-amber-300/90 bg-amber-300/10',
             selectedTagId === tag.id && 'ring-2 ring-white shadow-lg',
           )}
-          style={{
-            left: `${tag.x * 100}%`,
-            top: `${tag.y * 100}%`,
-            width: `${tag.width * 100}%`,
-            height: `${tag.height * 100}%`,
-          }}
           onClick={(e) => {
             e.stopPropagation();
             onSelectTag(tag.id);
@@ -36,14 +36,12 @@ export function FaceBoxOverlay({ tags, selectedTagId, draftBox, onSelectTag }: F
         />
       ))}
       {draftBox ? (
-        <div
-          className="absolute rounded-md border-2 border-dashed border-sky-400 bg-sky-400/10"
-          style={{
-            left: `${draftBox.x * 100}%`,
-            top: `${draftBox.y * 100}%`,
-            width: `${draftBox.width * 100}%`,
-            height: `${draftBox.height * 100}%`,
-          }}
+        <PercentBox
+          x={draftBox.x}
+          y={draftBox.y}
+          width={draftBox.width}
+          height={draftBox.height}
+          className="rounded-md border-2 border-dashed border-sky-400 bg-sky-400/10"
         />
       ) : null}
     </div>

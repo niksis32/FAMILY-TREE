@@ -1,6 +1,8 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
+import { SearchPrivacyService } from './search-privacy.service';
 import type { CategorizedSearchResults, SearchDocument } from './search.types';
 
 @Injectable()
@@ -10,9 +12,10 @@ export class SearchService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly searchPrivacy: SearchPrivacyService,
   ) {}
 
-  async search(q: string): Promise<CategorizedSearchResults> {
+  async search(q: string, user?: AuthenticatedUser): Promise<CategorizedSearchResults> {
     const query = q.trim();
     if (!query) {
       return this.emptyResults(query);
@@ -26,7 +29,9 @@ export class SearchService {
       { q: query, limit: 40 },
     );
 
-    return response.hits.reduce<CategorizedSearchResults>((acc, hit) => {
+    const visibleHits = await this.searchPrivacy.filterHits(response.hits, user);
+
+    return visibleHits.reduce<CategorizedSearchResults>((acc, hit) => {
       acc[hit.category].push(hit);
       return acc;
     }, this.emptyResults(query));
@@ -51,16 +56,12 @@ export class SearchService {
     const person = await this.prisma.person.findFirst({ where: { id: personId, deletedAt: null } });
     if (!person) return null;
 
-    const document: SearchDocument = {
-      id: `person:${person.id}`,
-      category: 'people',
-      entityId: person.id,
-      title: [person.givenName, person.patronymic, person.familyName].filter(Boolean).join(' '),
-      text: person.biography ?? undefined,
-      year: person.birthDate?.getUTCFullYear(),
-      tags: ['person'],
-    };
+    if (person.privacyLevel === 'PRIVATE') {
+      await this.deleteFromIndex(`person:${person.id}`);
+      return null;
+    }
 
+    const document = this.personToSearchDocument(person);
     await this.indexDocuments([document]);
     return document;
   }
@@ -69,6 +70,11 @@ export class SearchService {
     const document = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
     if (!document) return null;
 
+    if (document.privacyLevel === 'PRIVATE') {
+      await this.deleteFromIndex(`document:${document.id}`);
+      return null;
+    }
+
     const searchDocument: SearchDocument = {
       id: `document:${document.id}`,
       category: 'documents',
@@ -76,6 +82,8 @@ export class SearchService {
       title: document.title,
       text: document.description ?? undefined,
       tags: ['document', document.mimeType],
+      workspaceId: document.workspaceId,
+      privacyLevel: document.privacyLevel.toLowerCase(),
     };
 
     await this.indexDocuments([searchDocument]);
@@ -93,6 +101,7 @@ export class SearchService {
       title: source.title,
       text: [source.author, source.publication, source.repository, source.notes].filter(Boolean).join('\n'),
       tags: ['source'],
+      workspaceId: source.workspaceId,
     };
 
     await this.indexDocuments([document]);
@@ -138,22 +147,20 @@ export class SearchService {
 
   private async buildIndexDocuments(): Promise<SearchDocument[]> {
     const [people, documents, places, sources] = await Promise.all([
-      this.prisma.person.findMany({ where: { deletedAt: null }, take: 1000 }),
-      this.prisma.document.findMany({ where: { deletedAt: null }, take: 1000 }),
+      this.prisma.person.findMany({
+        where: { deletedAt: null, privacyLevel: { not: 'PRIVATE' } },
+        take: 1000,
+      }),
+      this.prisma.document.findMany({
+        where: { deletedAt: null, privacyLevel: { not: 'PRIVATE' } },
+        take: 1000,
+      }),
       this.prisma.place.findMany({ where: { deletedAt: null }, take: 1000 }),
       this.prisma.source.findMany({ where: { deletedAt: null }, take: 1000 }),
     ]);
 
     return [
-      ...people.map<SearchDocument>((person) => ({
-        id: `person:${person.id}`,
-        category: 'people',
-        entityId: person.id,
-        title: [person.givenName, person.patronymic, person.familyName].filter(Boolean).join(' '),
-        text: person.biography ?? undefined,
-        year: person.birthDate?.getUTCFullYear(),
-        tags: ['person', person.gender ?? 'unknown'],
-      })),
+      ...people.map((person) => this.personToSearchDocument(person)),
       ...documents.map<SearchDocument>((document) => ({
         id: `document:${document.id}`,
         category: 'documents',
@@ -161,6 +168,8 @@ export class SearchService {
         title: document.title,
         text: document.description ?? undefined,
         tags: ['document', document.mimeType],
+        workspaceId: document.workspaceId,
+        privacyLevel: document.privacyLevel.toLowerCase(),
       })),
       ...places.map<SearchDocument>((place) => ({
         id: `place:${place.id}`,
@@ -177,8 +186,40 @@ export class SearchService {
         title: source.title,
         text: [source.author, source.publication, source.repository, source.notes].filter(Boolean).join('\n'),
         tags: ['source'],
+        workspaceId: source.workspaceId,
       })),
     ];
+  }
+
+  private personToSearchDocument(person: {
+    id: string;
+    workspaceId: string;
+    givenName: string;
+    patronymic: string | null;
+    familyName: string | null;
+    biography: string | null;
+    birthDate: Date | null;
+    gender: string | null;
+    privacyLevel: string;
+    isLiving: boolean;
+  }): SearchDocument {
+    return {
+      id: `person:${person.id}`,
+      category: 'people',
+      entityId: person.id,
+      title: [person.givenName, person.patronymic, person.familyName].filter(Boolean).join(' '),
+      text: person.biography ?? undefined,
+      year: person.birthDate?.getUTCFullYear(),
+      tags: ['person', person.gender ?? 'unknown'],
+      workspaceId: person.workspaceId,
+      privacyLevel: person.privacyLevel.toLowerCase(),
+      isLiving: person.isLiving,
+    };
+  }
+
+  private async deleteFromIndex(documentId: string) {
+    await this.ensureIndex();
+    await this.meiliRequest(`/indexes/${this.indexUid}/documents/${encodeURIComponent(documentId)}`, 'DELETE', undefined, true);
   }
 
   private emptyResults(q: string): CategorizedSearchResults {
@@ -192,12 +233,16 @@ export class SearchService {
     }
 
     await this.meiliRequest('/indexes', 'POST', { uid: this.indexUid, primaryKey: 'id' });
-    await this.meiliRequest(`/indexes/${this.indexUid}/settings/filterable-attributes`, 'PUT', ['category']);
+    await this.meiliRequest(`/indexes/${this.indexUid}/settings/filterable-attributes`, 'PUT', [
+      'category',
+      'workspaceId',
+      'privacyLevel',
+    ]);
   }
 
   private async meiliRequest<T = unknown>(
     path: string,
-    method: 'GET' | 'POST' | 'PUT',
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     body?: unknown,
     allowNotFound = false,
   ): Promise<T> {
@@ -223,6 +268,10 @@ export class SearchService {
 
     if (!response.ok) {
       throw new ServiceUnavailableException(`Meilisearch ${response.status}: ${await response.text()}`);
+    }
+
+    if (response.status === 204) {
+      return null as T;
     }
 
     return response.json() as Promise<T>;

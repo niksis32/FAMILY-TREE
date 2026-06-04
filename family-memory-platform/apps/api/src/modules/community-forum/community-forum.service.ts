@@ -14,6 +14,7 @@ import { CommunityGroupsService } from '../community-groups/community-groups.ser
 import { CommunityReputationService } from '../community-reputation/community-reputation.service';
 import { isPubliclyVisibleContent, resolveInitialContentStatus } from '../community-groups/community-privacy';
 import { CreateForumPostDto, CreateForumThreadDto, ForumPaginationQueryDto } from './community-forum.dto';
+import { CommunitySpamGuardService } from './community-spam-guard.service';
 
 const DEFAULT_TAKE = 20;
 
@@ -23,6 +24,7 @@ export class CommunityForumService {
     private readonly prisma: PrismaService,
     private readonly groups: CommunityGroupsService,
     private readonly reputation: CommunityReputationService,
+    private readonly spamGuard: CommunitySpamGuardService,
   ) {}
 
   private threadWhereVisible(userId?: string): Prisma.ForumThreadWhereInput {
@@ -69,10 +71,17 @@ export class CommunityForumService {
     });
   }
 
-  async createThread(groupId: string, authorId: string, dto: CreateForumThreadDto) {
+  async createThread(groupId: string, authorId: string, dto: CreateForumThreadDto, role?: string) {
     await this.groups.assertGroupVisibleToUser(groupId, authorId);
     const can = await this.reputation.canPostInGroup(authorId, groupId);
     if (!can.ok) throw new ForbiddenException(can.reason);
+
+    await this.spamGuard.assertThreadAllowed({
+      userId: authorId,
+      groupId,
+      title: dto.title,
+      role,
+    });
 
     const thread = await this.prisma.forumThread.create({
       data: {
@@ -139,11 +148,18 @@ export class CommunityForumService {
     );
   }
 
-  async createPost(threadId: string, authorId: string, dto: CreateForumPostDto) {
+  async createPost(threadId: string, authorId: string, dto: CreateForumPostDto, role?: string) {
     const thread = await this.getThread(threadId, authorId);
     if (thread.status === 'LOCKED') throw new ForbiddenException('Thread is locked');
     const can = await this.reputation.canPostInGroup(authorId, thread.groupId);
     if (!can.ok) throw new ForbiddenException(can.reason);
+
+    await this.spamGuard.assertPostAllowed({
+      userId: authorId,
+      groupId: thread.groupId,
+      content: dto.content,
+      role,
+    });
 
     const refLiving = dto.referencesLivingPersonData === true;
     const consent = dto.hasConsentForPublicLivingData === true;

@@ -2,6 +2,7 @@
 
 import type { ResearchProgressSnapshot, TreeResearchProgress, UserResearchProgress } from '@family/shared';
 import { useTranslations } from 'next-intl';
+import { ProgressBar } from '@family/ui';
 import { Card, StatCard } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -35,12 +36,7 @@ export function ResearchProgressCard({
         </div>
       </div>
 
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-stone-200 dark:bg-slate-800">
-        <div
-          className="h-full rounded-full bg-family-accent transition-all duration-500"
-          style={{ width: `${researchProgress.overallPercent}%` }}
-        />
-      </div>
+      <ProgressBar value={researchProgress.overallPercent} className="mt-4" />
 
       {!compact && (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -50,9 +46,12 @@ export function ResearchProgressCard({
                 <span className="text-stone-600 dark:text-slate-300">{t(`categories.${cat.key}`)}</span>
                 <span className="font-semibold">{cat.percent}%</span>
               </div>
-              <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-slate-800">
-                <div className="h-full bg-family-primary/70 dark:bg-family-accent/70" style={{ width: `${cat.percent}%` }} />
-              </div>
+              <ProgressBar
+                value={cat.percent}
+                size="sm"
+                className="mt-2"
+                fillClassName="bg-family-primary/70 dark:bg-family-accent/70"
+              />
             </div>
           ))}
         </div>

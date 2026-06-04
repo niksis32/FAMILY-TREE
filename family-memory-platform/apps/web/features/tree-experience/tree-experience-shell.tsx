@@ -111,8 +111,8 @@ export function TreeExperienceShell({
 
   return (
     <TreeViewDataProvider value={contextValue}>
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-4">
           <Card className="space-y-4 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <TreeViewSwitcher mode={displayMode} onChange={setDisplayMode} />
@@ -146,7 +146,9 @@ export function TreeExperienceShell({
           <TreeExperienceActiveView />
         </div>
 
-        <PersonInsightPanel selectedNode={selectedNode} data={data} />
+        <div className="min-w-0 xl:sticky xl:top-24 xl:self-start">
+          <PersonInsightPanel selectedNode={selectedNode} data={data} />
+        </div>
       </div>
     </TreeViewDataProvider>
   );

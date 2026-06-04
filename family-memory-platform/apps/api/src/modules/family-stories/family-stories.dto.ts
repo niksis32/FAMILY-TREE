@@ -4,9 +4,7 @@ import {
   STORY_VISIBILITY_LEVELS,
   type FamilyStoryConfig,
 } from '@family/shared';
-import { Type } from 'class-transformer';
 import {
-  IsArray,
   IsBoolean,
   IsEnum,
   IsIn,
@@ -15,7 +13,6 @@ import {
   IsString,
   MaxLength,
   MinLength,
-  ValidateNested,
 } from 'class-validator';
 import type { FamilyStoryScopeType, FamilyStoryTemplate, StoryVisibility } from '@prisma/client';
 

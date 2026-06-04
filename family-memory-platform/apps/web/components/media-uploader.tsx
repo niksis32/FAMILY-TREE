@@ -1,73 +1,100 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { AlertCircle, RotateCcw, Upload } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
-import { Button, Card, Input, Select } from '@/components/ui';
+import { MediaPreview } from '@/components/media-preview';
+import { ProgressBar } from '@family/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { apiClient } from '@/lib/api-client';
+import { uploadMediaAsset, withRetry } from '@/lib/storage-upload';
 import { cn } from '@/lib/utils';
 
-const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'audio/mpeg'];
+const allowedMimeTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+  'video/mp4',
+  'audio/mpeg',
+];
 
-export function MediaUploader() {
+type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+
+export function MediaUploader({ onUploaded }: { onUploaded?: () => void }) {
   const { session } = useAuth();
+  const t = useTranslations('mediaUploader');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState('Готово к загрузке');
+  const [status, setStatus] = useState<UploadState>('idle');
+  const [message, setMessage] = useState('');
   const [personId, setPersonId] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [lastMediaId, setLastMediaId] = useState<string | null>(null);
 
-  async function upload(file: File) {
-    if (!allowedMimeTypes.includes(file.type)) {
-      setStatus(`Неподдерживаемый MIME type: ${file.type}`);
-      return;
-    }
+  const runUpload = useCallback(
+    async (file: File) => {
+      if (!allowedMimeTypes.includes(file.type)) {
+        setStatus('error');
+        setMessage(t('unsupportedMime', { type: file.type }));
+        return;
+      }
 
-    setProgress(10);
-    setStatus('Получаем presigned URL...');
+      if (!session?.accessToken) {
+        setStatus('error');
+        setMessage(t('authRequired'));
+        return;
+      }
 
-    const presigned = await apiClient.media.uploadUrl(
-      { fileName: file.name, mimeType: file.type, sizeBytes: file.size },
-      session?.accessToken,
-    );
+      setPendingFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setProgress(0);
+      setStatus('uploading');
+      setMessage(t('gettingUrl'));
 
-    setProgress(35);
-    setStatus('Загружаем файл в MinIO...');
+      try {
+        const created = await withRetry(
+          () =>
+            uploadMediaAsset(file, session.accessToken, {
+              personId: personId || undefined,
+              onProgress: (pct, phase) => {
+                const mapped =
+                  phase === 'presigned' ? 15 : phase === 'metadata' ? 85 : Math.min(80, 20 + Math.round(pct * 0.6));
+                setProgress(mapped);
+                if (phase === 'uploading') setMessage(t('uploadingMinio'));
+                if (phase === 'metadata') setMessage(t('savingMetadata'));
+              },
+            }),
+          3,
+        );
 
-    await fetch(presigned.uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    });
-
-    setProgress(80);
-    setStatus('Сохраняем metadata в PostgreSQL...');
-
-    await apiClient.media.metadata(
-      {
-        fileName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        storageKey: presigned.storageKey,
-        title: file.name,
-        personId: personId || undefined,
-      },
-      session?.accessToken,
-    );
-
-    setProgress(100);
-    setStatus('Файл загружен и сохранён');
-  }
+        setLastMediaId(created.id);
+        setProgress(100);
+        setStatus('success');
+        setMessage(t('success'));
+        onUploaded?.();
+      } catch (error) {
+        setStatus('error');
+        setMessage(error instanceof Error ? error.message : t('uploadFailed'));
+        setProgress(0);
+      }
+    },
+    [session?.accessToken, personId, t, onUploaded],
+  );
 
   async function handleFiles(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
+    await runUpload(file);
+  }
 
-    try {
-      await upload(file);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Ошибка загрузки');
-      setProgress(0);
-    }
+  async function openPreview() {
+    if (!lastMediaId || !session?.accessToken) return;
+    const dl = await apiClient.media.downloadUrl(lastMediaId, session.accessToken);
+    window.open(dl.downloadUrl, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -76,6 +103,7 @@ export function MediaUploader() {
         className={cn(
           'rounded-2xl border border-dashed bg-stone-50 p-8 text-center transition dark:bg-slate-950',
           isDragging && 'border-family-accent bg-family-accent/10',
+          status === 'error' && 'border-red-300 dark:border-red-800',
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -88,16 +116,16 @@ export function MediaUploader() {
           void handleFiles(event.dataTransfer.files);
         }}
       >
-        <p className="text-lg font-semibold">Drag-and-drop загрузка в MinIO</p>
-        <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
-          Поддерживаются JPEG, PNG, WebP, PDF, MP4 и MP3. Metadata сохраняется в PostgreSQL.
-        </p>
+        <Upload className="mx-auto h-8 w-8 text-family-accent" />
+        <p className="mt-3 text-lg font-semibold">{t('title')}</p>
+        <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{t('hint')}</p>
 
-        <div className="mx-auto mt-5 grid max-w-xl gap-3 md:grid-cols-[1fr_220px]">
-          <Input placeholder="Person ID для привязки" value={personId} onChange={(event) => setPersonId(event.target.value)} />
-          <Select defaultValue="person">
-            <option value="person">Привязать к человеку</option>
-          </Select>
+        <div className="mx-auto mt-5 max-w-xl">
+          <Input
+            placeholder={t('personIdPlaceholder')}
+            value={personId}
+            onChange={(event) => setPersonId(event.target.value)}
+          />
         </div>
 
         <input
@@ -108,14 +136,40 @@ export function MediaUploader() {
           onChange={(event) => void handleFiles(event.target.files)}
         />
 
-        <Button className="mt-5" type="button" onClick={() => inputRef.current?.click()}>
-          Выбрать файл
-        </Button>
-
-        <div className="mt-6 h-3 overflow-hidden rounded-full bg-white dark:bg-slate-900">
-          <div className="h-full rounded-full bg-family-accent transition-all" style={{ width: `${progress}%` }} />
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={() => inputRef.current?.click()} disabled={status === 'uploading'}>
+            {t('chooseFile')}
+          </Button>
+          {status === 'error' && pendingFile ? (
+            <Button type="button" variant="secondary" onClick={() => void runUpload(pendingFile)}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {t('retry')}
+            </Button>
+          ) : null}
+          {status === 'success' && lastMediaId ? (
+            <Button type="button" variant="ghost" onClick={() => void openPreview()}>
+              {t('openFile')}
+            </Button>
+          ) : null}
         </div>
-        <p className="mt-3 text-sm text-stone-600 dark:text-slate-300">{status}</p>
+
+        {previewUrl && pendingFile ? (
+          <div className="mx-auto mt-6 max-w-md overflow-hidden rounded-xl border aspect-[4/3]">
+            <MediaPreview mimeType={pendingFile.type} downloadUrl={previewUrl} title={pendingFile.name} />
+          </div>
+        ) : null}
+
+        <ProgressBar value={progress} size="lg" className="mx-auto mt-6 max-w-md bg-white dark:bg-slate-900" />
+
+        <p
+          className={cn(
+            'mt-3 flex items-center justify-center gap-2 text-sm',
+            status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-stone-600 dark:text-slate-300',
+          )}
+        >
+          {status === 'error' ? <AlertCircle className="h-4 w-4 shrink-0" /> : null}
+          {message || t('idle')}
+        </p>
       </div>
     </Card>
   );

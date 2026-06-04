@@ -35,6 +35,7 @@ const FEED_QUERY = `
 export function CommunityHubPage() {
   const { session, isReady } = useAuth();
   const t = useTranslations('community.hub');
+  const tMod = useTranslations('community.moderation');
   const tGroups = useTranslations('community.groups');
   const [groups, setGroups] = useState<CommunityGroupRecord[]>([]);
   const [feed, setFeed] = useState<{ threads: FeedThread[]; total: number } | null>(null);
@@ -81,9 +82,16 @@ export function CommunityHubPage() {
         title={t('title')}
         description={t('description')}
         action={
-          <Link href="/community/groups">
-            <Button variant="secondary">{t('openCatalog')}</Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {session?.user.role === 'ADMIN' && (
+              <Link href="/community/moderation">
+                <Button variant="primary">{tMod('openModeration')}</Button>
+              </Link>
+            )}
+            <Link href="/community/groups">
+              <Button variant="secondary">{t('openCatalog')}</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -91,7 +99,7 @@ export function CommunityHubPage() {
       {loading && <p className="text-sm text-stone-500">{t('loading')}</p>}
 
       {!loading && (
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <Card className="space-y-4">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-stone-400">{t('feedEyebrow')}</p>

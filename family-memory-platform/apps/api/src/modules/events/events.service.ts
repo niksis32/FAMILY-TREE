@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import type { CreateEventDto, UpdateEventDto } from './events.dto';
 
 @Injectable()
@@ -25,7 +27,7 @@ export class EventsService {
   }
 
   create(dto: CreateEventDto) {
-    return this.prisma.event.create({ data: this.toEventData(dto) });
+    return this.prisma.event.create({ data: this.toEventCreateData(dto) });
   }
 
   async update(id: string, dto: UpdateEventDto) {
@@ -43,7 +45,19 @@ export class EventsService {
     if (!event) throw new NotFoundException('Event not found');
   }
 
-  private toEventData(dto: CreateEventDto | UpdateEventDto) {
+  private toEventCreateData(dto: CreateEventDto) {
+    return workspaceScopedCreateData<Prisma.EventUncheckedCreateInput>({
+      type: dto.type,
+      date: dto.date ? new Date(dto.date) : undefined,
+      dateEnd: dto.dateEnd ? new Date(dto.dateEnd) : undefined,
+      description: dto.description,
+      personId: dto.personId,
+      familyId: dto.familyId,
+      placeId: dto.placeId,
+    });
+  }
+
+  private toEventData(dto: UpdateEventDto): Prisma.EventUncheckedUpdateInput {
     return {
       type: dto.type,
       date: dto.date ? new Date(dto.date) : undefined,

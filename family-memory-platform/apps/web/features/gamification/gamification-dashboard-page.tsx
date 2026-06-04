@@ -45,7 +45,7 @@ export function GamificationDashboardPage() {
 
       {data && (
         <>
-          <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <ResearchProgressCard
               researchProgress={data.researchProgress}
               treeProgress={data.treeProgress}

@@ -29,7 +29,7 @@ export class StorytellingController {
     @Body() dto: GeneratePersonStoryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.generatePersonStory(user.id, personId, dto);
+    return this.service.generatePersonStory(user, personId, dto);
   }
 
   @Post('timeline/:personId/narrative')
@@ -38,7 +38,7 @@ export class StorytellingController {
     @Body() dto: GenerateTimelineNarrativeDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.generateTimelineNarrative(user.id, personId, dto);
+    return this.service.generateTimelineNarrative(user, personId, dto);
   }
 
   @Post('document/:documentId/summary')
@@ -47,7 +47,7 @@ export class StorytellingController {
     @Body() dto: GenerateDocumentSummaryStoryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.generateDocumentSummary(user.id, documentId, dto);
+    return this.service.generateDocumentSummary(user, documentId, dto);
   }
 
   @Post('family/:familyId/generate')
@@ -56,13 +56,13 @@ export class StorytellingController {
     @Body() dto: GenerateFamilyStoryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.service.generateFamilyStory(user.id, familyId, dto);
+    return this.service.generateFamilyStory(user, familyId, dto);
   }
 
   @Post('migration/generate')
   generateMigration(@Body() dto: GenerateMigrationStoryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.generateMigrationStory(
-      user.id,
+      user,
       { personId: dto.personId, familyId: dto.familyId, personIds: dto.personIds },
       dto,
     );
@@ -71,7 +71,7 @@ export class StorytellingController {
   @Post('era-context')
   generateEraContext(@Body() dto: GenerateEraContextDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.generateEraContext(
-      user.id,
+      user,
       { personId: dto.personId, familyId: dto.familyId, yearFrom: dto.yearFrom, yearTo: dto.yearTo },
       dto,
     );
@@ -97,6 +97,11 @@ export class StorytellingController {
   @Patch('drafts/:id')
   updateDraft(@Param('id') id: string, @Body() dto: UpdateStoryDraftDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.updateDraftOwned(id, user.id, dto);
+  }
+
+  @Post('drafts/:id/fact-check')
+  factCheckDraft(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.factCheckDraftOwned(id, user);
   }
 
   @Delete('drafts/:id')

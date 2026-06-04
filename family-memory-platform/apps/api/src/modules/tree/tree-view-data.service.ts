@@ -55,24 +55,26 @@ export class TreeViewDataService {
     query: TreeViewDataQuery = {},
     user?: AuthenticatedUser,
   ): Promise<TreeViewDataResponse> {
-    const viewer = this.access.viewerFromUser(user ?? null);
-    const scope = query.scope ?? 'full';
-    const depth = query.depth ?? DEFAULT_DEPTH;
-
     const root = await this.prisma.person.findFirst({
       where: { id: rootPersonId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, workspaceId: true },
     });
     if (!root) {
       throw new NotFoundException('Root person not found');
     }
 
-    const relationships = await this.prisma.relationship.findMany({
+    const viewer = await this.access.viewerForWorkspace(user ?? null, root.workspaceId);
+    const scope = query.scope ?? 'full';
+    const depth = query.depth ?? DEFAULT_DEPTH;
+
+    const personsById = await this.loadPersonMap(root.workspaceId);
+    const relationships = (await this.prisma.relationship.findMany({
       where: { deletedAt: null },
       select: { id: true, fromPersonId: true, toPersonId: true, type: true },
-    });
-
-    const personsById = await this.loadPersonMap();
+    })).filter(
+      (relationship) =>
+        personsById.has(relationship.fromPersonId) && personsById.has(relationship.toPersonId),
+    );
     const generations = this.collectGenerations(
       rootPersonId,
       relationships,
@@ -105,10 +107,18 @@ export class TreeViewDataService {
       hideLiving,
     );
 
-    const events = await this.loadEvents(personIds);
-    const places = await this.buildPlacesFromEvents(events, personIds);
+    const hiddenPersonIds = new Set(nodes.filter((node) => node.isHidden).map((node) => node.personId));
+
+    const events = this.redactEventsForHiddenPersons(await this.loadEvents(personIds), hiddenPersonIds);
+    const places = this.redactPlacesForHiddenPersons(
+      await this.buildPlacesFromEvents(events, personIds),
+      hiddenPersonIds,
+    );
     const families = await this.loadFamilies(personIds);
-    const mediaPreview = await this.loadMediaPreview(personIds, personsById);
+    const mediaPreview = this.redactMediaForHiddenPersons(
+      await this.loadMediaPreview(personIds, personsById, viewer, hideLiving),
+      hiddenPersonIds,
+    );
     const generationBands = this.buildGenerationBands(nodes);
 
     return {
@@ -150,9 +160,9 @@ export class TreeViewDataService {
     };
   }
 
-  private async loadPersonMap() {
+  private async loadPersonMap(workspaceId: string) {
     const rows = await this.prisma.person.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, workspaceId },
       select: {
         id: true,
         givenName: true,
@@ -413,15 +423,7 @@ export class TreeViewDataService {
       const person = personsById.get(id);
       if (!person) continue;
       const generation = generations.get(id) ?? 0;
-      const policyPerson = {
-        id: person.id,
-        givenName: person.givenName,
-        familyName: person.familyName,
-        birthDate: person.birthDate?.toISOString() ?? null,
-        deathDate: person.deathDate?.toISOString() ?? null,
-        isLiving: person.isLiving,
-        privacyLevel: person.privacyLevel.toLowerCase(),
-      };
+      const policyPerson = this.toPolicyPerson(person);
       const avatarUrl = avatarUrls.get(id) ?? null;
       const redacted = this.policy.applyTreeNodeRedaction(
         policyPerson,
@@ -551,7 +553,12 @@ export class TreeViewDataService {
     return [...byFamily.values()];
   }
 
-  private async loadMediaPreview(personIds: string[], personsById: Map<string, DbPerson>): Promise<TreeViewMediaPreview[]> {
+  private async loadMediaPreview(
+    personIds: string[],
+    personsById: Map<string, DbPerson>,
+    viewer: ReturnType<AccessControlService['viewerFromUser']>,
+    hideLivingPersons: boolean,
+  ): Promise<TreeViewMediaPreview[]> {
     const mediaRows = await this.prisma.media.findMany({
       where: { personId: { in: personIds }, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -563,7 +570,14 @@ export class TreeViewDataService {
 
     for (const personId of personIds) {
       const person = personsById.get(personId);
-      if (person?.avatarMediaId) {
+      if (!person) continue;
+
+      const policyPerson = this.toPolicyPerson(person);
+      if (!this.access.canViewPersonRecord(policyPerson, viewer, hideLivingPersons)) {
+        continue;
+      }
+
+      if (person.avatarMediaId) {
         try {
           const resolved = await this.media.createDownloadUrl(person.avatarMediaId);
           previews.push({
@@ -582,6 +596,22 @@ export class TreeViewDataService {
 
     for (const media of mediaRows) {
       if (!media.personId || seenPerson.has(media.personId)) continue;
+
+      const person = media.personId ? personsById.get(media.personId) : undefined;
+      const policyPerson = person ? this.toPolicyPerson(person) : null;
+      if (policyPerson && !this.access.canViewPersonRecord(policyPerson, viewer, hideLivingPersons)) {
+        continue;
+      }
+      if (
+        !this.access.canViewMediaRecord(
+          { id: media.id, privacyLevel: media.privacyLevel, personId: media.personId },
+          viewer,
+          policyPerson,
+        )
+      ) {
+        continue;
+      }
+
       try {
         const resolved = await this.media.createDownloadUrl(media.id);
         previews.push({
@@ -598,6 +628,48 @@ export class TreeViewDataService {
     }
 
     return previews;
+  }
+
+  private redactEventsForHiddenPersons(events: TreeViewEvent[], hiddenPersonIds: Set<string>): TreeViewEvent[] {
+    return events.map((event) => {
+      if (!event.personId || !hiddenPersonIds.has(event.personId)) {
+        return event;
+      }
+
+      return {
+        ...event,
+        title: 'Restricted event',
+        placeName: null,
+      };
+    });
+  }
+
+  private redactPlacesForHiddenPersons(places: TreeViewPlace[], hiddenPersonIds: Set<string>): TreeViewPlace[] {
+    return places
+      .map((place) => ({
+        ...place,
+        personIds: place.personIds.filter((personId) => !hiddenPersonIds.has(personId)),
+      }))
+      .filter((place) => place.personIds.length > 0 || place.eventIds.length > 0);
+  }
+
+  private redactMediaForHiddenPersons(
+    previews: TreeViewMediaPreview[],
+    hiddenPersonIds: Set<string>,
+  ): TreeViewMediaPreview[] {
+    return previews.filter((preview) => !preview.personId || !hiddenPersonIds.has(preview.personId));
+  }
+
+  private toPolicyPerson(person: DbPerson) {
+    return {
+      id: person.id,
+      givenName: person.givenName,
+      familyName: person.familyName,
+      birthDate: person.birthDate?.toISOString() ?? null,
+      deathDate: person.deathDate?.toISOString() ?? null,
+      isLiving: person.isLiving,
+      privacyLevel: person.privacyLevel.toLowerCase(),
+    };
   }
 
   private buildGenerationBands(nodes: TreeViewNode[]): TreeGenerationBand[] {

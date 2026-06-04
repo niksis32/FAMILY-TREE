@@ -1,12 +1,13 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { ApiError } from '@/lib/api-client';
 
 export function useFormatApiError() {
   const t = useTranslations('errors');
 
-  return (error: unknown): string => {
+  return useCallback((error: unknown): string => {
     if (!(error instanceof ApiError)) {
       return error instanceof Error ? error.message : t('unknown');
     }
@@ -20,5 +21,5 @@ export function useFormatApiError() {
     }
     if (error.status === 401) return t('sessionExpired');
     return error.message || t('apiError', { status: error.status });
-  };
+  }, [t]);
 }

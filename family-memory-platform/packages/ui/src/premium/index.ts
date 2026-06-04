@@ -4,3 +4,7 @@ export { QuickActionCard, type QuickActionLinkProps } from './quick-action-card'
 export { ModalShell } from './modal-shell';
 export { WorkspacePanel } from './workspace-panel';
 export { RecordList, type RecordListItem } from './record-list';
+export { CoverImage } from './cover-image';
+export { ProgressBar } from './progress-bar';
+export { ColorDot } from './color-dot';
+export { PercentBox } from './percent-box';

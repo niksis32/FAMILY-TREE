@@ -21,8 +21,9 @@ export function TreeViewSwitcher({
   const t = useTranslations('treeExperience');
 
   return (
+    <div className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <div
-      className="inline-flex flex-wrap gap-1 rounded-2xl border border-stone-200 bg-white/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/90"
+      className="inline-flex min-w-max flex-nowrap gap-1 rounded-2xl border border-stone-200 bg-white/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/90"
       role="tablist"
       aria-label={t('modeSwitcherLabel')}
     >
@@ -43,6 +44,7 @@ export function TreeViewSwitcher({
           <span>{t(`modes.${item.id}`)}</span>
         </button>
       ))}
+    </div>
     </div>
   );
 }

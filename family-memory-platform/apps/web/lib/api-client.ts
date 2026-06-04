@@ -22,16 +22,21 @@ export function formatApiError(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return error instanceof Error ? error.message : 'Неизвестная ошибка';
   }
+  let parsedMessage: string | undefined;
   try {
     const body = JSON.parse(error.message) as { message?: string | string[] };
     const msg = body.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg)) parsedMessage = msg.join(', ');
+    else if (typeof msg === 'string') parsedMessage = msg;
   } catch {
     /* plain text */
   }
+  if (parsedMessage) return parsedMessage;
   if (error.status === 401) {
     return 'Сессия истекла или токен недействителен. Нажмите «Выйти» и войдите снова.';
+  }
+  if (error.status === 429) {
+    return 'Слишком много запросов. Подождите немного и попробуйте снова.';
   }
   return error.message || `Ошибка API ${error.status}`;
 }
@@ -420,6 +425,67 @@ export interface CommunityGraphqlResponse<T = unknown> {
   errors?: { message: string }[];
 }
 
+export type ModerationReportCategory =
+  | 'SPAM'
+  | 'HARASSMENT'
+  | 'PERSONAL_DATA_LIVING'
+  | 'MISINFORMATION'
+  | 'OFF_TOPIC'
+  | 'COPYRIGHT'
+  | 'OTHER';
+
+export type ModerationReportStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED';
+
+export interface ModerationTargetPreview {
+  kind: string;
+  content?: string;
+  threadId?: string;
+  threadTitle?: string;
+  groupId?: string;
+  groupTitle?: string;
+  authorId?: string;
+  authorName?: string | null;
+  contentStatus?: string;
+}
+
+export interface ModerationReportRecord {
+  id: string;
+  reporterId: string;
+  targetType: string;
+  targetId: string;
+  category: ModerationReportCategory;
+  details?: string | null;
+  status: ModerationReportStatus;
+  createdAt: string;
+  updatedAt: string;
+  reporter?: { id: string; displayName: string | null };
+  targetPreview?: ModerationTargetPreview | null;
+}
+
+export interface ModerationPendingPostRecord {
+  id: string;
+  threadId: string;
+  authorId: string;
+  content: string;
+  referencesLivingPersonData: boolean;
+  hasConsentForPublicLivingData: boolean;
+  contentStatus: string;
+  createdAt: string;
+  author: { id: string; displayName: string | null };
+  thread: {
+    id: string;
+    title: string;
+    groupId: string;
+    group: { id: string; title: string };
+  };
+}
+
+export interface ModerationQueueResponse {
+  stats: { openReports: number; underReview: number; pendingPosts: number };
+  reports: ModerationReportRecord[];
+  pendingPosts: ModerationPendingPostRecord[];
+}
+
 export const apiClient = {
   login: (dto: LoginDto) => apiPost<AuthSession>('/auth/login', dto),
   registerFirstAdmin: (dto: RegisterFirstAdminInput) => apiPost<AuthSession>('/auth/register-first-admin', dto),
@@ -539,6 +605,21 @@ export const apiClient = {
       token?: string | null,
     ) => apiPost<unknown>(`/document-intelligence/${documentId}/reject`, body, token),
   },
+  documentOcr: {
+    enqueue: (documentId: string, token?: string | null) =>
+      apiPost<{ id: string; status: string }>(`/document-ocr/${documentId}/enqueue`, {}, token),
+    status: (documentId: string, token?: string | null) =>
+      apiGet<{
+        documentId: string;
+        id?: string;
+        status: string | null;
+        error?: string | null;
+        language?: string;
+        completedAt?: string | null;
+        createdAt?: string;
+        updatedAt?: string;
+      }>(`/document-ocr/${documentId}/status`, token),
+  },
   storytelling: {
     generatePerson: (
       personId: string,
@@ -606,6 +687,8 @@ export const apiClient = {
       apiGet<import('@family/shared').StoryDraftDto>(`/storytelling/drafts/${id}`, token),
     updateDraft: (id: string, body: import('@family/shared').UpdateStoryDraftRequestDto, token?: string | null) =>
       apiPatch<import('@family/shared').StoryDraftDto>(`/storytelling/drafts/${id}`, body, token),
+    factCheckDraft: (id: string, token?: string | null) =>
+      apiPost<import('@family/shared').StoryDraftDto>(`/storytelling/drafts/${id}/fact-check`, {}, token),
     deleteDraft: (id: string, token?: string | null) =>
       apiDelete<{ ok: boolean }>(`/storytelling/drafts/${id}`, token),
   },
@@ -627,6 +710,12 @@ export const apiClient = {
     uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
       apiPost<MediaUploadUrlResponse>('/media/upload-url', input, token),
     metadata: (input: MediaMetadataInput, token?: string | null) => apiPost('/media/metadata', input, token),
+    remove: (id: string, token?: string | null) => apiDelete<{ id: string }>(`/media/${id}`, token),
+    link: (
+      id: string,
+      body: { entityType: string; entityId: string },
+      token?: string | null,
+    ) => apiPost(`/media/${id}/link`, body, token),
   },
   photoIntelligence: {
     workspace: (mediaId: string, token?: string | null) =>
@@ -790,6 +879,33 @@ export const apiClient = {
       apiPost<{ ok: boolean }>(`/community/posts/${postId}/helpful`, {}, token),
     graphql: <T = unknown>(body: { query: string; variables?: Record<string, unknown> }, token?: string | null) =>
       apiPost<CommunityGraphqlResponse<T>>('/community/graphql', body, token),
+    createReport: (
+      body: {
+        targetType: string;
+        targetId: string;
+        category: ModerationReportCategory;
+        details?: string;
+      },
+      token: string,
+    ) => apiPost<ModerationReportRecord>('/community/moderation/reports', body, token),
+    moderationQueue: (token: string) =>
+      apiGet<ModerationQueueResponse>('/community/moderation/queue', token),
+    approvePost: (postId: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/community/moderation/posts/${postId}/approve`, {}, token),
+    hidePost: (
+      postId: string,
+      body: { moderatorNote?: string; applyStrikeToAuthor?: boolean },
+      token: string,
+    ) => apiPost<{ ok: boolean }>(`/community/moderation/posts/${postId}/hide`, body, token),
+    resolveReport: (
+      reportId: string,
+      body: {
+        status: ModerationReportStatus;
+        moderatorNote?: string;
+        applyStrikeToTargetAuthor?: boolean;
+      },
+      token: string,
+    ) => apiPost<{ ok: boolean }>(`/community/moderation/reports/${reportId}/resolve`, body, token),
   },
   familyStories: {
     list: (token: string) =>
@@ -823,6 +939,29 @@ export const apiClient = {
       apiPost<import('@family/shared').FamilyStoryDetailDto>(
         `/family-stories/${id}/revoke-token`,
         {},
+        token,
+      ),
+    submitForReview: (id: string, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryDetailDto>(
+        `/family-stories/${id}/submit-for-review`,
+        {},
+        token,
+      ),
+    moderationQueue: (token: string) =>
+      apiGet<import('@family/shared').FamilyStoryModerationQueueItemDto[]>(
+        '/family-stories/moderation/queue',
+        token,
+      ),
+    moderationApprove: (id: string, body: { moderationNote?: string }, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryDetailDto>(
+        `/family-stories/moderation/${id}/approve`,
+        body,
+        token,
+      ),
+    moderationReject: (id: string, body: { moderationNote: string }, token: string) =>
+      apiPost<import('@family/shared').FamilyStoryDetailDto>(
+        `/family-stories/moderation/${id}/reject`,
+        body,
         token,
       ),
     publicByToken: (token: string) =>
@@ -961,6 +1100,8 @@ export const apiClient = {
         hideLivingPersons?: boolean;
         workspaceId?: string;
         familyStoryId?: string;
+        expiresAt?: string;
+        neverExpires?: boolean;
       },
       token: string,
     ) =>

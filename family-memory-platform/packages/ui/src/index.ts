@@ -7,3 +7,4 @@ export * from './components';
 export * from './theme';
 export * from './premium';
 export { cn } from './lib/cn';
+export { useFocusTrap } from './lib/use-focus-trap';

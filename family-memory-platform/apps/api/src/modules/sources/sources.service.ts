@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import { SearchService } from '../search/search.service';
 import type { CreateSourceDto, UpdateSourceDto } from './sources.dto';
 
@@ -24,7 +26,16 @@ export class SourcesService {
   }
 
   async create(dto: CreateSourceDto) {
-    const source = await this.prisma.source.create({ data: dto });
+    const source = await this.prisma.source.create({
+      data: workspaceScopedCreateData<Prisma.SourceUncheckedCreateInput>({
+        title: dto.title,
+        author: dto.author,
+        publication: dto.publication,
+        repository: dto.repository,
+        url: dto.url,
+        notes: dto.notes,
+      }),
+    });
     await this.indexSource(source.id);
     return source;
   }

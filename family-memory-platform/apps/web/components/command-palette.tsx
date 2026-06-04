@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import {
@@ -11,6 +12,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { useFocusTrap } from '@family/ui';
 import { useAuth } from '@/components/auth-provider';
 import {
   PLATFORM_DASHBOARD,
@@ -83,12 +85,19 @@ export function CommandPalette() {
   const router = useRouter();
   const { session } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const titleId = useId();
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [searchHits, setSearchHits] = useState<SearchResultItem[]>([]);
   const [searching, setSearching] = useState(false);
+
+  useFocusTrap(panelRef, open);
+
+  const close = useCallback(() => setOpen(false), []);
 
   const staticCommands = useMemo(
     () => [
@@ -144,12 +153,20 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setQuery('');
-      setActiveIndex(0);
-      setSearchHits([]);
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (!open) return;
+    setQuery('');
+    setActiveIndex(0);
+    setSearchHits([]);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -216,64 +233,100 @@ export function CommandPalette() {
     [filteredStatic, searchCommands],
   );
 
+  const activeOptionId =
+    allCommands.length > 0 ? `${listboxId}-option-${allCommands[activeIndex]?.id ?? activeIndex}` : undefined;
+
   const execute = useCallback(
     (entry: CommandEntry) => {
-      setOpen(false);
+      close();
       if (entry.href) router.push(entry.href);
       else entry.run?.();
     },
-    [router],
+    [router, close],
   );
 
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="hidden items-center gap-2 rounded-xl border border-stone-200/80 bg-white/80 px-3 py-2 text-sm text-stone-500 transition hover:border-family-accent/40 hover:text-family-primary dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400 dark:hover:text-family-accent md:flex"
-      >
-        <Search className="h-4 w-4" aria-hidden />
-        <span className="max-w-[10rem] truncate">{t('trigger')}</span>
-        <kbd className="rounded-md border bg-stone-100 px-1.5 py-0.5 text-[0.65rem] font-semibold dark:bg-slate-800">⌘K</kbd>
-      </button>
+  const triggerClass = (compact: boolean) =>
+    cn(
+      'items-center justify-center rounded-xl border transition',
+      compact
+        ? 'inline-flex h-10 w-10 shrink-0'
+        : 'hidden gap-2 px-3 py-2 text-sm sm:inline-flex',
+      open
+        ? 'border-family-accent/40 bg-family-accent/10 font-medium text-family-primary dark:text-family-accent'
+        : 'border-stone-200/80 bg-white/80 text-stone-500 hover:border-family-accent/40 hover:text-family-primary dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400 dark:hover:text-family-accent',
     );
-  }
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="hidden items-center gap-2 rounded-xl border border-family-accent/40 bg-family-accent/10 px-3 py-2 text-sm font-medium text-family-primary dark:text-family-accent md:flex"
-      >
-        <Search className="h-4 w-4" />
-        {t('trigger')}
-      </button>
+  const triggerProps = {
+    type: 'button' as const,
+    onClick: () => setOpen(true),
+    'aria-haspopup': 'dialog' as const,
+    'aria-expanded': open,
+    'aria-controls': open ? listboxId : undefined,
+    'aria-label': t('triggerLabel'),
+  };
 
-      <div
-        className="fixed inset-0 z-[60] flex items-start justify-center bg-family-ink/45 p-4 pt-[12vh] backdrop-blur-sm"
-        onClick={() => setOpen(false)}
-      >
+  const mobileTrigger = (
+    <button {...triggerProps} className={triggerClass(true)}>
+      <Search className="h-4 w-4" aria-hidden />
+    </button>
+  );
+
+  const desktopTrigger = (
+    <button {...triggerProps} className={triggerClass(false)}>
+      <Search className="h-4 w-4" aria-hidden />
+      <span className="max-w-[10rem] truncate">{t('trigger')}</span>
+      <kbd className="rounded-md border bg-stone-100 px-1.5 py-0.5 text-[0.65rem] font-semibold dark:bg-slate-800" aria-hidden>
+        ⌘K
+      </kbd>
+    </button>
+  );
+
+  const modal =
+    open && typeof document !== 'undefined' ? (
+      <div className="fixed inset-0 z-[100] flex items-start justify-center p-3 pt-[max(1rem,env(safe-area-inset-top))] sm:p-4 sm:pt-[12vh]">
+        <button
+          type="button"
+          className="absolute inset-0 bg-family-ink/45 backdrop-blur-sm"
+          aria-label={t('close')}
+          onClick={close}
+        />
         <div
-          className="w-full max-w-xl overflow-hidden rounded-[1.5rem] border border-family-accent/20 bg-white shadow-2xl dark:bg-slate-950"
-          onClick={(e) => e.stopPropagation()}
+          ref={panelRef}
+          tabIndex={-1}
+          className="relative z-10 max-h-[min(92dvh,100%)] w-full max-w-xl overflow-hidden rounded-[1.25rem] border border-family-accent/20 bg-white shadow-2xl outline-none dark:bg-slate-950 sm:rounded-[1.5rem]"
           role="dialog"
-          aria-label={t('title')}
+          aria-modal="true"
+          aria-labelledby={titleId}
         >
+          <h2 id={titleId} className="sr-only">
+            {t('title')}
+          </h2>
           <div className="flex items-center gap-3 border-b border-stone-200/80 px-4 py-3 dark:border-slate-800">
-            <Search className="h-5 w-5 shrink-0 text-family-accent" />
+            <Search className="h-5 w-5 shrink-0 text-family-accent" aria-hidden />
             <input
               ref={inputRef}
+              id={`${listboxId}-input`}
               type="search"
+              role="combobox"
+              aria-expanded
+              aria-controls={listboxId}
+              aria-activedescendant={activeOptionId}
+              aria-autocomplete="list"
+              aria-label={t('searchLabel')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('placeholder')}
               className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-stone-400"
               onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  close();
+                  return;
+                }
                 if (e.key === 'ArrowDown') {
                   e.preventDefault();
                   setActiveIndex((i) => Math.min(i + 1, allCommands.length - 1));
@@ -286,21 +339,32 @@ export function CommandPalette() {
                 }
               }}
             />
-            <kbd className="hidden rounded border px-1.5 text-xs text-stone-400 sm:inline">Esc</kbd>
+            <kbd className="hidden rounded border px-1.5 text-xs text-stone-400 sm:inline" aria-hidden>
+              Esc
+            </kbd>
           </div>
 
-          <ul className="max-h-[min(24rem,50vh)] overflow-y-auto p-2">
+          <ul
+            id={listboxId}
+            role="listbox"
+            aria-label={t('resultsLabel')}
+            className="max-h-[min(24rem,50vh)] overflow-y-auto p-2"
+          >
             {allCommands.length === 0 ? (
-              <li className="px-3 py-8 text-center text-sm text-stone-500">
+              <li className="px-3 py-8 text-center text-sm text-stone-500" role="presentation">
                 {searching ? t('searching') : t('noResults')}
               </li>
             ) : (
               allCommands.map((entry, index) => {
                 const Icon = entry.icon;
+                const optionId = `${listboxId}-option-${entry.id}`;
                 return (
-                  <li key={entry.id}>
+                  <li key={entry.id} role="presentation">
                     <button
+                      id={optionId}
                       type="button"
+                      role="option"
+                      aria-selected={index === activeIndex}
                       className={cn(
                         'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition',
                         index === activeIndex
@@ -310,7 +374,7 @@ export function CommandPalette() {
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => execute(entry)}
                     >
-                      <Icon className="h-4 w-4 shrink-0 opacity-80" />
+                      <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{entry.label}</span>
                         {entry.hint ? (
@@ -324,7 +388,9 @@ export function CommandPalette() {
                           </span>
                         ) : null}
                       </span>
-                      <span className="text-[0.65rem] uppercase tracking-wider opacity-60">{entry.kind}</span>
+                      <span className="text-[0.65rem] uppercase tracking-wider opacity-60" aria-hidden>
+                        {entry.kind}
+                      </span>
                     </button>
                   </li>
                 );
@@ -333,6 +399,13 @@ export function CommandPalette() {
           </ul>
         </div>
       </div>
+    ) : null;
+
+  return (
+    <>
+      {mobileTrigger}
+      {desktopTrigger}
+      {modal ? createPortal(modal, document.body) : null}
     </>
   );
 }

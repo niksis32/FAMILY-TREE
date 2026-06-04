@@ -47,6 +47,7 @@ model User {
   treeMatchRunsRequested     TreeMatchRun[]         @relation("TreeMatchRunRequester")
   treeMatchCandidatesReviewed TreeMatchCandidate[]  @relation("TreeMatchCandidateReviewer")
   familyStoriesCreated       FamilyStory[]          @relation("FamilyStoryCreator")
+  familyStoriesModerated     FamilyStory[]          @relation("FamilyStoryModerator")
   aiStoryDrafts              AiStoryDraft[]
   workspaceInvitesSent       WorkspaceInvite[]    @relation("WorkspaceInviteInviter")
   privacyRequests            PrivacyRequest[]
@@ -110,6 +111,8 @@ enum MediaOwnerType {
   EVENT
   DOCUMENT
   SOURCE
+  STORY
+  MESSAGE
 }
 
 enum StorageProvider {
@@ -172,7 +175,7 @@ model Person {
 
 model Family {
   id                 String       @id @default(cuid())
-  workspaceId        String?
+  workspaceId        String
   name               String?
   notes              String?      @db.Text
   hideLivingPersons  Boolean      @default(true)
@@ -181,7 +184,7 @@ model Family {
   updatedAt          DateTime     @updatedAt
   deletedAt          DateTime?
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   members   FamilyMember[]
   events    Event[]
   matchRuns TreeMatchRun[]
@@ -192,18 +195,21 @@ model Family {
 }
 
 model FamilyMember {
-  id        String           @id @default(cuid())
-  familyId  String
-  personId  String
-  role      FamilyMemberRole @default(CHILD)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  deletedAt DateTime?
+  id          String           @id @default(cuid())
+  workspaceId String
+  familyId    String
+  personId    String
+  role        FamilyMemberRole @default(CHILD)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
 
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, personId])
+  @@index([workspaceId])
   @@index([personId, role])
   @@index([deletedAt])
 }
@@ -217,6 +223,7 @@ enum FamilyMemberRole {
 
 model Relationship {
   id           String           @id @default(cuid())
+  workspaceId  String
   fromPersonId String
   toPersonId   String
   type         RelationshipType @default(PARENT)
@@ -229,10 +236,12 @@ model Relationship {
   updatedAt    DateTime         @updatedAt
   deletedAt    DateTime?
 
-  fromPerson Person  @relation("fromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
-  toPerson   Person  @relation("toPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
-  source     Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  fromPerson Person    @relation("fromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson   Person    @relation("toPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+  source     Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
+  @@index([workspaceId])
   @@index([fromPersonId])
   @@index([toPersonId])
   @@index([fromPersonId, toPersonId])
@@ -243,6 +252,7 @@ model Relationship {
 
 model Event {
   id          String    @id @default(cuid())
+  workspaceId String
   type        EventType @default(CUSTOM)
   date        DateTime?
   dateEnd     DateTime?
@@ -254,12 +264,14 @@ model Event {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
-  family Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  place  Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  family    Family?   @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  place     Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
 
   timelineItems TimelineItem[]
 
+  @@index([workspaceId])
   @@index([personId, date])
   @@index([familyId, date])
   @@index([placeId])
@@ -567,6 +579,8 @@ model Document {
   media  Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   source Source? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   forumThreads ForumThread[]
+  intelligenceAnalysis DocumentIntelligenceAnalysis?
+  ocrJobs DocumentOcrJob[]
 
   @@index([workspaceId])
   @@index([personId])
@@ -577,10 +591,44 @@ model Document {
   @@index([deletedAt])
 }
 
+/** AI analysis bundle per document (OCR, NER, suggestions) — persisted until user confirms/rejects. */
+model DocumentIntelligenceAnalysis {
+  documentId    String   @id
+  ocr           Json?
+  entities      Json?
+  events        Json?
+  relationships Json?
+  summary       Json?
+  rejected      Json     @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+/** Async OCR pipeline job (BullMQ) — auto-enqueued after document upload. */
+model DocumentOcrJob {
+  id          String              @id @default(cuid())
+  documentId  String
+  status      PhotoAnalysisStatus @default(QUEUED)
+  error       String?             @db.Text
+  requestedBy String?
+  language    String              @default("ru")
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([status])
+}
+
 // --- Sources & citations (genealogical proof standard) ---
 
 model Source {
   id          String    @id @default(cuid())
+  workspaceId String
   title       String
   author      String?
   publication String?
@@ -591,27 +639,32 @@ model Source {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   citations     Citation[]
   documents     Document[]
   relationships Relationship[]
 
+  @@index([workspaceId])
   @@index([title])
   @@index([deletedAt])
 }
 
 model Citation {
-  id        String    @id @default(cuid())
-  sourceId  String
-  personId  String?
-  page      String?
-  detail    String?   @db.Text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id          String    @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  personId    String?
+  page        String?
+  detail      String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  source Source  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source    Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
 
+  @@index([workspaceId])
   @@index([sourceId])
   @@index([personId])
   @@index([deletedAt])
@@ -621,6 +674,7 @@ model Citation {
 
 model TimelineItem {
   id          String    @id @default(cuid())
+  workspaceId String
   personId    String
   eventId     String?
   title       String
@@ -630,9 +684,11 @@ model TimelineItem {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  event  Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
+  @@index([workspaceId])
   @@index([personId, sortDate])
   @@index([eventId])
   @@index([deletedAt])
@@ -1024,6 +1080,12 @@ model Workspace {
   media         Media[]
   documents     Document[]
   families      Family[]
+  familyMembers FamilyMember[]
+  relationships Relationship[]
+  events        Event[]
+  sources       Source[]
+  citations     Citation[]
+  timelineItems TimelineItem[]
   matchRuns     TreeMatchRun[]
   familyStories FamilyStory[]
   aiStoryDrafts AiStoryDraft[]
@@ -1168,6 +1230,13 @@ enum FamilyStoryScopeType {
   FAMILY_BRANCH
 }
 
+enum FamilyStoryPublishStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
 // --- AI Storytelling (PROMPT 11) ---
 
 enum AiStoryType {
@@ -1212,18 +1281,25 @@ model FamilyStory {
   viewCount            Int                  @default(0)
   lastViewedAt         DateTime?
   tokenRevokedAt       DateTime?
+  publishStatus        FamilyStoryPublishStatus @default(DRAFT)
+  submittedForReviewAt DateTime?
+  moderationNote       String?                  @db.VarChar(500)
+  moderatedAt          DateTime?
+  moderatedById        String?
   publishedAt          DateTime?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   deletedAt            DateTime?
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  createdBy User       @relation("FamilyStoryCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  views     FamilyStoryView[]
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdBy   User       @relation("FamilyStoryCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  moderatedBy User?      @relation("FamilyStoryModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
+  views       FamilyStoryView[]
 
   @@index([workspaceId])
   @@index([createdById])
   @@index([visibility])
+  @@index([publishStatus])
   @@index([deletedAt])
 }
 

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { StoryMap } from './story-map';
 import { StoryMediaGallery } from './story-media-gallery';
 import { StoryTimeline } from './story-timeline';
+import { CoverImage } from '@family/ui';
 import { cn } from '@/lib/utils';
 
 const TEMPLATE_CLASS: Record<FamilyStoryTemplateId, string> = {
@@ -27,10 +28,7 @@ export function PublicStoryPage({
   return (
     <article className={cn('min-h-screen', templateClass)}>
       {payload.coverUrl ? (
-        <div
-          className="h-56 bg-cover bg-center md:h-72"
-          style={{ backgroundImage: `url(${payload.coverUrl})` }}
-        />
+        <CoverImage src={payload.coverUrl} alt={payload.title} className="h-56 md:h-72" />
       ) : null}
 
       <div className="mx-auto max-w-4xl px-4 py-10 md:px-8">

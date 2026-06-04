@@ -3,6 +3,7 @@
 import type {
   FamilyStoryConfig,
   FamilyStoryCreateResultDto,
+  FamilyStoryPublishStatusId,
   FamilyStoryScopeTypeId,
   FamilyStoryTemplateId,
   StoryVisibilityLevel,
@@ -49,8 +50,13 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
   const [scopePersonId, setScopePersonId] = useState('');
   const [scopeFamilyId, setScopeFamilyId] = useState('');
   const [hideLiving, setHideLiving] = useState(true);
+  const [slug, setSlug] = useState('');
+  const [ogDescription, setOgDescription] = useState('');
   const [config, setConfig] = useState<FamilyStoryConfig>(defaultConfig);
   const [publicLink, setPublicLink] = useState<string | null>(null);
+  const [publicSlugUrl, setPublicSlugUrl] = useState<string | null>(null);
+  const [publishStatus, setPublishStatus] = useState<FamilyStoryPublishStatusId>('draft');
+  const [moderationNote, setModerationNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +71,16 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
       setScopePersonId(story.scopePersonId ?? '');
       setScopeFamilyId(story.scopeFamilyId ?? '');
       setHideLiving(story.hideLivingPersons);
+      setSlug(story.slug ?? '');
+      setOgDescription(story.ogDescription ?? '');
       setConfig(story.config);
+      setPublishStatus(story.publishStatus);
+      setModerationNote(story.moderationNote ?? null);
+      if (story.visibility === 'public' && story.slug && story.publishStatus === 'published') {
+        setPublicSlugUrl(`${window.location.origin}/p/${story.slug}`);
+      } else {
+        setPublicSlugUrl(null);
+      }
     } catch (e) {
       setError(formatApiError(e));
     }
@@ -88,6 +103,8 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
         scopePersonId: scopeType === 'person' ? scopePersonId.trim() : undefined,
         scopeFamilyId: scopeType === 'family_branch' ? scopeFamilyId.trim() : undefined,
         hideLivingPersons: hideLiving,
+        ogDescription: ogDescription.trim() || undefined,
+        slug: visibility === 'public' ? slug.trim() || undefined : slug.trim() || null,
         config,
       };
 
@@ -99,6 +116,9 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
         if ('publicToken' in created) {
           const c = created as FamilyStoryCreateResultDto;
           setPublicLink(`${window.location.origin}/s/${c.publicToken}`);
+          if (c.visibility === 'public' && c.slug && c.publishStatus === 'published') {
+            setPublicSlugUrl(`${window.location.origin}/p/${c.slug}`);
+          }
         }
         router.push('/stories');
       }
@@ -114,6 +134,19 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
     setBusy(true);
     try {
       await apiClient.familyStories.generateNarrative(storyId, { language: 'ru' }, token);
+      await load();
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitForReview = async () => {
+    if (!token || !storyId) return;
+    setBusy(true);
+    try {
+      await apiClient.familyStories.submitForReview(storyId, token);
       await load();
     } catch (e) {
       setError(formatApiError(e));
@@ -153,10 +186,26 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {storyId ? (
+        <p className="text-sm text-stone-600">
+          {t('publishStatusLabel')}: <strong>{publishStatus}</strong>
+        </p>
+      ) : null}
+      {moderationNote ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {t('moderationRejected')}: {moderationNote}
+        </p>
+      ) : null}
       {publicLink ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
           <p className="font-medium">{t('tokenOnce')}</p>
           <code className="mt-2 block break-all">{publicLink}</code>
+        </div>
+      ) : null}
+      {publicSlugUrl ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+          <p className="font-medium">{t('seoPublicUrl')}</p>
+          <code className="mt-2 block break-all">{publicSlugUrl}</code>
         </div>
       ) : null}
 
@@ -180,6 +229,28 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
             ))}
           </select>
         </label>
+
+        {visibility === 'public' ? (
+          <>
+            <label className="block space-y-2 lg:col-span-2">
+              <span className="text-sm font-medium">{t('seoSlug')}</span>
+              <Input
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="ivanov-family-heritage"
+              />
+              <span className="text-xs text-stone-500">{t('seoSlugHint')}</span>
+            </label>
+            <label className="block space-y-2 lg:col-span-2">
+              <span className="text-sm font-medium">{t('seoDescription')}</span>
+              <Input
+                value={ogDescription}
+                onChange={(e) => setOgDescription(e.target.value)}
+                placeholder={t('seoDescriptionPlaceholder')}
+              />
+            </label>
+          </>
+        ) : null}
 
         <label className="block space-y-2">
           <span className="text-sm font-medium">Scope</span>
@@ -241,6 +312,11 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
         </Button>
         {storyId ? (
           <>
+            {(publishStatus === 'draft' || publishStatus === 'rejected') ? (
+              <Button variant="secondary" onClick={() => void submitForReview()} disabled={busy}>
+                {t('submitForReview')}
+              </Button>
+            ) : null}
             <Button variant="secondary" onClick={() => void generateNarrative()} disabled={busy}>
               {t('generateNarrative')}
             </Button>

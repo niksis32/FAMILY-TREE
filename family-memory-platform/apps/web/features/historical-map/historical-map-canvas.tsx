@@ -12,6 +12,7 @@ import {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef } from 'react';
+import { cn } from '@/lib/utils';
 import { createEventMarkerElement } from './event-map-marker';
 import { useHistoricalMapStore } from './use-historical-map-store';
 import { useHistoricalMapStyle } from './use-historical-map-style';
@@ -288,11 +289,10 @@ export function HistoricalMapCanvas({ payload, lite = false }: HistoricalMapCanv
       )}
       <div
         ref={containerRef}
-        className="relative h-[min(70vh,720px)] w-full overflow-hidden rounded-3xl border border-amber-200/40 shadow-inner dark:border-amber-900/30"
-        style={{
-          background: 'radial-gradient(circle at center, rgba(247,240,223,0.35), rgba(62,47,32,0.15))',
-          visibility: styleLoading ? 'hidden' : 'visible',
-        }}
+        className={cn(
+          'relative h-[min(70vh,720px)] w-full overflow-hidden rounded-3xl border border-amber-200/40 bg-[radial-gradient(circle_at_center,rgba(247,240,223,0.35),rgba(62,47,32,0.15))] shadow-inner dark:border-amber-900/30',
+          styleLoading && 'invisible',
+        )}
       />
     </div>
   );

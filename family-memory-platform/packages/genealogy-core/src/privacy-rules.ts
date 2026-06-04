@@ -2,10 +2,19 @@ import type { Person, PrivacyLevel } from './person.model';
 import { buildDisplayName, isLivingPerson } from './person.model';
 import type { RelationshipTreeNode } from './tree-builder';
 
+export type PrivacyViewerRole = 'anonymous' | 'viewer' | 'editor' | 'admin';
+
 export interface PrivacyContext {
   viewerUserId?: string;
   isAuthenticated: boolean;
   isFamilyMember: boolean;
+  role?: PrivacyViewerRole;
+}
+
+function viewerRole(ctx: PrivacyContext): PrivacyViewerRole {
+  if (ctx.role) return ctx.role;
+  if (!ctx.viewerUserId) return 'anonymous';
+  return ctx.isFamilyMember ? 'editor' : 'anonymous';
 }
 
 export function canViewPersonDetails(
@@ -13,9 +22,22 @@ export function canViewPersonDetails(
   ctx: PrivacyContext,
   level: PrivacyLevel = 'family',
 ): boolean {
-  if (!isLiving) return true;
-  if (level === 'public') return false;
-  if (level === 'private') return ctx.viewerUserId !== undefined && ctx.isFamilyMember;
+  const role = viewerRole(ctx);
+
+  if (level === 'private') {
+    if (!ctx.viewerUserId || !ctx.isFamilyMember) return false;
+    return role !== 'viewer';
+  }
+
+  if (level === 'public') {
+    if (!isLiving) return true;
+    return true;
+  }
+
+  if (!isLiving) {
+    return ctx.isAuthenticated && ctx.isFamilyMember;
+  }
+
   return ctx.isAuthenticated && ctx.isFamilyMember;
 }
 

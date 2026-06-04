@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import type { AddFamilyMemberDto, UpdateFamilyMemberDto } from './families-member.dto';
 import type { CreateFamilyDto, UpdateFamilyDto } from './families.dto';
 
@@ -26,7 +28,12 @@ export class FamiliesService {
   }
 
   create(dto: CreateFamilyDto) {
-    return this.prisma.family.create({ data: dto });
+    return this.prisma.family.create({
+      data: workspaceScopedCreateData<Prisma.FamilyUncheckedCreateInput>({
+        name: dto.name,
+        notes: dto.notes,
+      }),
+    });
   }
 
   async update(id: string, dto: UpdateFamilyDto) {
@@ -57,7 +64,11 @@ export class FamiliesService {
     }
 
     await this.prisma.familyMember.create({
-      data: { familyId, personId: dto.personId, role: dto.role },
+      data: workspaceScopedCreateData<Prisma.FamilyMemberUncheckedCreateInput>({
+        familyId,
+        personId: dto.personId,
+        role: dto.role,
+      }),
     });
 
     return this.findOne(familyId);

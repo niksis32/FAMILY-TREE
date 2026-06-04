@@ -1,6 +1,7 @@
 'use client';
 
 import type { MapEvent } from '@family/shared';
+import { ColorDot } from '@family/ui';
 import { eventMarkerColor, eventMarkerGlyph } from '@family/map-engine';
 
 export function createEventMarkerElement(event: MapEvent, onClick: () => void): HTMLButtonElement {
@@ -23,13 +24,14 @@ export function createEventMarkerElement(event: MapEvent, onClick: () => void): 
 }
 
 export function EventMapMarkerPreview({ event }: { event: MapEvent }) {
+  const color = eventMarkerColor(event.type);
   return (
     <span
-      className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-100 text-xs font-bold text-amber-50 shadow"
-      style={{ background: eventMarkerColor(event.type) }}
+      className="relative inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-amber-100 text-xs font-bold text-amber-50 shadow"
       aria-hidden
     >
-      {eventMarkerGlyph(event.type)}
+      <ColorDot color={color} className="absolute inset-0 h-full w-full rounded-full" />
+      <span className="relative z-10">{eventMarkerGlyph(event.type)}</span>
     </span>
   );
 }

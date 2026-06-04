@@ -73,13 +73,28 @@ function modelHandlers(getSnapshot: () => WorkspaceContextSnapshot) {
   return handlers;
 }
 
+/** Models with direct `workspaceId` — auto-filtered when X-Workspace-Id context is set. */
+const WORKSPACE_SCOPED_MODELS = [
+  'person',
+  'media',
+  'document',
+  'family',
+  'familyMember',
+  'relationship',
+  'event',
+  'source',
+  'citation',
+  'timelineItem',
+] as const;
+
 export function workspaceIsolationExtension(getSnapshot: () => WorkspaceContextSnapshot) {
+  const handlers = modelHandlers(getSnapshot);
+  const query = Object.fromEntries(
+    WORKSPACE_SCOPED_MODELS.map((model) => [model, handlers]),
+  ) as Record<(typeof WORKSPACE_SCOPED_MODELS)[number], typeof handlers>;
+
   return Prisma.defineExtension({
     name: 'workspaceIsolation',
-    query: {
-      person: modelHandlers(getSnapshot),
-      media: modelHandlers(getSnapshot),
-      document: modelHandlers(getSnapshot),
-    },
+    query,
   });
 }

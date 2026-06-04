@@ -40,10 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const parsed = JSON.parse(stored) as AuthSession;
+      let parsed: AuthSession;
+      try {
+        parsed = JSON.parse(stored) as AuthSession;
+      } catch {
+        clearSession();
+        if (!cancelled) setIsReady(true);
+        return;
+      }
+
+      if (!cancelled) setSession(parsed);
+
       try {
         await apiClient.me(parsed.accessToken);
-        if (!cancelled) setSession(parsed);
       } catch {
         clearSession();
         if (!cancelled) setSession(null);

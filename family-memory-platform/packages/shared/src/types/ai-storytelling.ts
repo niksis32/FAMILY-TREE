@@ -49,8 +49,13 @@ export interface StoryDraftDto {
   paragraphs: StoryParagraph[];
   claims: StoryClaim[];
   /** User-editable warnings that should be visible in UI */
-  warnings: Array<{ kind: 'uncertainty' | 'assumption' | 'missing_source'; message: string }>;
+  warnings: Array<{
+    kind: 'uncertainty' | 'assumption' | 'missing_source' | 'fact_mismatch';
+    message: string;
+  }>;
   uncertaintyScore?: number | null;
+  factCheckScore?: number | null;
+  factCheckPassed?: boolean | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -112,7 +112,7 @@ export function StoryDraftsPage() {
         {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[0.42fr_0.58fr]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
         <Card>
           <h2 className="text-lg font-semibold">Список черновиков</h2>
           <p className="mt-2 text-xs text-stone-500 dark:text-slate-400">
@@ -157,6 +157,29 @@ export function StoryDraftsPage() {
         <div className="space-y-6">
           {selected ? (
             <>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!token || busy}
+                  onClick={async () => {
+                    if (!token || !selected) return;
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      const updated = await apiClient.storytelling.factCheckDraft(selected.id, token);
+                      setSelected(updated);
+                      setItems((cur) => cur.map((x) => (x.id === updated.id ? updated : x)));
+                    } catch (e) {
+                      setError(formatApiError(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? 'Проверяем…' : 'Проверить факты'}
+                </Button>
+              </div>
               <AIUncertaintyWarnings draft={selected} />
               <StoryDraftEditor
                 draft={selected}
@@ -164,8 +187,12 @@ export function StoryDraftsPage() {
                 onSave={async (patch) => {
                   if (!token) return;
                   const updated = await apiClient.storytelling.updateDraft(selected.id, patch, token);
-                  setSelected(updated);
-                  setItems((cur) => cur.map((x) => (x.id === updated.id ? updated : x)));
+                  const next =
+                    typeof patch.narrative === 'string'
+                      ? await apiClient.storytelling.factCheckDraft(updated.id, token)
+                      : updated;
+                  setSelected(next);
+                  setItems((cur) => cur.map((x) => (x.id === next.id ? next : x)));
                 }}
               />
               <SourceReferencesPanel draft={selected} />

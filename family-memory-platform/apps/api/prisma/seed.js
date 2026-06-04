@@ -1,9 +1,17 @@
 const { PrismaClient } = require('@prisma/client');
+const { randomBytes, scryptSync } = require('node:crypto');
 
 const prisma = new PrismaClient();
 
 const SEED_TENANT_ID = 'seed-tenant-default';
 const SEED_WORKSPACE_ID = 'seed-workspace-default';
+const DEMO_PASSWORD = 'Test12345!';
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `scrypt:${salt}:${hash}`;
+}
 
 async function main() {
   const { loadGeographySeed } = await import('../../../scripts/geography/seed-loader.mjs');
@@ -31,6 +39,8 @@ async function main() {
     },
   });
 
+  const passwordHash = hashPassword(DEMO_PASSWORD);
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.local' },
     update: {
@@ -38,12 +48,30 @@ async function main() {
       role: 'ADMIN',
       isActive: true,
       deletedAt: null,
+      passwordHash,
     },
     create: {
       email: 'admin@example.local',
       displayName: 'Family Platform Admin',
       role: 'ADMIN',
-      passwordHash: 'replace_before_real_auth',
+      passwordHash,
+    },
+  });
+
+  const viewer = await prisma.user.upsert({
+    where: { email: 'viewer@example.local' },
+    update: {
+      displayName: 'Workspace Viewer',
+      role: 'VIEWER',
+      isActive: true,
+      deletedAt: null,
+      passwordHash,
+    },
+    create: {
+      email: 'viewer@example.local',
+      displayName: 'Workspace Viewer',
+      role: 'VIEWER',
+      passwordHash,
     },
   });
 
@@ -61,6 +89,24 @@ async function main() {
       role: 'OWNER',
     },
   });
+
+  await prisma.workspaceMember.upsert({
+    where: {
+      workspaceId_userId: {
+        workspaceId: workspace.id,
+        userId: viewer.id,
+      },
+    },
+    update: { role: 'VIEWER' },
+    create: {
+      workspaceId: workspace.id,
+      userId: viewer.id,
+      role: 'VIEWER',
+    },
+  });
+
+  await upsertConsent(admin.id, 'AI_LOCAL_PROCESSING', true);
+  await upsertConsent(admin.id, 'GDPR_DATA_PROCESSING', true);
 
   const ivan = await upsertPerson({
     id: 'seed-person-ivan',
@@ -97,6 +143,19 @@ async function main() {
     biography: 'Демо-ребёнок в тестовой семье.',
   });
 
+  await upsertPerson({
+    id: 'seed-person-secret',
+    workspaceId: workspace.id,
+    givenName: 'Секретный',
+    familyName: 'Предок',
+    gender: 'MALE',
+    birthDate: new Date('1900-03-01T00:00:00.000Z'),
+    isLiving: false,
+    deathDate: new Date('1965-11-20T00:00:00.000Z'),
+    privacyLevel: 'PRIVATE',
+    biography: 'PRIVATE seed person for privacy smoke tests.',
+  });
+
   const family = await prisma.family.upsert({
     where: { id: 'seed-family-petrov' },
     update: {
@@ -113,17 +172,18 @@ async function main() {
     },
   });
 
-  await upsertFamilyMember(family.id, ivan.id, 'HUSBAND');
-  await upsertFamilyMember(family.id, maria.id, 'WIFE');
-  await upsertFamilyMember(family.id, anna.id, 'CHILD');
+  await upsertFamilyMember(workspace.id, family.id, ivan.id, 'HUSBAND');
+  await upsertFamilyMember(workspace.id, family.id, maria.id, 'WIFE');
+  await upsertFamilyMember(workspace.id, family.id, anna.id, 'CHILD');
 
-  await upsertRelationship('seed-rel-ivan-anna-parent', ivan.id, anna.id, 'PARENT');
-  await upsertRelationship('seed-rel-maria-anna-parent', maria.id, anna.id, 'PARENT');
-  await upsertRelationship('seed-rel-ivan-maria-spouse', ivan.id, maria.id, 'SPOUSE');
+  await upsertRelationship(workspace.id, 'seed-rel-ivan-anna-parent', ivan.id, anna.id, 'PARENT');
+  await upsertRelationship(workspace.id, 'seed-rel-maria-anna-parent', maria.id, anna.id, 'PARENT');
+  await upsertRelationship(workspace.id, 'seed-rel-ivan-maria-spouse', ivan.id, maria.id, 'SPOUSE');
 
   await prisma.event.upsert({
     where: { id: 'seed-event-ivan-birth' },
     update: {
+      workspaceId: workspace.id,
       type: 'BIRTH',
       date: ivan.birthDate,
       description: 'Рождение Ивана Петрова',
@@ -131,6 +191,7 @@ async function main() {
     },
     create: {
       id: 'seed-event-ivan-birth',
+      workspaceId: workspace.id,
       personId: ivan.id,
       type: 'BIRTH',
       date: ivan.birthDate,
@@ -141,6 +202,7 @@ async function main() {
   await prisma.event.upsert({
     where: { id: 'seed-event-family-marriage' },
     update: {
+      workspaceId: workspace.id,
       type: 'MARRIAGE',
       date: new Date('1975-08-16T00:00:00.000Z'),
       description: 'Демо-событие брака семьи Петровых',
@@ -148,6 +210,7 @@ async function main() {
     },
     create: {
       id: 'seed-event-family-marriage',
+      workspaceId: workspace.id,
       familyId: family.id,
       type: 'MARRIAGE',
       date: new Date('1975-08-16T00:00:00.000Z'),
@@ -158,6 +221,7 @@ async function main() {
   await prisma.source.upsert({
     where: { id: 'seed-source-family-archive' },
     update: {
+      workspaceId: workspace.id,
       title: 'Семейный архив',
       repository: 'Локальный архив',
       notes: 'Демо-источник для проверки источников и цитат.',
@@ -165,13 +229,34 @@ async function main() {
     },
     create: {
       id: 'seed-source-family-archive',
+      workspaceId: workspace.id,
       title: 'Семейный архив',
       repository: 'Локальный архив',
       notes: 'Демо-источник для проверки источников и цитат.',
     },
   });
 
-  console.log(`Seed completed. Admin: ${admin.email}, workspace: ${workspace.id}, family: ${family.name}`);
+  console.log(
+    `Seed completed. Admin: ${admin.email}, viewer: ${viewer.email}, workspace: ${workspace.id}, family: ${family.name}`,
+  );
+}
+
+async function upsertConsent(userId, consentKey, granted) {
+  return prisma.userConsent.upsert({
+    where: { userId_consentKey: { userId, consentKey } },
+    update: {
+      granted,
+      grantedAt: granted ? new Date() : null,
+      revokedAt: granted ? null : new Date(),
+    },
+    create: {
+      userId,
+      consentKey,
+      granted,
+      grantedAt: granted ? new Date() : null,
+      revokedAt: granted ? null : undefined,
+    },
+  });
 }
 
 async function upsertPerson(data) {
@@ -185,7 +270,7 @@ async function upsertPerson(data) {
   });
 }
 
-async function upsertFamilyMember(familyId, personId, role) {
+async function upsertFamilyMember(workspaceId, familyId, personId, role) {
   return prisma.familyMember.upsert({
     where: {
       familyId_personId: {
@@ -194,10 +279,12 @@ async function upsertFamilyMember(familyId, personId, role) {
       },
     },
     update: {
+      workspaceId,
       role,
       deletedAt: null,
     },
     create: {
+      workspaceId,
       familyId,
       personId,
       role,
@@ -205,10 +292,11 @@ async function upsertFamilyMember(familyId, personId, role) {
   });
 }
 
-async function upsertRelationship(id, fromPersonId, toPersonId, type) {
+async function upsertRelationship(workspaceId, id, fromPersonId, toPersonId, type) {
   return prisma.relationship.upsert({
     where: { id },
     update: {
+      workspaceId,
       fromPersonId,
       toPersonId,
       type,
@@ -217,6 +305,7 @@ async function upsertRelationship(id, fromPersonId, toPersonId, type) {
     },
     create: {
       id,
+      workspaceId,
       fromPersonId,
       toPersonId,
       type,

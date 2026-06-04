@@ -1,8 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
+import { MinioStorageService } from '../../common/storage/minio-storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
+import { AssetPrivacyService } from '../privacy/asset-privacy.service';
 import { SearchService } from '../search/search.service';
 import {
   ALLOWED_DOCUMENT_MIME_TYPES,
@@ -13,26 +15,33 @@ import type { CreateDocumentDto, UpdateDocumentDto } from './documents.dto';
 
 @Injectable()
 export class DocumentsService {
-  private readonly bucket: string;
-
   constructor(
-    private readonly config: ConfigService,
+    private readonly minio: MinioStorageService,
     private readonly prisma: PrismaService,
     private readonly search: SearchService,
-  ) {
-    this.bucket = this.config.get<string>('MINIO_BUCKET_DOCUMENTS') ?? 'family-documents';
-  }
+    private readonly assetPrivacy: AssetPrivacyService,
+  ) {}
 
-  findAll() {
-    return this.prisma.document.findMany({
+  async findAll(user?: AuthenticatedUser | null) {
+    const rows = await this.prisma.document.findMany({
       where: { deletedAt: null },
       include: { person: true, media: true, source: true },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
+    return this.assetPrivacy.filterVisibleDocuments(
+      rows.map((r) => ({
+        ...r,
+        workspaceId: r.workspaceId,
+        privacyLevel: r.privacyLevel,
+        personId: r.personId,
+      })),
+      user,
+    );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: AuthenticatedUser | null) {
+    await this.assetPrivacy.assertCanViewDocument(id, user);
     const document = await this.prisma.document.findFirst({
       where: { id, deletedAt: null },
       include: { person: true, media: true, source: true },
@@ -41,33 +50,34 @@ export class DocumentsService {
     return document;
   }
 
-  /** Short-lived GET URL for viewers (Document Intelligence, PDF embed). */
-  async getPresignedDownloadUrl(id: string) {
-    await this.ensureExists(id);
-    const document = await this.prisma.document.findFirst({
-      where: { id, deletedAt: null },
-      select: { storageKey: true, bucket: true, mimeType: true, title: true },
-    });
-    if (!document) throw new NotFoundException('Document not found');
-    const client = this.createMinioClient();
-    const bucket = document.bucket || this.bucket;
+  async getPresignedDownloadUrl(id: string, user?: AuthenticatedUser | null) {
+    const document = await this.assetPrivacy.assertCanViewDocument(id, user);
+    const client = this.minio.createClient();
+    const bucket = document.bucket || this.minio.documentsBucket;
     const downloadUrl = await client.presignedGetObject(bucket, document.storageKey, 15 * 60);
+
+    await this.writeAudit(user, 'document.download', id, {
+      storageKey: document.storageKey,
+      expiresInSeconds: 15 * 60,
+    });
+
     return {
       documentId: id,
       downloadUrl,
-      mimeType: document.mimeType,
-      title: document.title,
+      mimeType: document.mimeType ?? undefined,
+      title: document.title ?? undefined,
       expiresInSeconds: 15 * 60,
     };
   }
 
   async createUploadUrl(dto: CreateDocumentUploadUrlDto) {
     this.assertAllowedFile(dto.mimeType, dto.sizeBytes);
-    const storageKey = this.buildStorageKey(dto.fileName);
-    const client = this.createMinioClient();
-    const uploadUrl = await client.presignedPutObject(this.bucket, storageKey, 15 * 60);
+    const storageKey = this.minio.buildObjectKey('documents', dto.fileName);
+    const client = this.minio.createClient();
+    const bucket = this.minio.documentsBucket;
+    const uploadUrl = await client.presignedPutObject(bucket, storageKey, 15 * 60);
     return {
-      bucket: this.bucket,
+      bucket,
       storageKey,
       uploadUrl,
       expiresInSeconds: 15 * 60,
@@ -76,35 +86,45 @@ export class DocumentsService {
     };
   }
 
-  async create(dto: CreateDocumentDto) {
+  async create(dto: CreateDocumentDto, user?: AuthenticatedUser | null) {
     if (dto.personId) {
       await this.ensurePersonExists(dto.personId);
     }
     const document = await this.prisma.document.create({
-      data: {
-        ...dto,
-        bucket: dto.bucket || this.bucket,
-      },
+      data: workspaceScopedCreateData<Prisma.DocumentUncheckedCreateInput>({
+        title: dto.title,
+        documentType: dto.documentType,
+        mimeType: dto.mimeType,
+        storageKey: dto.storageKey,
+        bucket: dto.bucket || this.minio.documentsBucket,
+        personId: dto.personId,
+        mediaId: dto.mediaId,
+        sourceId: dto.sourceId,
+        description: dto.description,
+        ocrText: dto.ocrText,
+        privacyLevel: 'FAMILY',
+      }),
     });
     await this.indexDocument(document.id);
+    await this.writeAudit(user, 'document.upload', document.id, {
+      storageKey: document.storageKey,
+      mimeType: document.mimeType,
+    });
     return document;
   }
 
-  async update(id: string, dto: UpdateDocumentDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateDocumentDto, user?: AuthenticatedUser | null) {
+    await this.assetPrivacy.assertCanViewDocument(id, user);
     const document = await this.prisma.document.update({ where: { id }, data: dto });
     await this.indexDocument(document.id);
     return document;
   }
 
-  async remove(id: string) {
-    await this.ensureExists(id);
-    return this.prisma.document.update({ where: { id }, data: { deletedAt: new Date() } });
-  }
-
-  private async ensureExists(id: string) {
-    const document = await this.prisma.document.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
-    if (!document) throw new NotFoundException('Document not found');
+  async remove(id: string, user?: AuthenticatedUser | null) {
+    await this.assetPrivacy.assertCanViewDocument(id, user);
+    const updated = await this.prisma.document.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.writeAudit(user, 'document.delete', id, { storageKey: updated.storageKey });
+    return updated;
   }
 
   private async ensurePersonExists(personId: string) {
@@ -123,47 +143,32 @@ export class DocumentsService {
     }
   }
 
-  private buildStorageKey(fileName: string) {
-    const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const datePrefix = new Date().toISOString().slice(0, 10);
-    return `documents/${datePrefix}/${randomUUID()}-${safeFileName}`;
-  }
-
-  private createMinioClient() {
-    const require = createRequire(__filename);
-    const minio = require('minio') as {
-      Client: new (options: {
-        endPoint: string;
-        port: number;
-        useSSL: boolean;
-        accessKey: string;
-        secretKey: string;
-      }) => {
-        presignedPutObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
-        presignedGetObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
-      };
-    };
-
-    const accessKey = this.config.get<string>('MINIO_ROOT_USER');
-    const secretKey = this.config.get<string>('MINIO_ROOT_PASSWORD');
-    if (!accessKey || !secretKey) {
-      throw new ServiceUnavailableException('MinIO credentials are not configured');
-    }
-
-    return new minio.Client({
-      endPoint: this.config.get<string>('MINIO_ENDPOINT') ?? 'localhost',
-      port: Number(this.config.get<string>('MINIO_PORT') ?? 9000),
-      useSSL: this.config.get<string>('MINIO_USE_SSL') === 'true',
-      accessKey,
-      secretKey,
-    });
-  }
-
   private async indexDocument(documentId: string) {
     try {
       await this.search.indexDocument(documentId);
     } catch {
       // Search indexing must not block core CRUD writes.
+    }
+  }
+
+  private async writeAudit(
+    user: AuthenticatedUser | null | undefined,
+    action: string,
+    entityId: string,
+    payload: Prisma.InputJsonValue,
+  ) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: user?.id,
+          action,
+          entityType: 'document',
+          entityId,
+          payload,
+        },
+      });
+    } catch {
+      // Audit must not break primary flows.
     }
   }
 }

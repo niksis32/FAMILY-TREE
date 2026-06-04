@@ -1,24 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import {
-  buildHiddenDisplayName,
+  redactHiddenTreeNodeFields,
   treeNodeLabel,
   type PolicyPersonRecord,
   type PolicyViewerContext,
+  type RedactedTreeNodeFields,
 } from '@family/genealogy-core';
 import { AccessControlService } from './access-control.service';
 
-export interface RedactedTreeNodeFields {
-  label: string;
-  givenName: string;
-  familyName: string | null;
-  birthDate: string | null;
-  deathDate: string | null;
-  birthYear: number | null;
-  deathYear: number | null;
-  isLiving: boolean;
-  isHidden: boolean;
-  avatarUrl: string | null;
-}
+export type { RedactedTreeNodeFields };
 
 @Injectable()
 export class PolicyEngineService {
@@ -32,18 +22,7 @@ export class PolicyEngineService {
   ): RedactedTreeNodeFields {
     const visible = this.access.canViewPersonRecord(person, viewer, hideLivingPersons);
     if (!visible) {
-      return {
-        label: buildHiddenDisplayName(),
-        givenName: 'Living',
-        familyName: 'person',
-        birthDate: null,
-        deathDate: null,
-        birthYear: null,
-        deathYear: null,
-        isLiving: true,
-        isHidden: true,
-        avatarUrl: null,
-      };
+      return redactHiddenTreeNodeFields(person);
     }
 
     const redacted = this.access.redactPerson(person, viewer, hideLivingPersons) ?? person;

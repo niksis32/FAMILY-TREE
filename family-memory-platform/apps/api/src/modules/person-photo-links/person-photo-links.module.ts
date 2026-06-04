@@ -5,11 +5,12 @@ import { AuthModule } from '../auth/auth.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { MediaModule } from '../media/media.module';
 import { PersonPhotoLinksController } from './person-photo-links.controller';
+import { MediaPhotoIntelligenceController } from './media-photo-intelligence.controller';
 import { PersonPhotoLinksService } from './person-photo-links.service';
 
 @Module({
   imports: [PrismaModule, MediaModule, AiModule, AuthModule, GamificationModule],
-  controllers: [PersonPhotoLinksController],
+  controllers: [MediaPhotoIntelligenceController, PersonPhotoLinksController],
   providers: [PersonPhotoLinksService],
   exports: [PersonPhotoLinksService],
 })

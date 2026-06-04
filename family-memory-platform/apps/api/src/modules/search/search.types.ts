@@ -8,6 +8,11 @@ export interface SearchDocument {
   entityId: string;
   year?: number;
   tags?: string[];
+  /** Workspace scope for people, documents, sources */
+  workspaceId?: string;
+  /** Lowercase: public | family | private (people, documents) */
+  privacyLevel?: string;
+  isLiving?: boolean;
 }
 
 export interface CategorizedSearchResults {

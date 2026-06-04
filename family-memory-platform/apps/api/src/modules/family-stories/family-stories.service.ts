@@ -4,8 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type {
   FamilyStoryConfig,
+  FamilyStoryModerationQueueItemDto,
   PublicFamilyStoryPayloadDto,
   PublicStoryDocumentDto,
   PublicStoryMediaDto,
@@ -29,11 +31,14 @@ import { FamilyStoriesPrivacyService } from './family-stories-privacy.service';
 import {
   parseStoryConfig,
   toDetailDto,
+  toPublishStatusId,
   toSummaryDto,
   toTemplateId,
   toVisibilityLevel,
 } from './family-stories.mapper';
+import { isFamilyStoryModerationEnabled } from './family-stories.config';
 import { generatePublicStoryToken, hashPublicStoryToken } from './family-stories.token';
+import { normalizeStorySlug, slugifyTitle } from './family-stories.slug';
 import { createHash } from 'node:crypto';
 
 @Injectable()
@@ -47,7 +52,19 @@ export class FamilyStoriesService {
     private readonly documents: DocumentsService,
     private readonly ai: AiService,
     private readonly pdf: FamilyStoriesPdfService,
+    private readonly config: ConfigService,
   ) {}
+
+  private moderationEnabled(): boolean {
+    return isFamilyStoryModerationEnabled(this.config);
+  }
+
+  private initialPublishState(): { publishStatus: 'DRAFT' | 'PUBLISHED'; publishedAt: Date | null } {
+    if (this.moderationEnabled()) {
+      return { publishStatus: 'DRAFT', publishedAt: null };
+    }
+    return { publishStatus: 'PUBLISHED', publishedAt: new Date() };
+  }
 
   async listForUser(userId: string) {
     const stories = await this.prisma.familyStory.findMany({
@@ -73,11 +90,19 @@ export class FamilyStoriesService {
       config.sections.map.familyId = dto.scopeFamilyId;
     }
 
+    const visibility = dto.visibility ?? 'LINK_ONLY';
+    const slug = await this.resolveSlugForWrite({
+      requestedSlug: dto.slug,
+      title: dto.title,
+      visibility,
+    });
+
+    const publishState = this.initialPublishState();
     const story = await this.prisma.familyStory.create({
       data: {
         title: dto.title,
         template: dto.template ?? 'CLASSIC',
-        visibility: dto.visibility ?? 'LINK_ONLY',
+        visibility,
         scopeType: dto.scopeType,
         scopePersonId: dto.scopePersonId,
         scopeFamilyId: dto.scopeFamilyId,
@@ -88,8 +113,9 @@ export class FamilyStoriesService {
         configJson: config as object,
         coverMediaId: dto.coverMediaId,
         ogDescription: dto.ogDescription,
-        slug: dto.slug,
-        publishedAt: new Date(),
+        slug,
+        publishStatus: publishState.publishStatus,
+        publishedAt: publishState.publishedAt,
       },
     });
 
@@ -97,7 +123,19 @@ export class FamilyStoriesService {
   }
 
   async update(id: string, userId: string, dto: UpdateFamilyStoryDto) {
-    await this.getOwnedStory(id, userId);
+    const existing = await this.getOwnedStory(id, userId);
+    const nextVisibility = dto.visibility ?? existing.visibility;
+    const slug =
+      dto.slug !== undefined || dto.visibility !== undefined || dto.title !== undefined
+        ? await this.resolveSlugForWrite({
+            requestedSlug: dto.slug,
+            title: dto.title ?? existing.title,
+            visibility: nextVisibility,
+            existingSlug: existing.slug,
+            excludeStoryId: id,
+          })
+        : undefined;
+
     const story = await this.prisma.familyStory.update({
       where: { id },
       data: {
@@ -108,7 +146,7 @@ export class FamilyStoriesService {
         ...(dto.config !== undefined ? { configJson: dto.config as object } : {}),
         ...(dto.coverMediaId !== undefined ? { coverMediaId: dto.coverMediaId } : {}),
         ...(dto.ogDescription !== undefined ? { ogDescription: dto.ogDescription } : {}),
-        ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+        ...(slug !== undefined ? { slug } : {}),
       },
     });
     return toDetailDto(story);
@@ -142,6 +180,124 @@ export class FamilyStoriesService {
     return toDetailDto(story);
   }
 
+  async submitForReview(id: string, userId: string) {
+    const story = await this.getOwnedStory(id, userId);
+    if (!this.moderationEnabled()) {
+      throw new BadRequestException('Story moderation is disabled on this server');
+    }
+    if (story.publishStatus === 'PUBLISHED') {
+      throw new BadRequestException('Story is already published');
+    }
+    if (story.publishStatus === 'PENDING_REVIEW') {
+      throw new BadRequestException('Story is already awaiting moderation');
+    }
+
+    const updated = await this.prisma.familyStory.update({
+      where: { id },
+      data: {
+        publishStatus: 'PENDING_REVIEW',
+        submittedForReviewAt: new Date(),
+        moderationNote: null,
+      },
+    });
+    return toDetailDto(updated);
+  }
+
+  async listModerationQueue(): Promise<FamilyStoryModerationQueueItemDto[]> {
+    const rows = await this.prisma.familyStory.findMany({
+      where: { publishStatus: 'PENDING_REVIEW', deletedAt: null },
+      orderBy: { submittedForReviewAt: 'asc' },
+      take: 100,
+      include: {
+        createdBy: { select: { id: true, displayName: true, email: true } },
+      },
+    });
+
+    const items: FamilyStoryModerationQueueItemDto[] = [];
+    for (const row of rows) {
+      let coverUrl: string | null = null;
+      if (row.coverMediaId) {
+        coverUrl = await this.media.createPublicAssetUrl(row.coverMediaId);
+      }
+      items.push({
+        id: row.id,
+        title: row.title,
+        visibility: toVisibilityLevel(row.visibility),
+        publishStatus: toPublishStatusId(row.publishStatus),
+        slug: row.slug,
+        submittedForReviewAt: row.submittedForReviewAt?.toISOString() ?? null,
+        createdBy: row.createdBy,
+        coverUrl,
+      });
+    }
+    return items;
+  }
+
+  async approveStory(storyId: string, moderatorId: string, note?: string) {
+    const story = await this.prisma.familyStory.findFirst({
+      where: { id: storyId, deletedAt: null },
+    });
+    if (!story) throw new NotFoundException('Story not found');
+    if (story.publishStatus !== 'PENDING_REVIEW') {
+      throw new BadRequestException('Story is not pending review');
+    }
+
+    const updated = await this.prisma.familyStory.update({
+      where: { id: storyId },
+      data: {
+        publishStatus: 'PUBLISHED',
+        publishedAt: new Date(),
+        moderatedAt: new Date(),
+        moderatedById: moderatorId,
+        moderationNote: note ?? null,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: moderatorId,
+        action: 'family_story.moderation.approve',
+        entityType: 'family_story',
+        entityId: storyId,
+        payload: { title: story.title, note: note ?? null },
+      },
+    });
+
+    return toDetailDto(updated);
+  }
+
+  async rejectStory(storyId: string, moderatorId: string, note: string) {
+    const story = await this.prisma.familyStory.findFirst({
+      where: { id: storyId, deletedAt: null },
+    });
+    if (!story) throw new NotFoundException('Story not found');
+    if (story.publishStatus !== 'PENDING_REVIEW') {
+      throw new BadRequestException('Story is not pending review');
+    }
+
+    const updated = await this.prisma.familyStory.update({
+      where: { id: storyId },
+      data: {
+        publishStatus: 'REJECTED',
+        moderatedAt: new Date(),
+        moderatedById: moderatorId,
+        moderationNote: note,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: moderatorId,
+        action: 'family_story.moderation.reject',
+        entityType: 'family_story',
+        entityId: storyId,
+        payload: { title: story.title, note },
+      },
+    });
+
+    return toDetailDto(updated);
+  }
+
   async generateNarrative(id: string, userId: string, dto: GenerateNarrativeDto) {
     const story = await this.getOwnedStory(id, userId);
     const persons = await this.privacy.loadScopePersons(
@@ -159,7 +315,7 @@ export class FamilyStoriesService {
       language: dto.language ?? 'ru',
       persons: redacted.map((p) => ({ name: p.displayName, birthYear: p.birthYear, deathYear: p.deathYear })),
       template: toTemplateId(story.template),
-    });
+    }, { userId, scope: { storyId: id } });
     const aiData = this.ai.extractData<{ narrative?: string }>(aiResult);
 
     const narrativeText =
@@ -231,6 +387,33 @@ export class FamilyStoriesService {
     return { buffer, filename: `${sanitizeFilename(payload.title)}.pdf` };
   }
 
+  /** PUBLIC stories with slug — safe for sitemap (no secret tokens). */
+  async listSitemapEntries() {
+    const rows = await this.prisma.familyStory.findMany({
+      where: {
+        visibility: 'PUBLIC',
+        publishStatus: 'PUBLISHED',
+        slug: { not: null },
+        deletedAt: null,
+        tokenRevokedAt: null,
+        publishedAt: { not: null },
+      },
+      select: { slug: true, updatedAt: true, publishedAt: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 5000,
+    });
+
+    return {
+      entries: rows
+        .filter((r): r is typeof r & { slug: string } => Boolean(r.slug))
+        .map((r) => ({
+          slug: r.slug,
+          updatedAt: r.updatedAt.toISOString(),
+          publishedAt: r.publishedAt?.toISOString() ?? null,
+        })),
+    };
+  }
+
   private async buildPublicPayload(
     story: FamilyStory,
     access: {
@@ -257,6 +440,13 @@ export class FamilyStoriesService {
     });
 
     if (!allowed) throw new ForbiddenException('Story is not accessible');
+
+    if (this.moderationEnabled() && story.publishStatus !== 'PUBLISHED') {
+      const canPreviewUnpublished = access.isOwner || access.hasValidToken;
+      if (!canPreviewUnpublished) {
+        throw new ForbiddenException('Story is awaiting moderation or not published yet');
+      }
+    }
 
     const config = parseStoryConfig(story.configJson);
     const personsDb = await this.privacy.loadScopePersons(
@@ -301,8 +491,7 @@ export class FamilyStoriesService {
     let coverUrl: string | null = null;
     if (story.coverMediaId) {
       try {
-        const cover = await this.media.createDownloadUrl(story.coverMediaId);
-        coverUrl = cover.downloadUrl;
+        coverUrl = await this.media.createPublicAssetUrl(story.coverMediaId);
       } catch {
         coverUrl = null;
       }
@@ -316,6 +505,9 @@ export class FamilyStoriesService {
       id: story.id,
       title: story.title,
       template: toTemplateId(story.template),
+      visibility: toVisibilityLevel(story.visibility),
+      publishStatus: toPublishStatusId(story.publishStatus),
+      slug: story.slug,
       narrativeText: config.sections.narrative.enabled ? story.narrativeText : null,
       ogDescription: story.ogDescription,
       coverUrl,
@@ -327,7 +519,53 @@ export class FamilyStoriesService {
       documents,
       customBlocks: config.sections.customBlocks ?? [],
       viewCount: story.viewCount + (access.recordView ? 1 : 0),
+      updatedAt: story.updatedAt.toISOString(),
+      publishedAt: story.publishedAt?.toISOString() ?? null,
     };
+  }
+
+  private async resolveSlugForWrite(params: {
+    requestedSlug?: string | null;
+    title: string;
+    visibility: string;
+    existingSlug?: string | null;
+    excludeStoryId?: string;
+  }): Promise<string | null> {
+    if (params.visibility !== 'PUBLIC') {
+      return params.requestedSlug === undefined
+        ? params.existingSlug ?? null
+        : params.requestedSlug
+          ? normalizeStorySlug(params.requestedSlug)
+          : null;
+    }
+
+    const base =
+      params.requestedSlug != null && params.requestedSlug !== ''
+        ? normalizeStorySlug(params.requestedSlug)
+        : params.existingSlug
+          ? params.existingSlug
+          : slugifyTitle(params.title);
+
+    return this.ensureUniqueSlug(base, params.excludeStoryId);
+  }
+
+  private async ensureUniqueSlug(base: string, excludeStoryId?: string): Promise<string> {
+    let candidate = base;
+    let suffix = 2;
+    while (true) {
+      const conflict = await this.prisma.familyStory.findFirst({
+        where: {
+          slug: candidate,
+          deletedAt: null,
+          ...(excludeStoryId ? { id: { not: excludeStoryId } } : {}),
+        },
+        select: { id: true },
+      });
+      if (!conflict) return candidate;
+      const trimmed = base.slice(0, Math.max(1, 120 - String(suffix).length - 1));
+      candidate = `${trimmed}-${suffix}`;
+      suffix += 1;
+    }
   }
 
   private async buildTimeline(
@@ -368,11 +606,12 @@ export class FamilyStoriesService {
       try {
         const row = await this.prisma.media.findFirst({ where: { id, deletedAt: null } });
         if (!row) continue;
-        const dl = await this.media.createDownloadUrl(id);
+        const url = await this.media.createPublicAssetUrl(id);
+        if (!url) continue;
         result.push({
           id,
           title: row.title,
-          url: dl.downloadUrl,
+          url,
           mimeType: row.mimeType,
         });
       } catch {

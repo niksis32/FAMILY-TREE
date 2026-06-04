@@ -58,6 +58,7 @@
     "geography:import:multilang:world": "pnpm geography:import:geo-world",
     "geography:generate:locales": "node scripts/geography/generate-geonames-locales.mjs",
     "i18n:sync-ui-locales": "node scripts/i18n/sync-ui-locales.mjs",
+    "storybook:ui": "pnpm --filter @family/ui storybook",
     "i18n:generate-all-ui-locales": "node scripts/i18n/generate-all-ui-locales.mjs",
     "i18n:build-ui-locales": "node scripts/i18n/build-ui-locale-bundles.mjs && pnpm i18n:sync-ui-locales",
     "i18n:full-ui-locales": "pnpm i18n:build-ui-locales && pnpm i18n:generate-all-ui-locales -- --priority && pnpm i18n:sync-ui-locales",

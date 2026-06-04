@@ -71,4 +71,9 @@ export class FamilyStoriesController {
   revokeToken(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.service.revokeToken(id, user.id);
   }
+
+  @Post(':id/submit-for-review')
+  submitForReview(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.submitForReview(id, user.id);
+  }
 }

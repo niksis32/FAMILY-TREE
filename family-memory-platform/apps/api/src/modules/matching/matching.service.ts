@@ -4,13 +4,15 @@ import {
   MATCH_SCORE_REVIEW_THRESHOLD,
 } from '@family/shared';
 import type { MatchReasonDto, TreeMatchCandidateDto } from '@family/shared';
-import { scorePersonMatch } from '@family/matching-core';
 import { TreeMatchCandidateStatus, TreeMatchRunStatus } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AccessControlService } from '../privacy/access-control.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { MatchingIndexService } from './matching-index.service';
+import { isCrossWorkspace, isEligibleForGlobalMatching } from './matching-privacy.util';
 import { MatchingQueueService } from './matching.queue';
+import { MatchingScoringService } from './matching-scoring.service';
 import { PersonMatchLoader } from './person-match.loader';
 
 @Injectable()
@@ -23,7 +25,21 @@ export class MatchingService {
     private readonly loader: PersonMatchLoader,
     private readonly index: MatchingIndexService,
     private readonly queue: MatchingQueueService,
+    private readonly scoring: MatchingScoringService,
+    private readonly access: AccessControlService,
   ) {}
+
+  getScoringInfo() {
+    return {
+      defaultMethod: 'heuristic',
+      hybridAiEnabled: this.scoring.isAiScoringEnabled(),
+      env: {
+        MATCHING_AI_SCORING_ENABLED:
+          process.env.MATCHING_AI_SCORING_ENABLED === 'true' ? 'true' : 'false',
+        AI_SERVICE_ENABLED: process.env.AI_SERVICE_ENABLED === 'true' ? 'true' : 'false',
+      },
+    };
+  }
 
   async getProfile(userId: string) {
     const profile = await this.prisma.matchProfile.upsert({
@@ -130,10 +146,12 @@ export class MatchingService {
       const personIds = await this.loader.loadFamilyPersonIds(run.familyId);
       let created = 0;
       let scanned = 0;
+      let hybridScores = 0;
+      let heuristicScores = 0;
 
       for (const personId of personIds) {
         const source = await this.loader.loadSnapshot(personId, run.workspaceId);
-        if (!source) continue;
+        if (!source || !isEligibleForGlobalMatching(source)) continue;
         scanned += 1;
 
         let hits: { personId: string; workspaceId: string }[] = [];
@@ -149,7 +167,24 @@ export class MatchingService {
           const target = await this.loader.loadSnapshot(hit.personId, hit.workspaceId);
           if (!target) continue;
 
-          const { score, reasons } = scorePersonMatch(source, target);
+          if (
+            isCrossWorkspace(run.workspaceId, hit.workspaceId) &&
+            (!isEligibleForGlobalMatching(target) ||
+              !isEligibleForGlobalMatching(source))
+          ) {
+            continue;
+          }
+
+          const scored = await this.scoring.scorePair(
+            source,
+            target,
+            run.requestedBy
+              ? { userId: run.requestedBy, workspaceId: run.workspaceId }
+              : undefined,
+          );
+          const { score, reasons, scoringMethod } = scored;
+          if (scoringMethod === 'hybrid') hybridScores += 1;
+          else heuristicScores += 1;
           if (score < MATCH_SCORE_REVIEW_THRESHOLD) continue;
 
           const status: TreeMatchCandidateStatus =
@@ -188,7 +223,12 @@ export class MatchingService {
         data: {
           status: TreeMatchRunStatus.COMPLETED,
           completedAt: new Date(),
-          stats: { scanned, created },
+          stats: {
+            scanned,
+            created,
+            scoring: { hybrid: hybridScores, heuristic: heuristicScores },
+            scoringMode: this.scoring.isAiScoringEnabled() ? 'hybrid_when_available' : 'heuristic',
+          },
         },
       });
     } catch (err) {
@@ -232,7 +272,7 @@ export class MatchingService {
   }
 
   async rejectCandidate(candidateId: string, userId: string) {
-    const candidate = await this.ensureCandidateAccess(candidateId, userId);
+    await this.ensureCandidateAccess(candidateId, userId);
     const updated = await this.prisma.treeMatchCandidate.update({
       where: { id: candidateId },
       data: {
@@ -281,7 +321,7 @@ export class MatchingService {
     return candidate;
   }
 
-  private async reindexWorkspacePersons(workspaceId: string, userId: string) {
+  private async reindexWorkspacePersons(workspaceId: string, _userId: string) {
     const families = await this.prisma.family.findMany({
       where: { workspaceId, deletedAt: null },
       select: { id: true },
@@ -291,7 +331,7 @@ export class MatchingService {
       const personIds = await this.loader.loadFamilyPersonIds(family.id);
       for (const personId of personIds) {
         const snapshot = await this.loader.loadSnapshot(personId, workspaceId);
-        if (snapshot) {
+        if (snapshot && isEligibleForGlobalMatching(snapshot)) {
           try {
             await this.index.upsertPerson({ ...snapshot, workspaceId });
           } catch (err) {
@@ -328,18 +368,19 @@ export class MatchingService {
     const persons = await this.prisma.person.findMany({
       where: {
         deletedAt: null,
+        privacyLevel: { not: 'PRIVATE' },
         familyName: { equals: familyName, mode: 'insensitive' },
         familyMembers: {
           some: { family: { workspaceId: { in: workspaceIds } }, deletedAt: null },
         },
       },
       take: 30,
-      select: { id: true },
+      select: { id: true, workspaceId: true },
     });
 
     return persons.map((p) => ({
       personId: p.id,
-      workspaceId: workspaceIds[0] ?? '',
+      workspaceId: p.workspaceId,
     }));
   }
 
@@ -358,25 +399,109 @@ export class MatchingService {
     },
     userId: string,
   ): Promise<TreeMatchCandidateDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const viewer = this.access.viewerFromUser(
+      user ? { id: userId, role: user.role } : null,
+    );
+
     const [sourcePerson, targetPerson, sourceWs, targetWs] = await Promise.all([
       this.prisma.person.findUnique({
         where: { id: candidate.sourcePersonId },
-        select: { id: true, givenName: true, familyName: true, patronymic: true, birthDate: true, deathDate: true },
+        select: {
+          id: true,
+          givenName: true,
+          familyName: true,
+          patronymic: true,
+          birthDate: true,
+          deathDate: true,
+          isLiving: true,
+          privacyLevel: true,
+          biography: true,
+        },
       }),
       this.prisma.person.findUnique({
         where: { id: candidate.targetPersonId },
-        select: { id: true, givenName: true, familyName: true, patronymic: true, birthDate: true, deathDate: true },
+        select: {
+          id: true,
+          givenName: true,
+          familyName: true,
+          patronymic: true,
+          birthDate: true,
+          deathDate: true,
+          isLiving: true,
+          privacyLevel: true,
+          biography: true,
+        },
       }),
       this.prisma.workspace.findUnique({ where: { id: candidate.sourceWorkspaceId }, select: { name: true } }),
       this.prisma.workspace.findUnique({ where: { id: candidate.targetWorkspaceId }, select: { name: true } }),
     ]);
 
-    const display = (p: NonNullable<typeof sourcePerson>) => ({
-      id: p.id,
-      displayName: [p.givenName, p.patronymic, p.familyName].filter(Boolean).join(' '),
-      birthYear: p.birthDate?.getUTCFullYear() ?? null,
-      deathYear: p.deathDate?.getUTCFullYear() ?? null,
-    });
+    const hideLiving = await this.access.familyHideLiving(
+      (await this.prisma.familyMember.findFirst({
+        where: { personId: candidate.sourcePersonId, deletedAt: null },
+        select: { familyId: true },
+      }))?.familyId ?? '',
+    ).catch(() => true);
+
+    const display = (
+      p: NonNullable<typeof sourcePerson>,
+      workspaceLabel?: string | null,
+    ) => {
+      const record = {
+        id: p.id,
+        givenName: p.givenName,
+        patronymic: p.patronymic,
+        familyName: p.familyName,
+        birthDate: p.birthDate?.toISOString() ?? null,
+        deathDate: p.deathDate?.toISOString() ?? null,
+        isLiving: p.isLiving,
+        privacyLevel: p.privacyLevel.toLowerCase(),
+        biography: p.biography,
+      };
+
+      if (!this.access.canViewPersonRecord(record, viewer, hideLiving)) {
+        return {
+          id: p.id,
+          displayName: 'Restricted person',
+          birthYear: null,
+          deathYear: null,
+          workspaceLabel: workspaceLabel ?? undefined,
+          redacted: true,
+        };
+      }
+
+      const redacted = this.access.redactPerson(record, viewer, hideLiving);
+      if (!redacted) {
+        return {
+          id: p.id,
+          displayName: 'Restricted person',
+          birthYear: null,
+          deathYear: null,
+          workspaceLabel: workspaceLabel ?? undefined,
+          redacted: true,
+        };
+      }
+
+      return {
+        id: p.id,
+        displayName: [redacted.givenName, redacted.patronymic, redacted.familyName]
+          .filter(Boolean)
+          .join(' '),
+        birthYear: redacted.birthDate ? new Date(redacted.birthDate).getUTCFullYear() : null,
+        deathYear: redacted.deathDate ? new Date(redacted.deathDate).getUTCFullYear() : null,
+        workspaceLabel: workspaceLabel ?? undefined,
+      };
+    };
+
+    const reasonsRaw = candidate.reasons;
+    const reasonsList = Array.isArray(reasonsRaw) ? (reasonsRaw as MatchReasonDto[]) : [];
+    const scoringMethod = reasonsList.some((r) => r.type?.startsWith('ML_') || r.type === 'SCORING_BLEND')
+      ? 'hybrid'
+      : 'heuristic';
 
     return {
       id: candidate.id,
@@ -385,16 +510,13 @@ export class MatchingService {
       sourceWorkspaceId: candidate.sourceWorkspaceId,
       targetWorkspaceId: candidate.targetWorkspaceId,
       score: candidate.score,
-      reasons: (candidate.reasons as MatchReasonDto[]) ?? [],
+      reasons: reasonsList,
+      scoringMethod,
       status: candidate.status,
       createdAt: candidate.createdAt.toISOString(),
       updatedAt: candidate.updatedAt.toISOString(),
-      sourcePerson: sourcePerson
-        ? { ...display(sourcePerson), workspaceLabel: sourceWs?.name }
-        : undefined,
-      targetPerson: targetPerson
-        ? { ...display(targetPerson), workspaceLabel: targetWs?.name }
-        : undefined,
+      sourcePerson: sourcePerson ? display(sourcePerson, sourceWs?.name) : undefined,
+      targetPerson: targetPerson ? display(targetPerson, targetWs?.name) : undefined,
     };
   }
 }

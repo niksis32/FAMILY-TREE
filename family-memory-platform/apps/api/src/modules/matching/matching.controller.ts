@@ -21,6 +21,11 @@ export class MatchingController {
     return this.matching.getProfile(user.id);
   }
 
+  @Get('scoring-info')
+  scoringInfo() {
+    return this.matching.getScoringInfo();
+  }
+
   @Patch('profile')
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateMatchProfileDto) {
     return this.matching.updateProfile(user.id, dto.isOptedIn);

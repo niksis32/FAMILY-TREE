@@ -2,7 +2,10 @@ export * from './locales';
 export * from './locale-display';
 export * from './gamification';
 export * from './photo-intelligence';
+export * from './document-intelligence';
 export * from './matching';
+export * from './community-graphql';
+export * from './community-spam';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

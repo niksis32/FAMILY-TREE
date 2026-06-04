@@ -71,12 +71,21 @@ export class PhotoAnalysisProcessor implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      if (!requestedBy) {
+        await this.finishJob(jobId, 'SKIPPED', 'Photo analysis requires requesting user (AI consent).');
+        return;
+      }
+
+      const audit = { userId: requestedBy, scope: { mediaId } };
       const download = await this.mediaService.createDownloadUrl(mediaId);
 
-      const detectResult = await this.aiService.detectPhotoFaces({
-        mediaId,
-        imageUrl: download.downloadUrl,
-      });
+      const detectResult = await this.aiService.detectPhotoFaces(
+        {
+          mediaId,
+          imageUrl: download.downloadUrl,
+        },
+        audit,
+      );
 
       const detectData = this.aiService.extractData<{
         faces?: Array<{
@@ -94,16 +103,22 @@ export class PhotoAnalysisProcessor implements OnModuleInit, OnModuleDestroy {
         await this.faceTagsService.createManyAiDrafts(mediaId, detectData.faces, requestedBy);
       }
 
-      const periodResult = await this.aiService.estimatePhotoPeriod({
-        mediaId,
-        imageUrl: download.downloadUrl,
-        takenAt: media.takenAt?.toISOString(),
-      });
+      const periodResult = await this.aiService.estimatePhotoPeriod(
+        {
+          mediaId,
+          imageUrl: download.downloadUrl,
+          takenAt: media.takenAt?.toISOString(),
+        },
+        audit,
+      );
 
-      const contextResult = await this.aiService.extractPhotoContext({
-        mediaId,
-        imageUrl: download.downloadUrl,
-      });
+      const contextResult = await this.aiService.extractPhotoContext(
+        {
+          mediaId,
+          imageUrl: download.downloadUrl,
+        },
+        audit,
+      );
 
       const periodData = this.aiService.extractData<{
         estimatedYearFrom?: number;

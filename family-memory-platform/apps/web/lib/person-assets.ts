@@ -1,4 +1,5 @@
 import { apiClient, type DocumentRecord, type MediaUploadUrlResponse } from '@/lib/api-client';
+import { putFileWithProgress } from '@/lib/storage-upload';
 
 export type DocumentTypeOption =
   | 'PASSPORT'
@@ -34,14 +35,7 @@ export const emptyPersonAttachments = (): PersonAttachmentDraft => ({
 });
 
 async function putToMinio(uploadUrl: string, file: File) {
-  const res = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  });
-  if (!res.ok) {
-    throw new Error(`Не удалось загрузить файл в хранилище (${res.status})`);
-  }
+  await putFileWithProgress(uploadUrl, file);
 }
 
 export async function uploadPersonMedia(

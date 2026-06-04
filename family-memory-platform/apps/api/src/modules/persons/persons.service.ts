@@ -1,7 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Person, Prisma } from '@prisma/client';
-import { defaultPrivacyForNewLivingPerson } from '@family/genealogy-core';
+import {
+  defaultPrivacyForNewLivingPerson,
+  type PolicyPersonRecord,
+  type PolicyViewerContext,
+} from '@family/genealogy-core';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  workspaceScopedCreateData,
+  type WorkspaceScopedUncheckedCreate,
+} from '../../prisma/workspace-scoped-create';
 import { MediaService } from '../media/media.service';
 import { SearchService } from '../search/search.service';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
@@ -18,26 +26,22 @@ export class PersonsService {
   ) {}
 
   async findAll(user?: AuthenticatedUser) {
-    const viewer = this.access.viewerFromUser(user ?? null);
     const rows = await this.prisma.person.findMany({
       where: { deletedAt: null },
       orderBy: [{ familyName: 'asc' }, { givenName: 'asc' }],
       take: 200,
     });
-    const summaries = await Promise.all(rows.map((person) => this.toPersonSummary(person)));
-    return summaries.filter((_, i) => {
-      const row = rows[i];
-      const policy = {
-        id: row.id,
-        givenName: row.givenName,
-        familyName: row.familyName,
-        isLiving: row.isLiving,
-        privacyLevel: row.privacyLevel.toLowerCase(),
-        birthDate: row.birthDate?.toISOString() ?? null,
-        deathDate: row.deathDate?.toISOString() ?? null,
-      };
-      return this.access.canViewPersonRecord(policy, viewer);
-    });
+    const viewerCache = new Map<string, PolicyViewerContext>();
+    const summaries = [];
+
+    for (const person of rows) {
+      const viewer = await this.resolveViewerForWorkspace(user, person.workspaceId, viewerCache);
+      const policy = this.toPolicyPerson(person);
+      if (!this.access.canViewPersonRecord(policy, viewer)) continue;
+      summaries.push(await this.toPersonSummary(person, viewer));
+    }
+
+    return summaries;
   }
 
   async findOne(id: string, user?: AuthenticatedUser) {
@@ -55,18 +59,8 @@ export class PersonsService {
       throw new NotFoundException('Person not found');
     }
 
-    const viewer = this.access.viewerFromUser(user ?? null);
-    const policy = {
-      id: person.id,
-      givenName: person.givenName,
-      familyName: person.familyName,
-      patronymic: person.patronymic,
-      isLiving: person.isLiving,
-      privacyLevel: person.privacyLevel.toLowerCase(),
-      birthDate: person.birthDate?.toISOString() ?? null,
-      deathDate: person.deathDate?.toISOString() ?? null,
-      biography: person.biography,
-    };
+    const viewer = await this.access.viewerForWorkspace(user ?? null, person.workspaceId);
+    const policy = this.toPolicyPerson(person);
     if (!this.access.canViewPersonRecord(policy, viewer)) {
       throw new NotFoundException('Person not found');
     }
@@ -91,7 +85,7 @@ export class PersonsService {
 
   async create(dto: CreatePersonDto) {
     const person = await this.prisma.person.create({
-      data: this.toPersonCreateData(dto),
+      data: workspaceScopedCreateData(this.toPersonCreateData(dto)),
     });
     await this.indexPerson(person.id);
     return person;
@@ -122,7 +116,9 @@ export class PersonsService {
     }
   }
 
-  private toPersonCreateData(dto: CreatePersonDto): Prisma.PersonUncheckedCreateInput {
+  private toPersonCreateData(
+    dto: CreatePersonDto,
+  ): WorkspaceScopedUncheckedCreate<Prisma.PersonUncheckedCreateInput> {
     const isLiving = dto.isLiving ?? true;
     const privacyLevel =
       dto.privacyLevel ??
@@ -157,7 +153,47 @@ export class PersonsService {
     };
   }
 
-  private async toPersonSummary(person: Person) {
+  private async resolveViewerForWorkspace(
+    user: AuthenticatedUser | undefined,
+    workspaceId: string,
+    cache: Map<string, PolicyViewerContext>,
+  ): Promise<PolicyViewerContext> {
+    if (!cache.has(workspaceId)) {
+      cache.set(workspaceId, await this.access.viewerForWorkspace(user ?? null, workspaceId));
+    }
+    return cache.get(workspaceId)!;
+  }
+
+  private toPolicyPerson(
+    person: Pick<
+      Person,
+      | 'id'
+      | 'givenName'
+      | 'patronymic'
+      | 'familyName'
+      | 'birthDate'
+      | 'deathDate'
+      | 'isLiving'
+      | 'privacyLevel'
+      | 'biography'
+    >,
+  ): PolicyPersonRecord {
+    return {
+      id: person.id,
+      givenName: person.givenName,
+      patronymic: person.patronymic,
+      familyName: person.familyName,
+      isLiving: person.isLiving,
+      privacyLevel: person.privacyLevel.toLowerCase(),
+      birthDate: person.birthDate?.toISOString() ?? null,
+      deathDate: person.deathDate?.toISOString() ?? null,
+      biography: person.biography,
+    };
+  }
+
+  private async toPersonSummary(person: Person, viewer: PolicyViewerContext) {
+    const showLivingPhoto =
+      !person.isLiving || viewer.role === 'editor' || viewer.role === 'admin';
     return {
       id: person.id,
       createdAt: person.createdAt.toISOString(),
@@ -169,7 +205,10 @@ export class PersonsService {
       deathDate: person.deathDate?.toISOString() ?? null,
       gender: person.gender,
       privacyLevel: person.privacyLevel,
-      primaryPhotoUrl: person.avatarMediaId ? await this.resolvePhotoUrl(person.avatarMediaId) : null,
+      primaryPhotoUrl:
+        person.avatarMediaId && showLivingPhoto
+          ? await this.resolvePhotoUrl(person.avatarMediaId)
+          : null,
     };
   }
 

@@ -1,4 +1,4 @@
-/** In-memory analysis bundle per document (PROMPT 7). Not persisted until confirm flows. */
+/** Persisted analysis bundle per document (PostgreSQL + optional Redis cache). */
 export interface DocumentIntelligenceAnalysisEntry {
   ocr?: unknown;
   entities?: unknown;

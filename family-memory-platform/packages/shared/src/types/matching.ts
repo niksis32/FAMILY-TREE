@@ -1,5 +1,7 @@
 export type TreeMatchCandidateStatus = 'NEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVIEW';
 
+export type MatchScoringMethodDto = 'heuristic' | 'hybrid' | 'ai';
+
 export interface MatchReasonDto {
   type: string;
   weight: number;
@@ -14,6 +16,7 @@ export interface TreeMatchCandidateDto {
   targetWorkspaceId: string;
   score: number;
   reasons: MatchReasonDto[];
+  scoringMethod?: MatchScoringMethodDto;
   status: TreeMatchCandidateStatus;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +30,7 @@ export interface PersonMatchPreview {
   birthYear?: number | null;
   deathYear?: number | null;
   workspaceLabel?: string;
+  redacted?: boolean;
 }
 
 export interface MatchProfileDto {

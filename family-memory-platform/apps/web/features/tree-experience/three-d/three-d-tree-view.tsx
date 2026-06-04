@@ -12,6 +12,7 @@ import { useTree3dStore } from './use-tree-3d-store';
 import { useWebglCapability } from './use-webgl-capability';
 import { useTreeViewData } from '../tree-view-data-context';
 import { buildThreeLayout } from '@family/tree-experience';
+import { CoverImage } from '@family/ui';
 import { PARCHMENT_TEXTURE_SRC } from './tree-parchment-environment';
 
 const GraphTreeView = dynamic(() => import('../graph-tree-view'), { ssr: false });
@@ -74,13 +75,9 @@ export default function ThreeDTreeView() {
   }
 
   return (
-    <div
+    <CoverImage
+      src={PARCHMENT_TEXTURE_SRC}
       className="relative h-[min(70vh,720px)] w-full overflow-hidden rounded-3xl border border-amber-900/30 bg-[#2a1f14] shadow-inner shadow-amber-950/30"
-      style={{
-        backgroundImage: `url(${PARCHMENT_TEXTURE_SRC})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
     >
       <ThreeDTreeScene
         data={data}
@@ -95,6 +92,6 @@ export default function ThreeDTreeView() {
           {t3d('performance.simplified')}
         </p>
       ) : null}
-    </div>
+    </CoverImage>
   );
 }

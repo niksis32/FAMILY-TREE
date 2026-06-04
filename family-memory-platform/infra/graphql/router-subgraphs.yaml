@@ -1,0 +1,8 @@
+# Apollo Router — community subgraph registration (monolith MVP).
+# Router fetches SDL via POST { _service { sdl } } to routing_url.
+# Manual ops / CI: GET /api/v1/community/graphql/federation/sdl
+subgraphs:
+  community:
+    routing_url: http://api:4000/api/v1/community/graphql
+    schema:
+      subgraph_url: http://api:4000/api/v1/community/graphql

@@ -2,6 +2,7 @@
 
 import type { QuestInstance, WeeklyGoalSet } from '@family/shared';
 import { useTranslations } from 'next-intl';
+import { ProgressBar } from '@family/ui';
 import { Badge, Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -31,9 +32,7 @@ function QuestRow({ quest }: { quest: QuestInstance }) {
         <Badge tone={statusTone}>{t(`status.${quest.status}`)}</Badge>
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <div className="h-1 flex-1 overflow-hidden rounded-full bg-stone-200 dark:bg-slate-800">
-          <div className="h-full bg-family-accent" style={{ width: `${Math.min(percent, 100)}%` }} />
-        </div>
+        <ProgressBar value={percent} size="sm" className="flex-1" />
         <span className="text-xs font-semibold text-stone-600 dark:text-slate-300">
           {quest.progress}/{quest.target}
         </span>

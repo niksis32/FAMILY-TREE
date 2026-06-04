@@ -5,6 +5,8 @@ import {
   buildDescendantTree,
   buildTimeline,
   calculatePersonPrivacy,
+  canViewPerson,
+  canViewPersonDetails,
   detectRelationshipCycles,
   hideLivingPersonsForPublicView,
   mapGedcomPersonToInternalModel,
@@ -95,6 +97,40 @@ describe('@family/genealogy-core privacy rules', () => {
     assert.equal(publicTree.isHidden, false);
     assert.equal(publicTree.children[0].isHidden, true);
     assert.equal(publicTree.children[0].displayName, 'Living person');
+  });
+
+  it('blocks private deceased persons for anonymous and workspace viewers', () => {
+    const deceasedPrivate = {
+      id: 'p1',
+      givenName: 'Secret',
+      familyName: 'Ancestor',
+      deathDate: '1950-01-01',
+      isLiving: false,
+      privacyLevel: 'private',
+    };
+
+    const anonymous = { isAuthenticated: false, isFamilyMember: false, role: 'anonymous' };
+    const workspaceViewer = { viewerUserId: 'u1', isAuthenticated: true, isFamilyMember: true, role: 'viewer' };
+    const editor = { viewerUserId: 'u2', isAuthenticated: true, isFamilyMember: true, role: 'editor' };
+
+    assert.equal(canViewPersonDetails(false, anonymous, 'private'), false);
+    assert.equal(canViewPerson(deceasedPrivate, { ...anonymous, isPublicLink: false }), false);
+    assert.equal(canViewPerson(deceasedPrivate, { ...workspaceViewer, isPublicLink: false }), false);
+    assert.equal(canViewPerson(deceasedPrivate, { ...editor, isPublicLink: false }), true);
+  });
+
+  it('allows public deceased persons for anonymous viewers', () => {
+    const deceasedPublic = {
+      id: 'p2',
+      givenName: 'Known',
+      familyName: 'Ancestor',
+      deathDate: '1900-01-01',
+      isLiving: false,
+      privacyLevel: 'public',
+    };
+    const anonymous = { isAuthenticated: false, isFamilyMember: false, role: 'anonymous', isPublicLink: false };
+
+    assert.equal(canViewPerson(deceasedPublic, anonymous), true);
   });
 });
 

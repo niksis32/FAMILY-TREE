@@ -1,8 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
+import { MinioStorageService } from '../../common/storage/minio-storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
+import { AssetPrivacyService } from '../privacy/asset-privacy.service';
 import {
   ALLOWED_MEDIA_MIME_TYPES,
   MAX_MEDIA_FILE_SIZE_BYTES,
@@ -13,24 +20,38 @@ import {
 
 @Injectable()
 export class MediaService {
-  private readonly bucket: string;
-
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-  ) {
-    this.bucket = this.config.get<string>('MINIO_BUCKET_MEDIA') ?? 'family-media';
-  }
+    private readonly minio: MinioStorageService,
+    private readonly assetPrivacy: AssetPrivacyService,
+  ) {}
 
-  async findAll() {
-    return this.prisma.media.findMany({
+  async findAll(user?: AuthenticatedUser | null) {
+    const rows = await this.prisma.media.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 50,
+      select: {
+        id: true,
+        workspaceId: true,
+        privacyLevel: true,
+        personId: true,
+        title: true,
+        mimeType: true,
+        storageKey: true,
+        bucket: true,
+        sizeBytes: true,
+        takenAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
+    return this.assetPrivacy.filterVisibleMedia(rows, user);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: AuthenticatedUser | null) {
+    await this.assetPrivacy.assertCanViewMedia(id, user);
     return this.prisma.media.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -42,12 +63,13 @@ export class MediaService {
   async createUploadUrl(dto: CreateUploadUrlDto) {
     this.assertAllowedFile(dto.mimeType, dto.sizeBytes);
 
-    const storageKey = this.buildStorageKey(dto.fileName);
-    const client = this.createMinioClient();
-    const uploadUrl = await client.presignedPutObject(this.bucket, storageKey, 15 * 60);
+    const storageKey = this.minio.buildObjectKey('uploads', dto.fileName);
+    const client = this.minio.createClient();
+    const bucket = this.minio.mediaBucket;
+    const uploadUrl = await client.presignedPutObject(bucket, storageKey, 15 * 60);
 
     return {
-      bucket: this.bucket,
+      bucket,
       storageKey,
       uploadUrl,
       expiresInSeconds: 15 * 60,
@@ -56,21 +78,22 @@ export class MediaService {
     };
   }
 
-  async createMetadata(dto: CreateMediaMetadataDto) {
+  async createMetadata(dto: CreateMediaMetadataDto, user?: AuthenticatedUser | null) {
     this.assertAllowedFile(dto.mimeType, dto.sizeBytes);
 
     if (dto.personId) {
       await this.ensurePersonExists(dto.personId);
     }
 
-    return this.prisma.media.create({
-      data: {
+    const media = await this.prisma.media.create({
+      data: workspaceScopedCreateData<Prisma.MediaUncheckedCreateInput>({
         title: dto.title ?? dto.fileName,
         mimeType: dto.mimeType,
         storageKey: dto.storageKey,
-        bucket: this.bucket,
+        bucket: this.minio.mediaBucket,
         sizeBytes: dto.sizeBytes,
         personId: dto.personId,
+        privacyLevel: 'PRIVATE',
         links: dto.personId
           ? {
               create: {
@@ -79,36 +102,99 @@ export class MediaService {
               },
             }
           : undefined,
-      },
+      }),
     });
+
+    await this.writeAudit(user, 'media.upload', media.id, {
+      storageKey: media.storageKey,
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes,
+    });
+
+    return media;
   }
 
-  async createDownloadUrl(mediaId: string) {
-    const media = await this.prisma.media.findUnique({ where: { id: mediaId } });
-    if (!media) {
-      throw new NotFoundException('Media file not found');
-    }
+  async createDownloadUrl(mediaId: string, user?: AuthenticatedUser | null, expiresInSeconds = 10 * 60) {
+    const media = await this.assetPrivacy.assertCanViewMedia(mediaId, user);
 
-    const client = this.createMinioClient();
-    const downloadUrl = await client.presignedGetObject(media.bucket, media.storageKey, 10 * 60);
+    const client = this.minio.createClient();
+    const downloadUrl = await client.presignedGetObject(
+      media.bucket,
+      media.storageKey,
+      expiresInSeconds,
+    );
+
+    await this.writeAudit(user, 'media.download', mediaId, {
+      storageKey: media.storageKey,
+      expiresInSeconds,
+    });
 
     return {
       mediaId: media.id,
       bucket: media.bucket,
       storageKey: media.storageKey,
       downloadUrl,
-      expiresInSeconds: 10 * 60,
+      expiresInSeconds,
     };
   }
 
-  async linkMedia(mediaId: string, dto: LinkMediaDto) {
-    const media = await this.prisma.media.findUnique({ where: { id: mediaId } });
+  async remove(mediaId: string, user?: AuthenticatedUser | null) {
+    const media = await this.assetPrivacy.assertCanViewMedia(mediaId, user);
+    const updated = await this.prisma.media.update({
+      where: { id: mediaId },
+      data: { deletedAt: new Date() },
+    });
+
+    await this.writeAudit(user, 'media.delete', mediaId, {
+      storageKey: media.storageKey,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Stable CDN URL when MEDIA_CDN_BASE_URL is set; otherwise long-lived presigned GET.
+   * Used for public story covers and gallery assets (SEO / social crawlers).
+   */
+  async createPublicAssetUrl(mediaId: string, isPublicLink = true): Promise<string | null> {
+    const media = await this.prisma.media.findFirst({
+      where: { id: mediaId, deletedAt: null },
+      select: { id: true, bucket: true, storageKey: true },
+    });
+    if (!media) return null;
+
+    try {
+      await this.assetPrivacy.assertCanViewMedia(mediaId, null, isPublicLink);
+    } catch {
+      return null;
+    }
+
+    const cdnBase = this.config.get<string>('MEDIA_CDN_BASE_URL')?.replace(/\/$/, '');
+    if (cdnBase) {
+      const segments = [media.bucket, ...media.storageKey.split('/')]
+        .map((s) => encodeURIComponent(s))
+        .join('/');
+      return `${cdnBase}/${segments}`;
+    }
+
+    const ttl = Number(this.config.get<string>('MEDIA_PUBLIC_ASSET_TTL_SEC') ?? 86400);
+    const { downloadUrl } = await this.createDownloadUrl(mediaId, null, ttl);
+    return downloadUrl;
+  }
+
+  async linkMedia(mediaId: string, dto: LinkMediaDto, user?: AuthenticatedUser | null) {
+    await this.assetPrivacy.assertCanViewMedia(mediaId, user);
+    const media = await this.prisma.media.findFirst({
+      where: { id: mediaId, deletedAt: null },
+      select: { id: true, bucket: true, storageKey: true },
+    });
     if (!media) {
       throw new NotFoundException('Media file not found');
     }
 
+    await this.ensureLinkTarget(dto.entityType, dto.entityId);
+
     if (dto.entityType === 'person') {
-      await this.ensurePersonExists(dto.entityId);
       return this.prisma.media.update({
         where: { id: mediaId },
         data: {
@@ -133,33 +219,28 @@ export class MediaService {
       });
     }
 
+    const ownerType = toMediaOwnerType(dto.entityType);
     await this.prisma.mediaLink.upsert({
       where: {
         mediaId_ownerType_ownerId: {
           mediaId,
-          ownerType: toMediaOwnerType(dto.entityType),
+          ownerType,
           ownerId: dto.entityId,
         },
       },
       update: {},
       create: {
         mediaId,
-        ownerType: toMediaOwnerType(dto.entityType),
+        ownerType,
         ownerId: dto.entityId,
       },
     });
 
-    await this.prisma.auditLog.create({
-      data: {
-        action: 'media.link',
-        entityType: dto.entityType,
-        entityId: dto.entityId,
-        payload: {
-          mediaId,
-          bucket: media.bucket,
-          storageKey: media.storageKey,
-        },
-      },
+    await this.writeAudit(user, 'media.link', mediaId, {
+      entityType: dto.entityType,
+      entityId: dto.entityId,
+      bucket: media.bucket,
+      storageKey: media.storageKey,
     });
 
     return {
@@ -167,7 +248,6 @@ export class MediaService {
       linked: true,
       entityType: dto.entityType,
       entityId: dto.entityId,
-      persistence: 'auditLog',
     };
   }
 
@@ -182,51 +262,99 @@ export class MediaService {
   }
 
   private async ensurePersonExists(personId: string) {
-    const person = await this.prisma.person.findUnique({ where: { id: personId }, select: { id: true } });
+    const person = await this.prisma.person.findFirst({
+      where: { id: personId, deletedAt: null },
+      select: { id: true },
+    });
     if (!person) {
       throw new NotFoundException('Person not found');
     }
   }
 
-  private buildStorageKey(fileName: string) {
-    const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const datePrefix = new Date().toISOString().slice(0, 10);
-    return `uploads/${datePrefix}/${randomUUID()}-${safeFileName}`;
+  private async ensureLinkTarget(entityType: LinkMediaDto['entityType'], entityId: string) {
+    switch (entityType) {
+      case 'person': {
+        await this.ensurePersonExists(entityId);
+        return;
+      }
+      case 'family': {
+        const family = await this.prisma.family.findFirst({
+          where: { id: entityId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!family) throw new NotFoundException('Family not found');
+        return;
+      }
+      case 'event': {
+        const event = await this.prisma.event.findFirst({
+          where: { id: entityId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!event) throw new NotFoundException('Event not found');
+        return;
+      }
+      case 'document': {
+        const document = await this.prisma.document.findFirst({
+          where: { id: entityId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!document) throw new NotFoundException('Document not found');
+        return;
+      }
+      case 'source': {
+        const source = await this.prisma.source.findFirst({
+          where: { id: entityId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!source) throw new NotFoundException('Source not found');
+        return;
+      }
+      case 'story': {
+        const story = await this.prisma.familyStory.findFirst({
+          where: { id: entityId },
+          select: { id: true },
+        });
+        if (!story) throw new NotFoundException('Story not found');
+        return;
+      }
+      case 'message': {
+        const post = await this.prisma.forumPost.findFirst({
+          where: { id: entityId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!post) throw new NotFoundException('Message not found');
+        return;
+      }
+      default:
+        throw new BadRequestException(`Unsupported entity type: ${entityType}`);
+    }
   }
 
-  private createMinioClient() {
-    const require = createRequire(__filename);
-    const minio = require('minio') as {
-      Client: new (options: {
-        endPoint: string;
-        port: number;
-        useSSL: boolean;
-        accessKey: string;
-        secretKey: string;
-      }) => {
-        presignedPutObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
-        presignedGetObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
-      };
-    };
-
-    const accessKey = this.config.get<string>('MINIO_ROOT_USER');
-    const secretKey = this.config.get<string>('MINIO_ROOT_PASSWORD');
-
-    if (!accessKey || !secretKey) {
-      throw new ServiceUnavailableException('MinIO credentials are not configured');
+  private async writeAudit(
+    user: AuthenticatedUser | null | undefined,
+    action: string,
+    entityId: string,
+    payload: Prisma.InputJsonValue,
+  ) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: user?.id,
+          action,
+          entityType: 'media',
+          entityId,
+          payload,
+        },
+      });
+    } catch {
+      // Audit must not break primary flows.
     }
-
-    return new minio.Client({
-      endPoint: this.config.get<string>('MINIO_ENDPOINT') ?? 'localhost',
-      port: Number(this.config.get<string>('MINIO_PORT') ?? 9000),
-      useSSL: this.config.get<string>('MINIO_USE_SSL') === 'true',
-      accessKey,
-      secretKey,
-    });
   }
 }
 
-function toMediaOwnerType(entityType: string): 'PERSON' | 'FAMILY' | 'EVENT' | 'DOCUMENT' | 'SOURCE' {
+function toMediaOwnerType(
+  entityType: LinkMediaDto['entityType'],
+): 'PERSON' | 'FAMILY' | 'EVENT' | 'DOCUMENT' | 'SOURCE' | 'STORY' | 'MESSAGE' {
   switch (entityType) {
     case 'family':
       return 'FAMILY';
@@ -236,6 +364,10 @@ function toMediaOwnerType(entityType: string): 'PERSON' | 'FAMILY' | 'EVENT' | '
       return 'DOCUMENT';
     case 'source':
       return 'SOURCE';
+    case 'story':
+      return 'STORY';
+    case 'message':
+      return 'MESSAGE';
     default:
       return 'PERSON';
   }

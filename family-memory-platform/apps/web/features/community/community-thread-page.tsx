@@ -11,6 +11,7 @@ import {
   type CommunityForumPost,
   type CommunityForumThread,
 } from '@/lib/api-client';
+import { CommunityReportModal } from '@/features/community/community-report-modal';
 
 const PAGE = 15;
 
@@ -39,6 +40,7 @@ export function CommunityThreadPage({ threadId }: { threadId: string }) {
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reportPostId, setReportPostId] = useState<string | null>(null);
 
   const token = session?.accessToken ?? null;
 
@@ -177,6 +179,11 @@ export function CommunityThreadPage({ threadId }: { threadId: string }) {
                     </Button>
                   )}
                   {p.viewerMarkedHelpful && <Badge tone="green">{t('helpful')} ✓</Badge>}
+                  {session?.accessToken && p.authorId !== session.user.id && (
+                    <Button variant="ghost" type="button" onClick={() => setReportPostId(p.id)}>
+                      {t('report')}
+                    </Button>
+                  )}
                 </div>
               </li>
             ))}
@@ -191,6 +198,7 @@ export function CommunityThreadPage({ threadId }: { threadId: string }) {
 
       <Card className="space-y-4">
         <p className="text-sm font-semibold text-family-ink dark:text-white">{t('yourReply')}</p>
+        <p className="text-xs text-stone-500">{t('rateLimitHint')}</p>
         {session?.accessToken ? (
           <>
             <FormField label={t('placeholder')}>
@@ -212,6 +220,15 @@ export function CommunityThreadPage({ threadId }: { threadId: string }) {
           <p className="text-sm text-stone-500">{t('loginHint')}</p>
         )}
       </Card>
+
+      {reportPostId && session?.accessToken && (
+        <CommunityReportModal
+          targetType="FORUM_POST"
+          targetId={reportPostId}
+          token={session.accessToken}
+          onClose={() => setReportPostId(null)}
+        />
+      )}
     </div>
   );
 }

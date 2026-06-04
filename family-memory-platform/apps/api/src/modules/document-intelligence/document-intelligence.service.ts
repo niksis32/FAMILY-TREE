@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GAMIFICATION_ACTIONS } from '@family/shared';
-import { AiService } from '../ai/ai.service';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
+import type { AiRequestAudit } from '../ai/ai.service';
 import { CitationsService } from '../citations/citations.service';
 import type { CreateCitationDto } from '../citations/citations.dto';
 import { DocumentsService } from '../documents/documents.service';
@@ -9,6 +10,9 @@ import type { CreateEventDto } from '../events/events.dto';
 import { GamificationActivityService } from '../gamification/gamification-activity.service';
 import { RelationshipsService } from '../relationships/relationships.service';
 import type { CreateRelationshipDto } from '../relationships/relationships.dto';
+import { AiService } from '../ai/ai.service';
+import { DocumentIntelligenceOcrRunnerService } from './document-intelligence-ocr-runner.service';
+import { DocumentIntelligenceStoreService } from './document-intelligence-store.service';
 import type { ExtractEntitiesDto } from './dto/extract-entities.dto';
 import type { OcrDocumentDto } from './dto/ocr-document.dto';
 import type { RejectSuggestionDto } from './dto/reject-suggestion.dto';
@@ -21,11 +25,14 @@ type OcrPagesShape = {
   pages?: Array<{ page?: number; blocks?: Array<{ blockId?: string; text: string }> }>;
 };
 
+type DocumentRow = {
+  id: string;
+  workspaceId: string;
+  ocrText?: string | null;
+};
+
 @Injectable()
 export class DocumentIntelligenceService {
-  /** MVP: in-process cache. Replace with Redis/DB for multi-instance. */
-  private readonly cache = new Map<string, DocumentIntelligenceAnalysisEntry>();
-
   constructor(
     private readonly ai: AiService,
     private readonly documents: DocumentsService,
@@ -33,89 +40,99 @@ export class DocumentIntelligenceService {
     private readonly relationships: RelationshipsService,
     private readonly citations: CitationsService,
     private readonly gamification: GamificationActivityService,
+    private readonly store: DocumentIntelligenceStoreService,
+    private readonly ocrRunner: DocumentIntelligenceOcrRunnerService,
   ) {}
 
-  async runOcr(dto: OcrDocumentDto) {
-    const doc = await this.documents.findOne(dto.documentId);
-    const presigned = await this.documents.getPresignedDownloadUrl(dto.documentId);
-    const aiResult = await this.ai.documentOcr({
-      documentId: doc.id,
-      fileName: doc.title,
-      mimeType: doc.mimeType,
-      storageKey: doc.storageKey,
-      downloadUrl: presigned.downloadUrl,
-      language: dto.language ?? 'ru',
-      textHint: doc.ocrText ?? '',
-    });
-    const e = this.ensureEntry(dto.documentId);
-    e.ocr = this.unwrapAi(aiResult);
-    e.updatedAt = new Date().toISOString();
+  async runOcr(user: AuthenticatedUser, dto: OcrDocumentDto) {
+    const { aiResult } = await this.ocrRunner.run(dto.documentId, dto.language ?? 'ru', user);
     return aiResult;
   }
 
-  async extractEntities(dto: ExtractEntitiesDto) {
-    const doc = await this.documents.findOne(dto.documentId);
-    const textBlocks = this.buildTextBlocks(dto.documentId, doc);
-    const aiResult = await this.ai.documentExtractEntities({
-      documentId: doc.id,
-      language: dto.language ?? 'ru',
-      textBlocks,
-    });
-    const e = this.ensureEntry(dto.documentId);
-    e.entities = this.unwrapAi(aiResult);
-    e.updatedAt = new Date().toISOString();
+  async extractEntities(user: AuthenticatedUser, dto: ExtractEntitiesDto) {
+    const doc = await this.documents.findOne(dto.documentId, user);
+    const audit = this.aiAudit(user, doc);
+    const textBlocks = await this.buildTextBlocks(dto.documentId, doc);
+    const aiResult = await this.ai.documentExtractEntities(
+      {
+        documentId: doc.id,
+        language: dto.language ?? 'ru',
+        textBlocks,
+      },
+      audit,
+    );
+    const entry = await this.store.ensure(dto.documentId);
+    entry.entities = this.unwrapAi(aiResult);
+    entry.updatedAt = new Date().toISOString();
+    await this.store.save(dto.documentId, entry);
     return aiResult;
   }
 
-  async suggestEvents(dto: SuggestEventsDto) {
-    const doc = await this.documents.findOne(dto.documentId);
-    const e = this.ensureEntry(dto.documentId);
-    const textBlocks = this.buildTextBlocks(dto.documentId, doc);
-    const entities = this.pickEntitiesPayload(e.entities);
-    const aiResult = await this.ai.documentSuggestEvents({
-      documentId: doc.id,
-      language: dto.language ?? 'ru',
-      textBlocks,
-      entities,
-    });
-    e.events = this.unwrapAi(aiResult);
-    e.updatedAt = new Date().toISOString();
+  async suggestEvents(user: AuthenticatedUser, dto: SuggestEventsDto) {
+    const doc = await this.documents.findOne(dto.documentId, user);
+    const audit = this.aiAudit(user, doc);
+    const entry = await this.store.ensure(dto.documentId);
+    const textBlocks = await this.buildTextBlocks(dto.documentId, doc);
+    const entities = this.pickEntitiesPayload(entry.entities);
+    const aiResult = await this.ai.documentSuggestEvents(
+      {
+        documentId: doc.id,
+        language: dto.language ?? 'ru',
+        textBlocks,
+        entities,
+      },
+      audit,
+    );
+    entry.events = this.unwrapAi(aiResult);
+    entry.updatedAt = new Date().toISOString();
+    await this.store.save(dto.documentId, entry);
     return aiResult;
   }
 
-  async suggestRelationships(dto: SuggestRelationshipsDto) {
-    const doc = await this.documents.findOne(dto.documentId);
-    const e = this.ensureEntry(dto.documentId);
-    const textBlocks = this.buildTextBlocks(dto.documentId, doc);
-    const entities = this.pickEntitiesPayload(e.entities);
-    const aiResult = await this.ai.documentSuggestRelationships({
-      documentId: doc.id,
-      language: dto.language ?? 'ru',
-      textBlocks,
-      entities,
-      knownPersonIds: dto.knownPersonIds ?? [],
-    });
-    e.relationships = this.unwrapAi(aiResult);
-    e.updatedAt = new Date().toISOString();
+  async suggestRelationships(user: AuthenticatedUser, dto: SuggestRelationshipsDto) {
+    const doc = await this.documents.findOne(dto.documentId, user);
+    const audit = this.aiAudit(user, doc);
+    const entry = await this.store.ensure(dto.documentId);
+    const textBlocks = await this.buildTextBlocks(dto.documentId, doc);
+    const entities = this.pickEntitiesPayload(entry.entities);
+    const aiResult = await this.ai.documentSuggestRelationships(
+      {
+        documentId: doc.id,
+        language: dto.language ?? 'ru',
+        textBlocks,
+        entities,
+        knownPersonIds: dto.knownPersonIds ?? [],
+      },
+      audit,
+    );
+    entry.relationships = this.unwrapAi(aiResult);
+    entry.updatedAt = new Date().toISOString();
+    await this.store.save(dto.documentId, entry);
     return aiResult;
   }
 
-  async summarize(dto: SummarizeDocumentDto) {
-    const doc = await this.documents.findOne(dto.documentId);
-    const e = this.ensureEntry(dto.documentId);
-    const textBlocks = this.buildTextBlocks(dto.documentId, doc);
-    const aiResult = await this.ai.documentSummarize({
-      documentId: doc.id,
-      language: dto.language ?? 'ru',
-      textBlocks,
-    });
-    e.summary = this.unwrapAi(aiResult);
-    e.updatedAt = new Date().toISOString();
+  async summarize(user: AuthenticatedUser, dto: SummarizeDocumentDto) {
+    const doc = await this.documents.findOne(dto.documentId, user);
+    const audit = this.aiAudit(user, doc);
+    const entry = await this.store.ensure(dto.documentId);
+    const textBlocks = await this.buildTextBlocks(dto.documentId, doc);
+    const aiResult = await this.ai.documentSummarize(
+      {
+        documentId: doc.id,
+        language: dto.language ?? 'ru',
+        textBlocks,
+      },
+      audit,
+    );
+    entry.summary = this.unwrapAi(aiResult);
+    entry.updatedAt = new Date().toISOString();
+    await this.store.save(dto.documentId, entry);
     return aiResult;
   }
 
-  getResults(documentId: string) {
-    const e = this.cache.get(documentId);
+  async getResults(user: AuthenticatedUser, documentId: string) {
+    await this.documents.findOne(documentId, user);
+    const e = await this.store.load(documentId);
     if (!e) {
       return {
         documentId,
@@ -139,20 +156,20 @@ export class DocumentIntelligenceService {
     };
   }
 
-  async rejectSuggestion(documentId: string, dto: RejectSuggestionDto) {
-    await this.documents.findOne(documentId);
-    const e = this.ensureEntry(documentId);
-    e.rejected.add(`${dto.kind}:${dto.suggestionId}`);
-    e.updatedAt = new Date().toISOString();
+  async rejectSuggestion(user: AuthenticatedUser, documentId: string, dto: RejectSuggestionDto) {
+    await this.documents.findOne(documentId, user);
+    const entry = await this.store.ensure(documentId);
+    entry.rejected.add(`${dto.kind}:${dto.suggestionId}`);
+    entry.updatedAt = new Date().toISOString();
+    await this.store.save(documentId, entry);
     return { ok: true, documentId, ...dto };
   }
 
-  /** User explicitly confirms — creates event (does not auto-run from AI). */
-  async confirmEvent(documentId: string, dto: CreateEventDto, userId: string) {
-    await this.documents.findOne(documentId);
+  async confirmEvent(user: AuthenticatedUser, documentId: string, dto: CreateEventDto) {
+    await this.documents.findOne(documentId, user);
     const event = await this.events.create(dto);
     await this.gamification.record({
-      userId,
+      userId: user.id,
       action: GAMIFICATION_ACTIONS.EVENT_CREATE,
       entityType: 'event',
       entityId: event.id,
@@ -160,17 +177,17 @@ export class DocumentIntelligenceService {
     return { documentId, event, source: 'document-intelligence.confirm-event' };
   }
 
-  async confirmRelationship(documentId: string, dto: CreateRelationshipDto) {
-    await this.documents.findOne(documentId);
+  async confirmRelationship(user: AuthenticatedUser, documentId: string, dto: CreateRelationshipDto) {
+    await this.documents.findOne(documentId, user);
     const relationship = await this.relationships.create(dto);
     return { documentId, relationship, source: 'document-intelligence.confirm-relationship' };
   }
 
-  async confirmCitation(documentId: string, dto: CreateCitationDto, userId: string) {
-    await this.documents.findOne(documentId);
+  async confirmCitation(user: AuthenticatedUser, documentId: string, dto: CreateCitationDto) {
+    await this.documents.findOne(documentId, user);
     const citation = await this.citations.create(dto);
     await this.gamification.record({
-      userId,
+      userId: user.id,
       action: GAMIFICATION_ACTIONS.CITATION_CREATE,
       entityType: 'citation',
       entityId: citation.id,
@@ -178,13 +195,12 @@ export class DocumentIntelligenceService {
     return { documentId, citation, source: 'document-intelligence.confirm-citation' };
   }
 
-  private ensureEntry(documentId: string): DocumentIntelligenceAnalysisEntry {
-    let e = this.cache.get(documentId);
-    if (!e) {
-      e = { rejected: new Set(), updatedAt: new Date().toISOString() };
-      this.cache.set(documentId, e);
-    }
-    return e;
+  private aiAudit(user: AuthenticatedUser, doc: Pick<DocumentRow, 'id' | 'workspaceId'>): AiRequestAudit {
+    return {
+      userId: user.id,
+      workspaceId: doc.workspaceId,
+      scope: { documentId: doc.id },
+    };
   }
 
   private unwrapAi(result: unknown): unknown {
@@ -193,11 +209,11 @@ export class DocumentIntelligenceService {
     return result;
   }
 
-  private buildTextBlocks(
+  private async buildTextBlocks(
     documentId: string,
     doc: { ocrText?: string | null },
-  ): Array<{ page: number; text: string; blockId?: string }> {
-    const e = this.cache.get(documentId);
+  ): Promise<Array<{ page: number; text: string; blockId?: string }>> {
+    const e = await this.store.load(documentId);
     const ocr = e?.ocr as OcrPagesShape | undefined;
     if (ocr?.pages?.length) {
       const blocks: Array<{ page: number; text: string; blockId?: string }> = [];

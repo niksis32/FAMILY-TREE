@@ -93,6 +93,9 @@ export function CommunityGroupThreadsPage({ groupId }: { groupId: string }) {
         ) : (
           <p className="text-sm text-stone-500">{t('loginHint')}</p>
         )}
+        {session?.accessToken && (
+          <p className="text-xs text-stone-500">{t('rateLimitHint')}</p>
+        )}
         <ul className="space-y-3">
           {threads.length === 0 && !loading ? (
             <li className="text-sm text-stone-500">{t('empty')}</li>

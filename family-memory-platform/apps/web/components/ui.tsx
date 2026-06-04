@@ -128,14 +128,14 @@ export function PageHeader({
 }) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-family-accent">Family Memory</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-family-ink dark:text-white md:text-4xl">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-family-ink dark:text-white sm:text-3xl md:text-4xl">
           {title}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600 dark:text-slate-300">{description}</p>
       </div>
-      {action}
+      {action ? <div className="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">{action}</div> : null}
     </div>
   );
 }
@@ -154,7 +154,7 @@ export function EmptyState({ title, description }: { title: string; description:
 
 export function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <p className="text-sm text-stone-500 dark:text-slate-400">{label}</p>
       <p className="mt-3 text-3xl font-semibold text-family-primary dark:text-family-accent">{value}</p>
       <p className="mt-2 text-xs text-stone-500 dark:text-slate-400">{hint}</p>

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { mapGedcomPersonToInternalModel } from '@family/genealogy-core';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import type { GedcomImportDto, GedcomTextDto } from './gedcom.dto';
 
 interface ParsedIndividual {
@@ -93,7 +95,7 @@ export class GedcomService {
       });
 
       const created = await this.prisma.person.create({
-        data: {
+        data: workspaceScopedCreateData<Prisma.PersonUncheckedCreateInput>({
           givenName: person.givenName,
           familyName: person.familyName,
           gender: toPrismaGender(person.gender),
@@ -101,7 +103,7 @@ export class GedcomService {
           deathDate: parseGedcomDate(individual.deathDate),
           isLiving: !individual.deathDate,
           biography: individual.notes.join('\n') || undefined,
-        },
+        }),
       });
 
       personIdMap.set(individual.id, created.id);
@@ -112,20 +114,20 @@ export class GedcomService {
 
     for (const source of parsed.sources) {
       await this.prisma.source.create({
-        data: {
+        data: workspaceScopedCreateData<Prisma.SourceUncheckedCreateInput>({
           title: source.title,
           author: source.author,
           notes: source.notes,
-        },
+        }),
       });
     }
 
     for (const family of parsed.families) {
       const createdFamily = await this.prisma.family.create({
-        data: {
+        data: workspaceScopedCreateData<Prisma.FamilyUncheckedCreateInput>({
           name: `GEDCOM family ${family.id}`,
           notes: family.notes.join('\n') || undefined,
-        },
+        }),
       });
       familyIdMap.set(family.id, createdFamily.id);
 
@@ -140,12 +142,12 @@ export class GedcomService {
 
       if (family.marriageDate) {
         await this.prisma.event.create({
-          data: {
+          data: workspaceScopedCreateData<Prisma.EventUncheckedCreateInput>({
             familyId: createdFamily.id,
             type: 'MARRIAGE',
             date: parseGedcomDate(family.marriageDate),
             description: `GEDCOM marriage event ${family.id}`,
-          },
+          }),
         });
       }
     }
@@ -268,12 +270,12 @@ export class GedcomService {
   private async createLifeEvent(personId: string, type: 'BIRTH' | 'DEATH', date?: string) {
     if (!date) return;
     await this.prisma.event.create({
-      data: {
+      data: workspaceScopedCreateData<Prisma.EventUncheckedCreateInput>({
         personId,
         type,
         date: parseGedcomDate(date),
         description: `GEDCOM ${type.toLowerCase()}`,
-      },
+      }),
     });
   }
 
@@ -288,7 +290,11 @@ export class GedcomService {
     if (!personId) return;
 
     await this.prisma.familyMember.create({
-      data: { familyId, personId, role },
+      data: workspaceScopedCreateData<Prisma.FamilyMemberUncheckedCreateInput>({
+        familyId,
+        personId,
+        role,
+      }),
     });
   }
 
@@ -303,11 +309,11 @@ export class GedcomService {
     if (!fromPersonId || !toPersonId) return;
 
     await this.prisma.relationship.create({
-      data: {
+      data: workspaceScopedCreateData<Prisma.RelationshipUncheckedCreateInput>({
         fromPersonId,
         toPersonId,
         type: 'PARENT',
-      },
+      }),
     });
   }
 }

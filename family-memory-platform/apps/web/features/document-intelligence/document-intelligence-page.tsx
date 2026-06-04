@@ -52,6 +52,10 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
   const [tab, setTab] = useState<TabId>('text');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [ocrJob, setOcrJob] = useState<{
+    status: string | null;
+    error?: string | null;
+  } | null>(null);
 
   const refreshResults = useCallback(async () => {
     if (!token) return;
@@ -92,6 +96,46 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
       cancelled = true;
     };
   }, [documentId, token, formatApiError]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    async function pollOcrJob() {
+      try {
+        const job = await apiClient.documentOcr.status(documentId, token);
+        if (cancelled) return;
+        setOcrJob({ status: job.status, error: job.error });
+        if (job.status === 'COMPLETED') {
+          await refreshResults();
+          const docRow = await apiClient.documents.one(documentId, token);
+          if (!cancelled) setDoc(docRow);
+        }
+        if (
+          job.status === 'COMPLETED' ||
+          job.status === 'FAILED' ||
+          job.status === 'SKIPPED' ||
+          job.status === null
+        ) {
+          if (timer) clearInterval(timer);
+        }
+      } catch {
+        // Status endpoint is optional when pipeline is disabled.
+      }
+    }
+
+    void pollOcrJob();
+    timer = setInterval(() => {
+      void pollOcrJob();
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [documentId, token, refreshResults]);
 
   const analysis = results?.analysis;
   const ocr = analysis?.ocr;
@@ -137,6 +181,20 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
       />
 
       {status ? <p className="text-sm text-rose-600 dark:text-rose-400">{status}</p> : null}
+
+      {ocrJob?.status ? (
+        <p
+          className={
+            ocrJob.status === 'FAILED' || ocrJob.status === 'SKIPPED'
+              ? 'text-sm text-amber-700 dark:text-amber-300'
+              : 'text-sm text-stone-600 dark:text-slate-400'
+          }
+        >
+          {ocrJob.status === 'SKIPPED' && ocrJob.error
+            ? t('ocrPipelineSkipped', { error: ocrJob.error })
+            : t('ocrPipelineStatus', { status: ocrJob.status })}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -227,7 +285,7 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
         </Card>
 
         <Card>
-          <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-3 dark:border-slate-800">
+          <div className="flex gap-2 overflow-x-auto border-b border-stone-200 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] dark:border-slate-800 [&::-webkit-scrollbar]:hidden">
             {(
               [
                 ['text', t('tabText')],
@@ -240,7 +298,7 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
                   tab === id
                     ? 'bg-family-primary text-white dark:bg-family-accent dark:text-slate-950'
                     : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300'

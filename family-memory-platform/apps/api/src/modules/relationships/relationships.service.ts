@@ -2,6 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { validateRelationshipSet, type Person, type Relationship, type RelationshipType } from '@family/genealogy-core';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  workspaceScopedCreateData,
+  type WorkspaceScopedUncheckedCreate,
+} from '../../prisma/workspace-scoped-create';
 import type { CreateRelationshipDto, UpdateRelationshipDto } from './relationships.dto';
 
 @Injectable()
@@ -34,7 +38,9 @@ export class RelationshipsService {
       toPersonId: dto.toPersonId,
       type: toCoreRelationshipType(dto.type),
     });
-    return this.prisma.relationship.create({ data: this.toRelationshipCreateData(dto) });
+    return this.prisma.relationship.create({
+      data: workspaceScopedCreateData(this.toRelationshipCreateData(dto)),
+    });
   }
 
   async update(id: string, dto: UpdateRelationshipDto) {
@@ -78,7 +84,9 @@ export class RelationshipsService {
     }
   }
 
-  private toRelationshipCreateData(dto: CreateRelationshipDto): Prisma.RelationshipUncheckedCreateInput {
+  private toRelationshipCreateData(
+    dto: CreateRelationshipDto,
+  ): WorkspaceScopedUncheckedCreate<Prisma.RelationshipUncheckedCreateInput> {
     return {
       fromPersonId: dto.fromPersonId,
       toPersonId: dto.toPersonId,

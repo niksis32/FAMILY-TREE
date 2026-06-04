@@ -22,10 +22,15 @@ export function BulkTaggingWorkspace() {
   const [aiQueueAvailable, setAiQueueAvailable] = useState<boolean | null>(null);
 
   const reloadQueue = () => {
-    void apiClient.photoIntelligence.bulkQueue(session?.accessToken).then((items) => {
-      setQueue(items);
-      if (!activeId && items[0]) setActiveId(items[0].id);
-    });
+    void apiClient.photoIntelligence
+      .bulkQueue(session?.accessToken)
+      .then((items) => {
+        setQueue(items);
+        if (!activeId && items[0]) setActiveId(items[0].id);
+      })
+      .catch(() => {
+        setQueue([]);
+      });
   };
 
   useEffect(() => {

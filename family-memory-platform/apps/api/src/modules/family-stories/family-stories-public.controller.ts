@@ -24,6 +24,12 @@ export class FamilyStoriesPublicController {
     res.send(buffer);
   }
 
+  @Get('sitemap')
+  @Header('Cache-Control', 'public, max-age=300')
+  sitemap() {
+    return this.service.listSitemapEntries();
+  }
+
   @Get('slug/:slug')
   getBySlug(
     @Param('slug') slug: string,

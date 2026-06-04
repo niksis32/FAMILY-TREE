@@ -5,7 +5,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.family_story import FamilyStoryNarrativeRequest, family_story_narrative_stub
+from app.family_story import FamilyStoryNarrativeRequest, family_story_narrative
+from app.local_llm import check_llm_health, generate_narrative, llm_config, llm_enabled
 from app.storytelling import (
     StoryDocumentSummaryRequest,
     StoryEraContextRequest,
@@ -13,12 +14,12 @@ from app.storytelling import (
     StoryMigrationRequest,
     StoryPersonRequest,
     StoryTimelineNarrativeRequest,
-    story_document_summary_stub,
-    story_era_context_stub,
-    story_family_stub,
-    story_migration_stub,
-    story_person_stub,
-    story_timeline_narrative_stub,
+    story_document_summary,
+    story_era_context,
+    story_family,
+    story_migration,
+    story_person,
+    story_timeline_narrative,
 )
 from app.document_intelligence import (
     DocumentExtractEntitiesRequest,
@@ -33,6 +34,7 @@ from app.document_intelligence import (
     document_summarize_stub,
 )
 from app.ocr_engine import tesseract_available
+from app.matching import ScorePairRequest, score_person_pair
 from app.photo import (
     PhotoImageRequest,
     PhotoSuggestRequest,
@@ -72,29 +74,48 @@ class TimelineSummaryRequest(BaseModel):
 
 
 @app.get("/health")
-def health():
+async def health():
     from app.photo import mp as mediapipe_module
+
+    llm = await check_llm_health()
+    implemented = [
+        "ocr.tesseract" if tesseract_available() else "ocr.hint-only",
+        "photo.mediapipe",
+        "relationship.stub",
+        "timeline.stub",
+        "document.ocr",
+        "document.extract-entities",
+        "document.suggest-events",
+        "document.suggest-relationships",
+        "document.summarize",
+        "family-story.narrative",
+        "story.person",
+        "story.timeline-narrative",
+        "story.document-summary",
+        "story.family",
+        "story.migration",
+        "story.era-context",
+    ]
+    if llm.get("available"):
+        implemented.append("local-llm.narrative")
+    else:
+        implemented.append("local-llm.stub")
 
     return {
         "status": "ok",
         "service": "family-ai",
         "optional": True,
-        "implemented": [
-            "ocr.tesseract" if tesseract_available() else "ocr.hint-only",
-            "photo.mediapipe",
-            "relationship.stub",
-            "timeline.stub",
-            "document.ocr",
-            "document.extract-entities",
-            "document.suggest-events",
-            "document.suggest-relationships",
-            "document.summarize",
-            "family-story.narrative",
-        ],
+        "implemented": implemented,
         "mediapipe": mediapipe_module is not None,
         "tesseract": tesseract_available(),
-        "futureEngines": ["paddleocr", "local-llm", "face-embeddings"],
+        "localLlm": llm,
+        "futureEngines": ["paddleocr", "face-embeddings"],
     }
+
+
+@app.get("/llm/health")
+async def llm_health():
+    return await check_llm_health()
 
 
 @app.post("/ocr/preview")
@@ -141,7 +162,37 @@ def relationship_suggest_stub(payload: RelationshipSuggestRequest):
 
 
 @app.post("/timeline/summary")
-def timeline_summary_stub(payload: TimelineSummaryRequest):
+async def timeline_summary(payload: TimelineSummaryRequest):
+    event_lines: list[str] = []
+    for event in payload.events[:20]:
+        if not isinstance(event, dict):
+            continue
+        label = event.get("title") or event.get("type") or "event"
+        when = event.get("dateFrom") or event.get("dateTo") or ""
+        event_lines.append(f"{label} ({when})")
+
+    title = f"Timeline summary: {payload.person_id or 'person'}"
+    llm = await generate_narrative(
+        language=payload.language,
+        mode="dry_biography",
+        title=title,
+        facts=event_lines or [f"Events count: {len(payload.events)}"],
+        extra_context="Summarize the person's life timeline in 1–3 short paragraphs.",
+    )
+
+    if llm.get("ok") and llm.get("narrative"):
+        return {
+            "status": "ok",
+            "feature": "timeline.summary",
+            "personId": payload.person_id,
+            "language": payload.language,
+            "summary": llm["narrative"],
+            "eventCount": len(payload.events),
+            "engine": llm.get("engine"),
+            "model": llm.get("model"),
+            "message": "Generated via local LLM.",
+        }
+
     return {
         "status": "stub",
         "feature": "timeline.summary",
@@ -149,7 +200,12 @@ def timeline_summary_stub(payload: TimelineSummaryRequest):
         "language": payload.language,
         "summary": "",
         "eventCount": len(payload.events),
-        "message": "Timeline summary is disabled in MVP. Plug in local LLM later.",
+        "localLlm": llm_config(),
+        "message": (
+            llm.get("message")
+            if llm_enabled()
+            else "Timeline summary is disabled in MVP. Set LOCAL_LLM_ENABLED=true and run Ollama."
+        ),
     }
 
 
@@ -182,6 +238,11 @@ async def photo_suggest_person(payload: PhotoSuggestRequest):
         "faceTagId": payload.face_tag_id,
         "suggestions": suggestions,
     }
+
+
+@app.post("/matching/score-pair")
+def matching_score_pair(payload: ScorePairRequest):
+    return score_person_pair(payload)
 
 
 @app.post("/photo/extract-context")
@@ -237,38 +298,38 @@ def document_summarize(payload: DocumentSummarizeRequest):
 
 
 @app.post("/family-story/narrative")
-def family_story_narrative(payload: FamilyStoryNarrativeRequest):
-    return family_story_narrative_stub(payload)
+async def family_story_narrative_route(payload: FamilyStoryNarrativeRequest):
+    return await family_story_narrative(payload)
 
 
 # --- PROMPT 11 — AI Storytelling (stub contracts) ---
 
 
 @app.post("/story/person")
-def story_person(payload: StoryPersonRequest):
-    return story_person_stub(payload)
+async def story_person_route(payload: StoryPersonRequest):
+    return await story_person(payload)
 
 
 @app.post("/story/timeline-narrative")
-def story_timeline_narrative(payload: StoryTimelineNarrativeRequest):
-    return story_timeline_narrative_stub(payload)
+async def story_timeline_narrative_route(payload: StoryTimelineNarrativeRequest):
+    return await story_timeline_narrative(payload)
 
 
 @app.post("/story/document-summary")
-def story_document_summary(payload: StoryDocumentSummaryRequest):
-    return story_document_summary_stub(payload)
+async def story_document_summary_route(payload: StoryDocumentSummaryRequest):
+    return await story_document_summary(payload)
 
 
 @app.post("/story/family")
-def story_family(payload: StoryFamilyRequest):
-    return story_family_stub(payload)
+async def story_family_route(payload: StoryFamilyRequest):
+    return await story_family(payload)
 
 
 @app.post("/story/migration")
-def story_migration(payload: StoryMigrationRequest):
-    return story_migration_stub(payload)
+async def story_migration_route(payload: StoryMigrationRequest):
+    return await story_migration(payload)
 
 
 @app.post("/story/era-context")
-def story_era_context(payload: StoryEraContextRequest):
-    return story_era_context_stub(payload)
+async def story_era_context_route(payload: StoryEraContextRequest):
+    return await story_era_context(payload)

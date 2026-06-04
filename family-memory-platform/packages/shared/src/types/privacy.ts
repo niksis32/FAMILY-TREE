@@ -10,6 +10,8 @@ export interface UserConsentRecord {
   revokedAt: string | null;
 }
 
+export type PublicShareStatus = 'active' | 'expired' | 'revoked';
+
 export interface PublicShareSummary {
   id: string;
   resourceType: PublicShareResourceType;
@@ -20,6 +22,8 @@ export interface PublicShareSummary {
   tokenRevokedAt: string | null;
   expiresAt: string | null;
   createdAt: string;
+  /** Derived: active | expired | revoked */
+  status: PublicShareStatus;
   publicUrl?: string;
 }
 

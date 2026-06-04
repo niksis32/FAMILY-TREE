@@ -23,7 +23,6 @@ export class MatchingIndexService {
   constructor(private readonly config: ConfigService) {}
 
   async ensureIndex() {
-    const host = this.meiliHost();
     try {
       await this.meiliRequest('GET', `/indexes/${this.indexUid}`);
     } catch {
@@ -64,12 +63,6 @@ export class MatchingIndexService {
       { q: snapshot.givenName, filter, limit },
     );
     return response.hits ?? [];
-  }
-
-  private meiliHost(): string {
-    const host = this.config.get<string>('MEILI_HOST') ?? 'http://localhost:7700';
-    const key = this.config.get<string>('MEILI_MASTER_KEY');
-    return `${host}${key ? `?key=${key}` : ''}`;
   }
 
   private async meiliRequest<T>(method: string, path: string, body?: unknown): Promise<T> {

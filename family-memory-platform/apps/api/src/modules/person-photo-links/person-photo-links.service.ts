@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AuthenticatedUser } from '../auth/current-user.decorator';
 import {
   computePeriodConfidence,
   resolvePhotoYear,
@@ -180,7 +181,11 @@ export class PersonPhotoLinksService {
     };
   }
 
-  async suggestMatches(mediaId: string, faceTagId?: string): Promise<PersonMatchSuggestion[]> {
+  async suggestMatches(
+    mediaId: string,
+    user: AuthenticatedUser,
+    faceTagId?: string,
+  ): Promise<PersonMatchSuggestion[]> {
     const workspace = await this.getWorkspace(mediaId);
     const photoYear = resolvePhotoYear(
       workspace.media.takenAt,
@@ -208,20 +213,23 @@ export class PersonPhotoLinksService {
     });
 
     if (this.config.get<string>('AI_SERVICE_ENABLED') === 'true' && faceTag) {
-      const aiResult = await this.aiService.suggestPhotoPerson({
-        mediaId,
-        faceTagId: faceTag.id,
-        photoYear: photoYear ?? undefined,
-        candidates: persons.map((p) => ({
-          personId: p.id,
-          givenName: p.givenName,
-          familyName: p.familyName,
-          patronymic: p.patronymic,
-          birthYear: p.birthDate?.getUTCFullYear(),
-          deathYear: p.deathDate?.getUTCFullYear(),
-          hasAvatar: Boolean(p.avatarMediaId),
-        })),
-      });
+      const aiResult = await this.aiService.suggestPhotoPerson(
+        {
+          mediaId,
+          faceTagId: faceTag.id,
+          photoYear: photoYear ?? undefined,
+          candidates: persons.map((p) => ({
+            personId: p.id,
+            givenName: p.givenName,
+            familyName: p.familyName,
+            patronymic: p.patronymic,
+            birthYear: p.birthDate?.getUTCFullYear(),
+            deathYear: p.deathDate?.getUTCFullYear(),
+            hasAvatar: Boolean(p.avatarMediaId),
+          })),
+        },
+        { userId: user.id, scope: { mediaId } },
+      );
 
       const data = this.aiService.extractData<{ suggestions?: PersonMatchSuggestion[] }>(aiResult);
       if (data?.suggestions?.length) {

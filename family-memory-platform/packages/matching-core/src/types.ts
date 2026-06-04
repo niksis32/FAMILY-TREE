@@ -11,7 +11,13 @@ export type MatchReasonType =
   | 'PHOTO'
   | 'HISTORICAL_PERIOD'
   | 'SOURCE_OVERLAP'
-  | 'FAMILY_CONTEXT';
+  | 'FAMILY_CONTEXT'
+  | 'ML_NAME_SIMILARITY'
+  | 'ML_PHONETIC'
+  | 'ML_CONTEXT'
+  | 'SCORING_BLEND';
+
+export type MatchScoringMethod = 'heuristic' | 'hybrid' | 'ai';
 
 export interface MatchReason {
   type: MatchReasonType;
@@ -22,6 +28,8 @@ export interface MatchReason {
 export interface PersonMatchSnapshot {
   personId: string;
   workspaceId?: string;
+  privacyLevel?: string;
+  isLiving?: boolean;
   givenName: string;
   patronymic?: string | null;
   familyName?: string | null;
@@ -46,4 +54,5 @@ export interface PersonMatchSnapshot {
 export interface MatchScoreResult {
   score: number;
   reasons: MatchReason[];
+  scoringMethod?: MatchScoringMethod;
 }

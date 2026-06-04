@@ -3,6 +3,14 @@
 export const STORY_VISIBILITY_LEVELS = ['public', 'private', 'family_only', 'link_only'] as const;
 export type StoryVisibilityLevel = (typeof STORY_VISIBILITY_LEVELS)[number];
 
+export const FAMILY_STORY_PUBLISH_STATUSES = [
+  'draft',
+  'pending_review',
+  'published',
+  'rejected',
+] as const;
+export type FamilyStoryPublishStatusId = (typeof FAMILY_STORY_PUBLISH_STATUSES)[number];
+
 export const FAMILY_STORY_TEMPLATES = ['classic', 'heritage', 'journey', 'gallery'] as const;
 export type FamilyStoryTemplateId = (typeof FAMILY_STORY_TEMPLATES)[number];
 
@@ -38,7 +46,10 @@ export interface FamilyStorySummaryDto {
   scopeFamilyId?: string | null;
   hideLivingPersons: boolean;
   viewCount: number;
+  publishStatus: FamilyStoryPublishStatusId;
   publishedAt?: string | null;
+  submittedForReviewAt?: string | null;
+  moderationNote?: string | null;
   publicUrl?: string | null;
   slug?: string | null;
   tokenRevokedAt?: string | null;
@@ -91,10 +102,24 @@ export interface PublicStoryDocumentDto {
   previewUrl?: string | null;
 }
 
+export interface FamilyStoryModerationQueueItemDto {
+  id: string;
+  title: string;
+  visibility: StoryVisibilityLevel;
+  publishStatus: FamilyStoryPublishStatusId;
+  slug?: string | null;
+  submittedForReviewAt?: string | null;
+  createdBy: { id: string; displayName: string | null; email: string };
+  coverUrl?: string | null;
+}
+
 export interface PublicFamilyStoryPayloadDto {
   id: string;
   title: string;
   template: FamilyStoryTemplateId;
+  visibility: StoryVisibilityLevel;
+  publishStatus: FamilyStoryPublishStatusId;
+  slug?: string | null;
   narrativeText?: string | null;
   ogDescription?: string | null;
   coverUrl?: string | null;
@@ -106,4 +131,17 @@ export interface PublicFamilyStoryPayloadDto {
   documents: PublicStoryDocumentDto[];
   customBlocks: FamilyStoryCustomBlock[];
   viewCount: number;
+  updatedAt?: string;
+  publishedAt?: string | null;
+}
+
+/** Indexable PUBLIC stories for sitemap.xml (slug URLs only — no secret tokens). */
+export interface PublicStorySitemapEntryDto {
+  slug: string;
+  updatedAt: string;
+  publishedAt?: string | null;
+}
+
+export interface PublicStorySitemapDto {
+  entries: PublicStorySitemapEntryDto[];
 }

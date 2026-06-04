@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { APP_LOCALE_LABELS, APP_LOCALE_PRIORITY, APP_LOCALES, type AppLocale } from '@family/shared';
@@ -119,6 +120,7 @@ export function LocaleSwitcher() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [englishVariant, setEnglishVariant] = useState<EnglishUiVariant>('en-gb');
+  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (locale === 'en') {
@@ -169,9 +171,38 @@ export function LocaleSwitcher() {
   );
 
   useEffect(() => {
+    if (!open) {
+      setPanelRect(null);
+      return;
+    }
+
+    const updatePanelRect = () => {
+      const anchor = rootRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const width = Math.min(window.innerWidth - 16, 320);
+      setPanelRect({
+        top: rect.bottom + 4,
+        left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+        width,
+      });
+    };
+
+    updatePanelRect();
+    window.addEventListener('resize', updatePanelRect);
+    window.addEventListener('scroll', updatePanelRect, true);
+    return () => {
+      window.removeEventListener('resize', updatePanelRect);
+      window.removeEventListener('scroll', updatePanelRect, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
+        const panel = document.getElementById(listId);
+        if (panel?.contains(event.target as Node)) return;
         setOpen(false);
         setQuery('');
       }
@@ -194,6 +225,89 @@ export function LocaleSwitcher() {
 
   const showGroups = !normalizedQuery;
 
+  const dropdownPanel =
+    open && panelRect ? (
+      <div
+        id={listId}
+        className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+        style={{ top: panelRect.top, left: panelRect.left, width: panelRect.width }}
+        role="presentation"
+      >
+        <div className="border-b border-stone-100 p-2 dark:border-slate-800">
+          <Input
+            ref={searchRef}
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('searchLanguage')}
+            aria-label={t('searchLanguage')}
+            className="py-2 text-sm"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+
+        <ul role="listbox" aria-labelledby={`${listId}-label`} className="max-h-72 overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <li className="px-3 py-4 text-center text-sm text-stone-500 dark:text-slate-400">
+              {t('noLanguagesFound')}
+            </li>
+          ) : showGroups ? (
+            <>
+              {filteredPopular.length > 0 ? (
+                <li role="presentation" className="mb-1">
+                  <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-slate-500">
+                    {tGroups('popular')}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {filteredPopular.map((entry) => (
+                      <li key={entry.code} role="presentation">
+                        <LocaleOption
+                          entry={entry}
+                          selected={entry.code === activeCode}
+                          onSelect={selectLocale}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ) : null}
+              {filteredOther.length > 0 ? (
+                <li role="presentation">
+                  <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-slate-500">
+                    {tGroups('all')}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {filteredOther.map((entry) => (
+                      <li key={entry.code} role="presentation">
+                        <LocaleOption
+                          entry={entry}
+                          selected={entry.code === activeCode}
+                          onSelect={selectLocale}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ) : null}
+            </>
+          ) : (
+            filtered.map((entry) => (
+              <li key={entry.code} role="presentation">
+                <LocaleOption
+                  entry={entry}
+                  selected={entry.code === activeCode}
+                  onSelect={selectLocale}
+                />
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    ) : null;
+
   return (
     <div ref={rootRef} className="relative text-sm text-stone-600 dark:text-slate-300">
       <span id={`${listId}-label`} className="mr-2 hidden sm:inline">
@@ -214,88 +328,9 @@ export function LocaleSwitcher() {
         </span>
       </button>
 
-      {open ? (
-        <div
-          className="absolute right-0 z-50 mt-1 flex w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
-          role="presentation"
-        >
-          <div className="border-b border-stone-100 p-2 dark:border-slate-800">
-            <Input
-              ref={searchRef}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('searchLanguage')}
-              aria-label={t('searchLanguage')}
-              className="py-2 text-sm"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-
-          <ul
-            id={listId}
-            role="listbox"
-            aria-labelledby={`${listId}-label`}
-            className="max-h-72 overflow-y-auto p-1"
-          >
-            {filtered.length === 0 ? (
-              <li className="px-3 py-4 text-center text-sm text-stone-500 dark:text-slate-400">
-                {t('noLanguagesFound')}
-              </li>
-            ) : showGroups ? (
-              <>
-                {filteredPopular.length > 0 ? (
-                  <li role="presentation" className="mb-1">
-                    <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-slate-500">
-                      {tGroups('popular')}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {filteredPopular.map((entry) => (
-                        <li key={entry.code} role="presentation">
-                          <LocaleOption
-                            entry={entry}
-                            selected={entry.code === activeCode}
-                            onSelect={selectLocale}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ) : null}
-                {filteredOther.length > 0 ? (
-                  <li role="presentation">
-                    <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-slate-500">
-                      {tGroups('all')}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {filteredOther.map((entry) => (
-                        <li key={entry.code} role="presentation">
-                          <LocaleOption
-                            entry={entry}
-                            selected={entry.code === activeCode}
-                            onSelect={selectLocale}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ) : null}
-              </>
-            ) : (
-              filtered.map((entry) => (
-                <li key={entry.code} role="presentation">
-                  <LocaleOption
-                    entry={entry}
-                    selected={entry.code === activeCode}
-                    onSelect={selectLocale}
-                  />
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      ) : null}
+      {typeof document !== 'undefined' && dropdownPanel
+        ? createPortal(dropdownPanel, document.body)
+        : null}
     </div>
   );
 }
