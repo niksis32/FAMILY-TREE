@@ -1,10 +1,10 @@
-import { API_PREFIX, type AppLocale, type LoginDto, type PersonSummary } from '@family/shared';
+import { type AppLocale, type LoginDto, type PersonSummary } from '@family/shared';
+import { getApiBaseUrl } from '@/lib/api-base-url';
 
 /**
  * Thin API client for NestJS. It already carries auth/error semantics, while
  * backend CRUD can be connected incrementally without changing page code.
  */
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? `http://localhost:4000${API_PREFIX}`;
 
 export class ApiError extends Error {
   constructor(
@@ -52,7 +52,7 @@ function appendLang(params: URLSearchParams, locale?: AppLocale | string | null)
 
 async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { token, body, headers, ...init } = options;
-  const res = await fetch(`${baseUrl}${path}`, {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
     cache: 'no-store',
     ...init,
     headers: {
@@ -969,7 +969,7 @@ export const apiClient = {
         `/public/family-stories/token/${encodeURIComponent(token)}`,
       ),
     publicPdfUrl: (token: string) =>
-      `${baseUrl}/public/family-stories/token/${encodeURIComponent(token)}/pdf`,
+      `${getApiBaseUrl()}/public/family-stories/token/${encodeURIComponent(token)}/pdf`,
   },
   commercial: {
     plans: () => apiGet<import('@family/shared').SubscriptionPlanSummary[]>('/subscription-plans'),

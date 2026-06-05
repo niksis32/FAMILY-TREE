@@ -4,8 +4,13 @@ import { notFound } from 'next/navigation';
 import { HtmlLocaleAttrs } from '@/components/html-locale-attrs';
 import { APP_LOCALES, type AppLocale } from '@family/shared';
 
+/** Production Docker: set NEXT_STATIC_LOCALES=en,ru to avoid 5000+ SSG pages on small VPS. */
 export function generateStaticParams() {
-  return APP_LOCALES.map((locale) => ({ locale }));
+  const fromEnv = process.env.NEXT_STATIC_LOCALES?.split(',')
+    .map((code) => code.trim())
+    .filter((code) => code && APP_LOCALES.includes(code));
+  const locales = fromEnv?.length ? fromEnv : APP_LOCALES;
+  return locales.map((locale) => ({ locale }));
 }
 
 export default async function LocaleLayout({

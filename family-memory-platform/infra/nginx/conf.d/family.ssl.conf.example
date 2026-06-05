@@ -1,23 +1,39 @@
-# VPS production routing — adjust server_name and SSL paths when deploying
-# Docker DNS (127.0.0.11): resolve upstreams per request so recreated containers get new IPs.
+# Пример HTTPS-блока для familymemory.pro
+# 1) Получите сертификат certbot (см. docs/VPS/DEPLOY_VPS_PROD.md §11)
+# 2) Смонтируйте /etc/letsencrypt в контейнер nginx
+# 3) Скопируйте в family.conf или подключите отдельным файлом
+
 resolver 127.0.0.11 valid=10s ipv6=off;
 
 server {
   listen 80;
   server_name familymemory.pro www.familymemory.pro;
 
-  # Next.js (RSC/middleware) can emit large response headers; defaults cause 502.
-  proxy_buffer_size 128k;
-  proxy_buffers 8 128k;
-  proxy_busy_buffers_size 256k;
-  large_client_header_buffers 8 64k;
-
-  # Let's Encrypt HTTP-01 — ^~ чтобы не проксировать в Next.js (иначе /en/.well-known → 404)
   location ^~ /.well-known/acme-challenge/ {
     root /var/www/certbot;
     default_type "text/plain";
     try_files $uri =404;
   }
+
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name familymemory.pro www.familymemory.pro;
+
+  ssl_certificate     /etc/letsencrypt/live/familymemory.pro/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/familymemory.pro/privkey.pem;
+  ssl_session_timeout 1d;
+  ssl_session_cache shared:SSL:10m;
+  ssl_protocols TLSv1.2 TLSv1.3;
+
+  proxy_buffer_size 128k;
+  proxy_buffers 8 128k;
+  proxy_busy_buffers_size 256k;
+  large_client_header_buffers 8 64k;
 
   location /api/ {
     set $upstream_api api:4000;

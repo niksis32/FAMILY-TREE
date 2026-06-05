@@ -1,7 +1,6 @@
 import type { PublicFamilyStoryPayloadDto, PublicStorySitemapDto } from '@family/shared';
-import { API_PREFIX, DEFAULT_APP_LOCALE } from '@family/shared';
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL ?? `http://localhost:4000${API_PREFIX}`;
+import { DEFAULT_APP_LOCALE } from '@family/shared';
+import { getApiBaseUrl } from '@/lib/api-base-url';
 
 export function getPublicSiteOrigin(): string {
   const raw =
@@ -20,7 +19,7 @@ export async function fetchPublicStoryByToken(
   token: string,
 ): Promise<PublicFamilyStoryPayloadDto | null> {
   const res = await fetch(
-    `${apiBase}/public/family-stories/token/${encodeURIComponent(token)}`,
+    `${getApiBaseUrl()}/public/family-stories/token/${encodeURIComponent(token)}`,
     { cache: 'no-store' },
   );
   if (!res.ok) return null;
@@ -31,7 +30,7 @@ export async function fetchPublicStoryBySlug(
   slug: string,
 ): Promise<PublicFamilyStoryPayloadDto | null> {
   const res = await fetch(
-    `${apiBase}/public/family-stories/slug/${encodeURIComponent(slug)}`,
+    `${getApiBaseUrl()}/public/family-stories/slug/${encodeURIComponent(slug)}`,
     { next: { revalidate: 60 } },
   );
   if (!res.ok) return null;
@@ -39,13 +38,18 @@ export async function fetchPublicStoryBySlug(
 }
 
 export async function fetchPublicStorySitemap(): Promise<PublicStorySitemapDto> {
-  const res = await fetch(`${apiBase}/public/family-stories/sitemap`, {
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) return { entries: [] };
-  return res.json();
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/public/family-stories/sitemap`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return { entries: [] };
+    return res.json();
+  } catch {
+    // API unavailable during `next build` (Docker) or transient outage — sitemap still works without stories.
+    return { entries: [] };
+  }
 }
 
 export function publicStoryPdfUrl(token: string): string {
-  return `${apiBase}/public/family-stories/token/${encodeURIComponent(token)}/pdf`;
+  return `${getApiBaseUrl()}/public/family-stories/token/${encodeURIComponent(token)}/pdf`;
 }

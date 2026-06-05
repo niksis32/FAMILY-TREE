@@ -1,9 +1,14 @@
 'use client';
 
-import { useRouter } from '@/i18n/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LoginDto } from '@family/shared';
+import { DEFAULT_APP_LOCALE, isAppLocale, type LoginDto } from '@family/shared';
 import { apiClient, type AuthSession } from '@/lib/api-client';
+
+function localeFromPathname(pathname: string | null): string {
+  const segment = pathname?.split('/')[1]?.toLowerCase();
+  return segment && isAppLocale(segment) ? segment : DEFAULT_APP_LOCALE;
+}
 
 const SESSION_KEY = 'family-session';
 const TOKEN_COOKIE = 'family_access_token';
@@ -27,8 +32,18 @@ function clearSession() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  const pushWithLocale = useCallback(
+    (path: string) => {
+      const locale = localeFromPathname(pathname);
+      const normalized = path.startsWith('/') ? path : `/${path}`;
+      router.push(`/${locale}${normalized}`);
+    },
+    [pathname, router],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -72,16 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextSession = await apiClient.login(dto);
       persistSession(nextSession);
       setSession(nextSession);
-      router.push('/dashboard');
+      pushWithLocale('/dashboard');
     },
-    [router],
+    [pushWithLocale],
   );
 
   const logout = useCallback(() => {
     clearSession();
     setSession(null);
-    router.push('/login');
-  }, [router]);
+    pushWithLocale('/login');
+  }, [pushWithLocale]);
 
   const value = useMemo(() => ({ session, isReady, login, logout }), [isReady, login, logout, session]);
 

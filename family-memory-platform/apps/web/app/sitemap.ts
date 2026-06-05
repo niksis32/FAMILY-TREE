@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 import { DEFAULT_APP_LOCALE } from '@family/shared';
 import { fetchPublicStorySitemap, getPublicSiteOrigin, publicStoryCanonicalUrl } from '@/lib/family-stories-public';
 
+/** Generated at request time — API is not reachable during Docker `next build`. */
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = getPublicSiteOrigin();
   const { entries } = await fetchPublicStorySitemap();
