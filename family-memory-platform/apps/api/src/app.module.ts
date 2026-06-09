@@ -11,6 +11,7 @@ import { CommonInterceptorsModule } from './common/common-interceptors.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { MfaModule } from './modules/mfa/mfa.module';
 import { CitationsModule } from './modules/citations/citations.module';
 import { CommunityForumModule } from './modules/community-forum/community-forum.module';
 import { CommunityGraphqlModule } from './modules/community-graphql/community-graphql.module';
@@ -42,10 +43,12 @@ import { TreeModule } from './modules/tree/tree.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './common/health/health.module';
+import { LoggingModule } from './common/logging/logging.module';
 import { MinioStorageModule } from './common/storage/minio-storage.module';
 import { StorytellingModule } from './modules/storytelling/storytelling.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
+import { WorkspaceExportModule } from './modules/workspace-export/workspace-export.module';
 
 /**
  * Root application module — registers all MVP domain modules.
@@ -87,6 +90,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
       },
       { name: 'community-forum-helpful', ttl: 60_000, limit: 30 },
     ]),
+    LoggingModule,
     CommonInterceptorsModule,
     PrismaModule,
     RedisModule,
@@ -94,6 +98,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
     HealthModule,
     AiModule,
     AuthModule,
+    MfaModule,
     UsersModule,
     PersonsModule,
     FamiliesModule,
@@ -126,6 +131,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
     StorytellingModule,
     CommercialModule,
     PrivacyModule,
+    WorkspaceExportModule,
   ],
 })
 export class AppModule {}

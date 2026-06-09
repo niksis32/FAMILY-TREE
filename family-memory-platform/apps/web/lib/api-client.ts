@@ -102,6 +102,15 @@ export interface AuthSession {
   };
 }
 
+export type LoginResponse =
+  | AuthSession
+  | {
+      mfaRequired: true;
+      mfaSessionToken: string;
+      methods: Array<'totp' | 'recovery' | 'passkey'>;
+      user: { id: string; email: string };
+    };
+
 export interface RegisterFirstAdminInput extends LoginDto {
   displayName: string;
 }
@@ -487,7 +496,30 @@ export interface ModerationQueueResponse {
 }
 
 export const apiClient = {
-  login: (dto: LoginDto) => apiPost<AuthSession>('/auth/login', dto),
+  login: (dto: LoginDto) => apiPost<LoginResponse>('/auth/login', dto),
+  mfa: {
+    verify: (mfaSessionToken: string, code: string) =>
+      apiPost<AuthSession>('/auth/mfa/verify', { mfaSessionToken, code }),
+    status: (token: string) =>
+      apiGet<{ totpEnabled: boolean; passkeysEnabled: boolean; passkeyCount: number }>('/auth/mfa/status', token),
+    enrollStart: (token: string) => apiPost<import('@family/shared').MfaEnrollStartResult>('/auth/mfa/totp/enroll/start', {}, token),
+    enrollVerify: (code: string, token: string) =>
+      apiPost<import('@family/shared').MfaEnrollVerifyResult>('/auth/mfa/totp/enroll/verify', { code }, token),
+  },
+  admin: {
+    ops: (token: string) => apiGet<import('@family/shared').AdminOpsOverview>('/admin/ops', token),
+  },
+  public: {
+    resolveShare: (shareToken: string) => apiGet<unknown>(`/public/share/${shareToken}`),
+  },
+  workspaceExport: {
+    request: (workspaceId: string, token: string) =>
+      apiPost<import('@family/shared').WorkspaceExportJobSummary>(`/workspaces/${workspaceId}/exports`, {}, token),
+    list: (workspaceId: string, token: string) =>
+      apiGet<import('@family/shared').WorkspaceExportJobSummary[]>(`/workspaces/${workspaceId}/exports`, token),
+    get: (workspaceId: string, jobId: string, token: string) =>
+      apiGet<import('@family/shared').WorkspaceExportJobSummary>(`/workspaces/${workspaceId}/exports/${jobId}`, token),
+  },
   registerFirstAdmin: (dto: RegisterFirstAdminInput) => apiPost<AuthSession>('/auth/register-first-admin', dto),
   me: (token?: string | null) => apiGet<AuthSession['user']>('/users/me', token),
   persons: {

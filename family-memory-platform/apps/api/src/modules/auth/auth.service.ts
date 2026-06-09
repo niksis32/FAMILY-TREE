@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MfaService } from '../mfa/mfa.service';
 import type { LoginDto, RegisterFirstAdminDto } from './auth.dto';
 
 @Injectable()
@@ -11,6 +12,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    @Inject(forwardRef(() => MfaService))
+    private readonly mfa: MfaService,
   ) {}
 
   async registerFirstAdmin(dto: RegisterFirstAdminDto) {
@@ -49,7 +52,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    return this.buildAuthResponse({
+    const safeUser = {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
@@ -57,7 +60,40 @@ export class AuthService {
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+    };
+
+    const mfaRequired = await this.mfa.isMfaRequired(user.id);
+    if (mfaRequired) {
+      const mfaSessionToken = await this.mfa.createMfaSession(user.id);
+      const status = await this.mfa.getStatus(user.id);
+      const methods: Array<'totp' | 'recovery' | 'passkey'> = [];
+      if (status.totpEnabled) {
+        methods.push('totp', 'recovery');
+      }
+      if (status.passkeysEnabled) methods.push('passkey');
+      return {
+        mfaRequired: true as const,
+        mfaSessionToken,
+        methods,
+        user: { id: user.id, email: user.email },
+      };
+    }
+
+    return this.buildAuthResponse(safeUser);
+  }
+
+  async completeMfaLogin(mfaSessionToken: string, code: string) {
+    const result = await this.mfa.verifyLoginMfa(mfaSessionToken, code);
+    return this.buildAuthResponseForUserId(result.userId);
+  }
+
+  async buildAuthResponseForUserId(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, isActive: true, deletedAt: null },
+      select: this.safeUserSelect(),
     });
+    if (!user) throw new UnauthorizedException('User not found');
+    return this.buildAuthResponse(user);
   }
 
   private async buildAuthResponse(user: SafeUser) {

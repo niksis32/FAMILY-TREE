@@ -118,13 +118,35 @@ export class PublicLinkService {
     }
 
     if (share.resourceType === 'FAMILY_TREE') {
+      const tree = await this.buildPublicFamilyTree(share.resourceId, share.hideLivingPersons);
       return {
         share: this.mapSummary(share),
-        payload: {
-          type: 'FAMILY_TREE',
-          familyId: share.resourceId,
-          hideLivingPersons: share.hideLivingPersons,
+        payload: { type: 'FAMILY_TREE', familyId: share.resourceId, hideLivingPersons: share.hideLivingPersons, tree },
+      };
+    }
+
+    if (share.resourceType === 'MEDIA_BUNDLE') {
+      const media = await this.prisma.media.findMany({
+        where: { id: share.resourceId, deletedAt: null },
+        select: {
+          id: true,
+          title: true,
+          mimeType: true,
+          privacyLevel: true,
+          personId: true,
         },
+      });
+      const viewer = this.access.viewerFromUser(null, true);
+      const visible = [];
+      for (const item of media) {
+        const person = item.personId ? await this.access.loadPersonPolicy(item.personId) : null;
+        if (this.access.canViewMediaRecord({ id: item.id, privacyLevel: item.privacyLevel, personId: item.personId }, viewer, person)) {
+          visible.push({ id: item.id, fileName: item.title ?? item.id, mimeType: item.mimeType });
+        }
+      }
+      return {
+        share: this.mapSummary(share),
+        payload: { type: 'MEDIA_BUNDLE', items: visible },
       };
     }
 
@@ -136,6 +158,50 @@ export class PublicLinkService {
     }
 
     return { share: this.mapSummary(share), payload: { type: share.resourceType, resourceId: share.resourceId } };
+  }
+
+  private async buildPublicFamilyTree(familyId: string, hideLivingPersons: boolean) {
+    const family = await this.prisma.family.findFirst({
+      where: { id: familyId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    if (!family) throw new NotFoundException('Family not found');
+
+    const members = await this.prisma.familyMember.findMany({
+      where: { familyId, deletedAt: null },
+      include: {
+        person: {
+          select: {
+            id: true,
+            givenName: true,
+            familyName: true,
+            birthDate: true,
+            deathDate: true,
+            isLiving: true,
+            privacyLevel: true,
+          },
+        },
+      },
+    });
+
+    const viewer = this.access.viewerFromUser(null, true);
+    const nodes = [];
+    for (const member of members) {
+      const policy = await this.access.loadPersonPolicy(member.person.id);
+      if (!policy) continue;
+      const redacted = this.access.redactPerson(policy, viewer, hideLivingPersons);
+      if (!redacted) continue;
+      nodes.push({
+        personId: redacted.id,
+        givenName: redacted.givenName,
+        familyName: redacted.familyName,
+        birthDate: redacted.birthDate,
+        deathDate: redacted.deathDate,
+        isLiving: redacted.isLiving,
+      });
+    }
+
+    return { familyId: family.id, name: family.name, members: nodes };
   }
 
   private resolveExpiresAt(expiresAt?: Date | null): Date | null {

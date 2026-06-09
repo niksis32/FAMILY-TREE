@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { Badge, Card } from '@/components/ui';
+import { Badge, Button, Card } from '@/components/ui';
 import type { TreeViewDataResponse, TreeViewNode } from '@family/shared';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useAuth } from '@/components/auth-provider';
+import { ShareModal } from '@/features/privacy/share-modal';
 
 export function PersonInsightPanel({
   selectedNode,
@@ -13,6 +16,8 @@ export function PersonInsightPanel({
   selectedNode: TreeViewNode | null;
   data: TreeViewDataResponse | null;
 }) {
+  const { session } = useAuth();
+  const [shareOpen, setShareOpen] = useState(false);
   const t = useTranslations('treeExperience');
   const tCommon = useTranslations('common');
 
@@ -61,6 +66,11 @@ export function PersonInsightPanel({
               >
                 {t('insight.openProfile')}
               </Link>
+              {session?.accessToken ? (
+                <Button className="mt-3" variant="secondary" type="button" onClick={() => setShareOpen(true)}>
+                  Поделиться
+                </Button>
+              ) : null}
             </div>
 
             {media.length > 0 ? (
@@ -113,6 +123,17 @@ export function PersonInsightPanel({
           </motion.p>
         )}
       </AnimatePresence>
+
+      {session?.accessToken && selectedNode ? (
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          token={session.accessToken}
+          resourceType="PERSON"
+          resourceId={selectedNode.personId}
+          label={selectedNode.label}
+        />
+      ) : null}
     </Card>
   );
 }

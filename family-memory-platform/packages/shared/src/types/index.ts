@@ -39,3 +39,5 @@ export * from './ai-storytelling';
 export * from './commercial';
 export * from './privacy';
 export * from './privacy-audit';
+export * from './mfa';
+export * from './admin-ops';

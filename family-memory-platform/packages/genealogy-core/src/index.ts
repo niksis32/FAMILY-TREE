@@ -12,3 +12,4 @@ export * from './gedcom-mapper';
 export * from './timeline-builder';
 export * from './validation-rules';
 export * from './story-privacy';
+export * from './living-inference';

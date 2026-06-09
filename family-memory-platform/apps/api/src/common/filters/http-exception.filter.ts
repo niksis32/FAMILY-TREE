@@ -4,15 +4,18 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { getRequestId } from '../logging/request-context';
+import { StructuredLogger } from '../logging/structured-logger';
+import { OpsErrorLogService } from './ops-error-log.service';
 
 export type ApiErrorResponse = {
   statusCode: number;
   message: string | string[];
   error: string;
   timestamp: string;
+  requestId?: string;
 };
 
 const STATUS_LABELS: Partial<Record<HttpStatus, string>> = {
@@ -29,18 +32,36 @@ const STATUS_LABELS: Partial<Record<HttpStatus, string>> = {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
+  private readonly logger = new StructuredLogger(HttpExceptionFilter.name);
+  private opsErrorLog: OpsErrorLogService | null = null;
+
+  setOpsErrorLogService(service: OpsErrorLogService) {
+    this.opsErrorLog = service;
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request & { user?: { id?: string } }>();
     const response = ctx.getResponse<Response>();
 
-    const payload = this.toErrorResponse(exception);
+    const payload = this.toErrorResponse(exception, request);
     response.status(payload.statusCode).json(payload);
+
+    if (payload.statusCode >= 500 && this.opsErrorLog) {
+      void this.opsErrorLog.logServerError({
+        statusCode: payload.statusCode,
+        message: Array.isArray(payload.message) ? payload.message.join('; ') : payload.message,
+        stack: exception instanceof Error ? exception.stack : undefined,
+        method: request.method,
+        path: request.originalUrl?.split('?')[0],
+        userId: request.user?.id,
+      });
+    }
   }
 
-  private toErrorResponse(exception: unknown): ApiErrorResponse {
+  private toErrorResponse(exception: unknown, request?: Request): ApiErrorResponse {
     const timestamp = new Date().toISOString();
+    const requestId = getRequestId();
 
     if (exception instanceof HttpException) {
       const statusCode = exception.getStatus();
@@ -52,6 +73,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           message: body,
           error: this.errorLabel(statusCode),
           timestamp,
+          requestId,
         };
       }
 
@@ -68,14 +90,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
           error:
             typeof record.error === 'string' ? record.error : this.errorLabel(statusCode),
           timestamp,
+          requestId,
         };
       }
     }
 
     if (exception instanceof Error) {
-      this.logger.error(exception.message, exception.stack);
+      this.logger.error(exception.message, { stack: exception.stack, path: request?.originalUrl });
     } else {
-      this.logger.error('Unhandled exception', String(exception));
+      this.logger.error('Unhandled exception', { detail: String(exception), path: request?.originalUrl });
     }
 
     return {
@@ -83,6 +106,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message: 'Internal server error',
       error: this.errorLabel(HttpStatus.INTERNAL_SERVER_ERROR),
       timestamp,
+      requestId,
     };
   }
 

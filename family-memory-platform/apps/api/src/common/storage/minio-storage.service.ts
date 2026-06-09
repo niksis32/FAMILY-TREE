@@ -6,6 +6,13 @@ import { randomUUID } from 'node:crypto';
 export type MinioClient = {
   presignedPutObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
   presignedGetObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
+  putObject: (
+    bucket: string,
+    objectName: string,
+    stream: Buffer | string,
+    size?: number,
+    metaData?: Record<string, string>,
+  ) => Promise<void>;
   listBuckets: () => Promise<Array<{ name: string }>>;
   bucketExists: (bucket: string) => Promise<boolean>;
 };
@@ -54,6 +61,17 @@ export class MinioStorageService {
     const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const datePrefix = new Date().toISOString().slice(0, 10);
     return `${prefix}/${datePrefix}/${randomUUID()}-${safeFileName}`;
+  }
+
+  async uploadBuffer(bucket: string, objectKey: string, buffer: Buffer, contentType = 'application/octet-stream') {
+    const client = this.createClient();
+    await client.putObject(bucket, objectKey, buffer, buffer.length, { 'Content-Type': contentType });
+    return objectKey;
+  }
+
+  async presignedDownload(bucket: string, objectKey: string, expirySeconds: number) {
+    const client = this.createClient();
+    return client.presignedGetObject(bucket, objectKey, expirySeconds);
   }
 
   async checkHealth(): Promise<{

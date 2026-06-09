@@ -26,6 +26,8 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CommercialService } from '../commercial/commercial.service';
 import { CrossTenantPrivacyAuditService } from './cross-tenant-privacy-audit.service';
+import { LivingPersonPolicyService } from './living-person-policy.service';
+import { LivingPersonRecalcQueueService } from './living-person-recalc.queue';
 
 @ApiTags('privacy')
 @Controller()
@@ -36,6 +38,8 @@ export class PrivacyController {
     private readonly audit: PrivacyAuditService,
     private readonly crossTenantAuditService: CrossTenantPrivacyAuditService,
     private readonly commercial: CommercialService,
+    private readonly livingPolicy: LivingPersonPolicyService,
+    private readonly livingRecalc: LivingPersonRecalcQueueService,
   ) {}
 
   @Get('privacy/security-center')
@@ -175,6 +179,21 @@ export class PrivacyController {
   @ApiBearerAuth()
   accountDelete(@CurrentUser() user: AuthenticatedUser) {
     return this.center.requestAccountDelete(user.id);
+  }
+
+  @Post('privacy/living-recalc')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  async triggerLivingRecalc(@Query('workspaceId') workspaceId?: string) {
+    await this.livingRecalc.enqueue({
+      workspaceId: workspaceId?.trim() || undefined,
+      trigger: 'manual',
+    });
+    if (workspaceId?.trim()) {
+      return this.livingPolicy.recalcWorkspace(workspaceId.trim());
+    }
+    return { queued: true };
   }
 
   @Get('public/share/:token')

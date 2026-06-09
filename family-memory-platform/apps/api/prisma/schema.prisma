@@ -54,6 +54,10 @@ model User {
   userConsents               UserConsent[]
   publicSharesCreated        PublicShare[]      @relation("PublicShareCreator")
   accessLogs                 AccessLog[]
+  mfaSettings                UserMfaSettings?
+  mfaRecoveryCodes           MfaRecoveryCode[]
+  webAuthnCredentials        WebAuthnCredential[]
+  workspaceExportJobs        WorkspaceExportJob[] @relation("WorkspaceExportRequester")
 
   @@index([role])
   @@index([deletedAt])
@@ -1098,6 +1102,7 @@ model Workspace {
   privacyRequests PrivacyRequest[]
   publicShares    PublicShare[]
   accessLogs      AccessLog[]
+  exportJobs      WorkspaceExportJob[]
 
   @@index([tenantId])
   @@unique([tenantId, name])
@@ -1613,4 +1618,108 @@ model UserConsent {
 
   @@unique([userId, consentKey])
   @@index([userId])
+}
+
+// --- BLOCK 0: Security, Privacy, Ops ---
+
+enum MfaMethod {
+  TOTP
+  PASSKEY
+}
+
+enum WorkspaceExportJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model UserMfaSettings {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  totpEnabled     Boolean   @default(false)
+  totpSecretEnc   String?
+  passkeysEnabled Boolean   @default(false)
+  enrolledAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MfaSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model WebAuthnCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  credentialId String   @unique
+  publicKey    String   @db.Text
+  counter      BigInt   @default(0)
+  deviceName   String?
+  transports   String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model WorkspaceExportJob {
+  id            String                   @id @default(cuid())
+  workspaceId   String
+  requestedById String
+  status        WorkspaceExportJobStatus @default(QUEUED)
+  objectKey     String?
+  downloadUrl   String?
+  downloadExpiresAt DateTime?
+  error         String?                  @db.Text
+  manifest      Json?
+  completedAt   DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestedBy User      @relation("WorkspaceExportRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([requestedById])
+}
+
+model OpsErrorLog {
+  id         String   @id @default(cuid())
+  requestId  String?
+  statusCode Int
+  method     String?
+  path       String?
+  message    String   @db.Text
+  stack      String?  @db.Text
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([requestId])
+  @@index([createdAt])
+  @@index([statusCode])
 }

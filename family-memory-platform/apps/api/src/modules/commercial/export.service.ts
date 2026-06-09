@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { UsageMetric } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LivingPersonPolicyService } from '../privacy/living-person-policy.service';
 import { CommercialContextService } from './commercial-context.service';
 import { UsageMeterService } from './usage-meter.service';
 import { CommercialAuditService } from './commercial-audit.service';
@@ -12,6 +13,8 @@ export class ExportService {
     private readonly context: CommercialContextService,
     private readonly usage: UsageMeterService,
     private readonly audit: CommercialAuditService,
+    @Inject(forwardRef(() => LivingPersonPolicyService))
+    private readonly living: LivingPersonPolicyService,
   ) {}
 
   async exportGdprBundle(workspaceId: string, userId: string) {
@@ -27,16 +30,30 @@ export class ExportService {
       },
     });
 
-    const persons = families.flatMap((f) =>
-      f.members.map((m) => ({
-        id: m.person.id,
-        givenName: m.person.givenName,
-        familyName: m.person.familyName,
-        birthDate: m.person.birthDate,
-        deathDate: m.person.deathDate,
-        privacyLevel: m.person.privacyLevel,
-      })),
-    );
+    const persons = families
+      .flatMap((f) =>
+        f.members.map((m) =>
+          this.living.redactPersonForExport({
+            id: m.person.id,
+            givenName: m.person.givenName,
+            familyName: m.person.familyName,
+            birthDate: m.person.birthDate,
+            deathDate: m.person.deathDate,
+            isLiving: m.person.isLiving,
+            privacyLevel: m.person.privacyLevel,
+            biography: m.person.biography,
+          }),
+        ),
+      )
+      .filter(Boolean)
+      .map((p) => ({
+        id: p!.id,
+        givenName: p!.givenName,
+        familyName: p!.familyName,
+        birthDate: p!.birthDate,
+        deathDate: p!.deathDate,
+        privacyLevel: p!.privacyLevel,
+      }));
 
     await this.audit.log({
       workspaceId,

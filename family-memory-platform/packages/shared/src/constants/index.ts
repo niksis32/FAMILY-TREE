@@ -6,6 +6,8 @@ export * from './document-intelligence';
 export * from './matching';
 export * from './community-graphql';
 export * from './community-spam';
+export * from './workspace-export';
+export * from './living-person';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

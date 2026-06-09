@@ -13,9 +13,13 @@ import { CrossTenantPrivacyAuditService } from './cross-tenant-privacy-audit.ser
 import { PrivacyCenterService } from './privacy-center.service';
 import { PrivacyController } from './privacy.controller';
 import { PublicLinkService } from './public-link.service';
+import { LivingPersonPolicyService } from './living-person-policy.service';
+import { LivingPersonRecalcQueueService } from './living-person-recalc.queue';
+import { LivingPersonRecalcProcessor } from './living-person-recalc.processor';
+import { RedisModule } from '../../common/redis/redis.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, forwardRef(() => CommercialModule)],
+  imports: [PrismaModule, AuthModule, RedisModule, forwardRef(() => CommercialModule)],
   controllers: [PrivacyController],
   providers: [
     AssetPrivacyService,
@@ -28,6 +32,9 @@ import { PublicLinkService } from './public-link.service';
     PublicLinkService,
     GdprAccountService,
     PrivacyCenterService,
+    LivingPersonPolicyService,
+    LivingPersonRecalcQueueService,
+    LivingPersonRecalcProcessor,
   ],
   exports: [
     AssetPrivacyService,
@@ -37,6 +44,8 @@ import { PublicLinkService } from './public-link.service';
     AiConsentService,
     PrivacyAuditService,
     CrossTenantPrivacyAuditService,
+    LivingPersonPolicyService,
+    LivingPersonRecalcQueueService,
   ],
 })
 export class PrivacyModule {}

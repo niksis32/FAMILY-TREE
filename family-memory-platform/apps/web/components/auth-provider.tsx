@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_APP_LOCALE, isAppLocale, type LoginDto } from '@family/shared';
-import { apiClient, type AuthSession } from '@/lib/api-client';
+import { apiClient, type AuthSession, type LoginResponse } from '@/lib/api-client';
 
 function localeFromPathname(pathname: string | null): string {
   const segment = pathname?.split('/')[1]?.toLowerCase();
@@ -16,7 +16,8 @@ const TOKEN_COOKIE = 'family_access_token';
 const AuthContext = createContext<{
   session: AuthSession | null;
   isReady: boolean;
-  login: (dto: LoginDto) => Promise<void>;
+  login: (dto: LoginDto) => Promise<LoginResponse>;
+  completeMfaLogin: (mfaSessionToken: string, code: string) => Promise<void>;
   logout: () => void;
 } | null>(null);
 
@@ -82,9 +83,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(
-    async (dto: LoginDto) => {
-      const nextSession = await apiClient.login(dto);
+  const login = useCallback(async (dto: LoginDto) => {
+    const response = await apiClient.login(dto);
+    if ('mfaRequired' in response && response.mfaRequired) {
+      return response;
+    }
+    persistSession(response);
+    setSession(response);
+    pushWithLocale('/dashboard');
+    return response;
+  }, [pushWithLocale]);
+
+  const completeMfaLogin = useCallback(
+    async (mfaSessionToken: string, code: string) => {
+      const nextSession = await apiClient.mfa.verify(mfaSessionToken, code);
       persistSession(nextSession);
       setSession(nextSession);
       pushWithLocale('/dashboard');
@@ -98,7 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pushWithLocale('/login');
   }, [pushWithLocale]);
 
-  const value = useMemo(() => ({ session, isReady, login, logout }), [isReady, login, logout, session]);
+  const value = useMemo(
+    () => ({ session, isReady, login, completeMfaLogin, logout }),
+    [isReady, login, completeMfaLogin, logout, session],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

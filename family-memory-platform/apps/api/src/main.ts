@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX } from '@family/shared';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { OpsErrorLogService } from './common/filters/ops-error-log.service';
 
 /**
  * API entry point — modular monolith.
@@ -30,7 +31,10 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix(API_PREFIX.replace(/^\//, ''));
-  app.useGlobalFilters(new HttpExceptionFilter());
+
+  const exceptionFilter = new HttpExceptionFilter();
+  exceptionFilter.setOpsErrorLogService(app.get(OpsErrorLogService));
+  app.useGlobalFilters(exceptionFilter);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
