@@ -8,6 +8,7 @@ import { createHash, randomBytes } from 'crypto';
 import type { WorkspaceInviteSummary } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CommercialContextService } from './commercial-context.service';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
 import { CommercialAuditService } from './commercial-audit.service';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class InvitesService {
     private readonly prisma: PrismaService,
     private readonly context: CommercialContextService,
     private readonly audit: CommercialAuditService,
+    private readonly collaborationHooks: CollaborationHooksService,
   ) {}
 
   private hashToken(token: string) {
@@ -81,6 +83,8 @@ export class InvitesService {
       entityId: invite.id,
       payload: { email: invite.email, role },
     });
+
+    await this.collaborationHooks.onInviteCreated(workspaceId, userId, invite.email, invite.id);
 
     return {
       invite: this.toSummary(invite),
@@ -148,6 +152,8 @@ export class InvitesService {
       entityType: 'WorkspaceInvite',
       entityId: invite.id,
     });
+
+    await this.collaborationHooks.onInviteAccepted(invite.workspaceId, userId, invite.id);
 
     return {
       workspaceId: invite.workspaceId,

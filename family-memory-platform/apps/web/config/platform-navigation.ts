@@ -6,7 +6,9 @@ import {
   Globe2,
   Image,
   LayoutDashboard,
+  Lightbulb,
   Map,
+  Search,
   Settings,
   Sparkles,
   Users,
@@ -14,6 +16,11 @@ import {
   BookOpen,
   Shuffle,
   Network,
+  MessageCircle,
+  CalendarDays,
+  Landmark,
+  BookMarked,
+  Archive,
 } from 'lucide-react';
 
 export type NavItemKey =
@@ -30,7 +37,17 @@ export type NavItemKey =
   | 'community'
   | 'stories'
   | 'research'
-  | 'settings';
+  | 'settings'
+  | 'messages'
+  | 'calendar'
+  | 'archivesSearch'
+  | 'cemeteries'
+  | 'exportPdf'
+  | 'advancedSearch'
+  | 'hints'
+  | 'mergeWizard'
+  | 'evidence'
+  | 'wiki';
 
 export interface PlatformNavItem {
   href: string;
@@ -62,6 +79,7 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         match: (p) => p === '/tree/3d' || p.startsWith('/tree/3d/'),
       },
       { href: '/map', key: 'map', icon: Map },
+      { href: '/cemeteries', key: 'cemeteries', icon: Landmark },
       { href: '/timeline', key: 'timeline', icon: Clock3 },
     ],
   },
@@ -71,19 +89,28 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
       { href: '/persons', key: 'persons', icon: Users },
       { href: '/media', key: 'media', icon: Image },
       { href: '/documents', key: 'documents', icon: FileText },
+      { href: '/archives/search', key: 'archivesSearch', icon: Archive },
+      { href: '/export', key: 'exportPdf', icon: BookMarked },
     ],
   },
   {
     groupKey: 'intelligence',
     items: [
+      { href: '/search', key: 'advancedSearch', icon: Search },
+      { href: '/hints', key: 'hints', icon: Lightbulb },
       { href: '/ai-lab', key: 'aiLab', icon: Sparkles },
       { href: '/matching', key: 'matching', icon: Shuffle },
+      { href: '/merge', key: 'mergeWizard', icon: GitBranch },
+      { href: '/evidence', key: 'evidence', icon: FileText },
+      { href: '/wiki', key: 'wiki', icon: BookOpen },
       { href: '/research', key: 'research', icon: Network },
     ],
   },
   {
     groupKey: 'social',
     items: [
+      { href: '/messages', key: 'messages', icon: MessageCircle },
+      { href: '/calendar', key: 'calendar', icon: CalendarDays },
       { href: '/community', key: 'community', icon: Globe2 },
       { href: '/stories', key: 'stories', icon: BookOpen },
     ],

@@ -18,6 +18,7 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
+    "@family/dna-core": "workspace:*",
     "@family/genealogy-core": "workspace:*",
     "@family/matching-core": "workspace:*",
     "@family/map-engine": "workspace:*",
@@ -28,6 +29,9 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/platform-socket.io": "^10.4.15",
+    "@nestjs/websockets": "^10.4.15",
+    "socket.io": "^4.8.1",
     "graphql": "^16.10.0",
     "@nestjs/swagger": "^8.1.0",
     "@nestjs/throttler": "^6.4.0",

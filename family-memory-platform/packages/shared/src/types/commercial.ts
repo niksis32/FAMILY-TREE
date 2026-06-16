@@ -22,6 +22,8 @@ export interface PlanEntitlements {
     multiWorkspace: boolean;
     reportExport: boolean;
     onPremDeploy: boolean;
+    whiteLabel: boolean;
+    webhooksEnabled: boolean;
   };
 }
 

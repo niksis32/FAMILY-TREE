@@ -10,6 +10,8 @@ import { useFormatApiError } from '@/lib/use-format-api-error';
 import { CitationCreator } from './citation-creator';
 import { DocumentViewer } from './document-viewer';
 import { EntityHighlighter } from './entity-highlighter';
+import { OcrTextEditor } from './ocr-text-editor';
+import { OcrJobProgress } from './ocr-job-progress';
 import { OcrTextPanel } from './ocr-text-panel';
 import { SuggestedEventsPanel } from './suggested-events-panel';
 import { SuggestedRelationshipsPanel } from './suggested-relationships-panel';
@@ -182,21 +184,26 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
 
       {status ? <p className="text-sm text-rose-600 dark:text-rose-400">{status}</p> : null}
 
-      {ocrJob?.status ? (
-        <p
-          className={
-            ocrJob.status === 'FAILED' || ocrJob.status === 'SKIPPED'
-              ? 'text-sm text-amber-700 dark:text-amber-300'
-              : 'text-sm text-stone-600 dark:text-slate-400'
-          }
-        >
-          {ocrJob.status === 'SKIPPED' && ocrJob.error
-            ? t('ocrPipelineSkipped', { error: ocrJob.error })
-            : t('ocrPipelineStatus', { status: ocrJob.status })}
-        </p>
-      ) : null}
+      <OcrJobProgress
+        status={ocrJob?.status ?? null}
+        error={ocrJob?.error}
+        onRetry={
+          token
+            ? () => {
+                void apiClient.documentOcr.enqueue(documentId, token, 'auto', true);
+              }
+            : undefined
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          disabled={busy || !token}
+          onClick={() => void apiClient.documentOcr.enqueue(documentId, token, 'auto', true).then(() => setStatus('OCR queued'))}
+        >
+          {t('ocrRetryQueue')}
+        </Button>
         <Button
           variant="secondary"
           disabled={busy || !token}
@@ -312,7 +319,20 @@ export function DocumentIntelligencePage({ documentId }: DocumentIntelligencePag
           <div className="mt-4">
             {tab === 'text' ? (
               <div className="space-y-4">
-                <OcrTextPanel ocr={ocr} />
+                <OcrTextEditor
+                  initialValue={fallbackText}
+                  onSave={async (text) => {
+                    if (!token) return;
+                    await apiClient.documents.update(documentId, { ocrText: text }, token);
+                    const docRow = await apiClient.documents.one(documentId, token);
+                    setDoc(docRow);
+                    setStatus(t('ocrSaved'));
+                  }}
+                />
+                <details className="text-xs text-stone-500">
+                  <summary>{t('tabText')} (structured)</summary>
+                  <OcrTextPanel ocr={ocr} />
+                </details>
                 <EntityHighlighter entitiesPayload={analysis?.entities} fallbackText={fallbackText} />
               </div>
             ) : null}

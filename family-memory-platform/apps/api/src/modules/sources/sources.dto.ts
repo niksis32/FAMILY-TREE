@@ -25,6 +25,18 @@ export class CreateSourceDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  externalProvider?: string;
+
+  @IsOptional()
+  @IsString()
+  externalRecordId?: string;
+
+  @IsOptional()
+  @IsString()
+  attributionText?: string;
 }
 
 export class UpdateSourceDto extends PartialType(CreateSourceDto) {}

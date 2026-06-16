@@ -58,6 +58,26 @@ model User {
   mfaRecoveryCodes           MfaRecoveryCode[]
   webAuthnCredentials        WebAuthnCredential[]
   workspaceExportJobs        WorkspaceExportJob[] @relation("WorkspaceExportRequester")
+  conversationsCreated       Conversation[]       @relation("ConversationCreator")
+  conversationParticipants   ConversationParticipant[]
+  messagesSent               Message[]            @relation("MessageSender")
+  messageReadReceipts        MessageReadReceipt[]
+  notifications              Notification[]
+  notificationPreferences    NotificationPreference[]
+  activityEvents             ActivityEvent[]      @relation("ActivityActor")
+  personEditLocks            PersonEditLock[]
+  savedSearches              SavedSearch[]
+  searchHistory              SearchHistoryEntry[]
+  hintsResolved              Hint[]                 @relation("HintResolver")
+  personMergesPerformed      PersonMergeAudit[]     @relation("PersonMergePerformer")
+  wikiRevisionsAuthored      WikiRevision[]         @relation("WikiRevisionAuthor")
+  memoryStoriesCreated       MemoryStory[]          @relation("MemoryStoryCreator")
+  socialArchiveImports       SocialArchiveImport[]  @relation("SocialArchiveImportCreator")
+  archiveSearchesRequested   ArchiveSearch[]        @relation("ArchiveSearchRequester")
+  pdfExportJobs              PdfExportJob[]         @relation("PdfExportRequester")
+  dnaProfiles                DnaProfile[]
+  dnaImportJobs              DnaImportJob[]
+  webhookEndpointsCreated    WebhookEndpoint[]      @relation("WebhookEndpointCreator")
 
   @@index([role])
   @@index([deletedAt])
@@ -167,6 +187,10 @@ model Person {
   nameAliases       PersonNameAlias[]
   matchCandidatesAsSource TreeMatchCandidate[] @relation("MatchSourcePerson")
   matchCandidatesAsTarget TreeMatchCandidate[] @relation("MatchTargetPerson")
+  faceClusters            FaceCluster[]
+  memoryStoriesSubject    MemoryStory[]        @relation("MemoryStorySubject")
+  memoryStoriesNarrator   MemoryStory[]        @relation("MemoryStoryNarrator")
+  burialSites             BurialSite[]
 
   @@index([workspaceId])
   @@index([familyName, givenName])
@@ -192,6 +216,7 @@ model Family {
   members   FamilyMember[]
   events    Event[]
   matchRuns TreeMatchRun[]
+  wikiPages WikiPage[]
 
   @@index([workspaceId])
   @@index([name])
@@ -272,6 +297,7 @@ model Event {
   person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
   family    Family?   @relation(fields: [familyId], references: [id], onDelete: SetNull)
   place     Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  citations Citation[]
 
   timelineItems TimelineItem[]
 
@@ -449,9 +475,18 @@ model Media {
   faceTags      PhotoFaceTag[]
   insight       PhotoInsight?
   comments      MediaComment[]
-  analysisJobs  PhotoAnalysisJob[]
+  analysisJobs       PhotoAnalysisJob[]
+  messageAttachments MessageAttachment[]
+  importSource       String?
+  externalPostId     String?
+  durationSeconds    Float?
+  posterStorageKey   String?
+  audioDerivativeKey String?
+  memoryStories      MemoryStory[]
+  mediaTranscript    MediaTranscript?
 
   @@unique([bucket, storageKey])
+  @@index([importSource, externalPostId])
   @@index([workspaceId])
   @@index([personId])
   @@index([privacyLevel])
@@ -506,6 +541,7 @@ model PhotoFaceTag {
   media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   person  Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   creator User?   @relation("PhotoFaceTagCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  embedding FaceEmbedding?
 
   @@index([mediaId])
   @@index([personId])
@@ -617,7 +653,9 @@ model DocumentOcrJob {
   status      PhotoAnalysisStatus @default(QUEUED)
   error       String?             @db.Text
   requestedBy String?
-  language    String              @default("ru")
+  language          String              @default("ru")
+  detectedLanguage  String?
+  averageConfidence Float?
   completedAt DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -631,46 +669,56 @@ model DocumentOcrJob {
 // --- Sources & citations (genealogical proof standard) ---
 
 model Source {
-  id          String    @id @default(cuid())
-  workspaceId String
-  title       String
-  author      String?
-  publication String?
-  repository  String?
-  url         String?
-  notes       String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                String    @id @default(cuid())
+  workspaceId       String
+  title             String
+  author            String?
+  publication       String?
+  repository        String?
+  url               String?
+  notes             String?   @db.Text
+  externalProvider  String?
+  externalRecordId  String?
+  attributionText   String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   citations     Citation[]
   documents     Document[]
   relationships Relationship[]
 
+  @@unique([workspaceId, externalProvider, externalRecordId])
   @@index([workspaceId])
   @@index([title])
   @@index([deletedAt])
+  @@index([externalProvider, externalRecordId])
 }
 
 model Citation {
-  id          String    @id @default(cuid())
-  workspaceId String
-  sourceId    String
-  personId    String?
-  page        String?
-  detail      String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                String    @id @default(cuid())
+  workspaceId       String
+  sourceId          String
+  personId          String?
+  eventId           String?
+  page              String?
+  detail            String?   @db.Text
+  qualityScore      Int       @default(0)
+  formattedCitation String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   source    Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([sourceId])
   @@index([personId])
+  @@index([eventId])
   @@index([deletedAt])
 }
 
@@ -1103,6 +1151,33 @@ model Workspace {
   publicShares    PublicShare[]
   accessLogs      AccessLog[]
   exportJobs      WorkspaceExportJob[]
+  conversations   Conversation[]
+  notifications   Notification[]
+  activityEvents  ActivityEvent[]
+  personEditLocks PersonEditLock[]
+  savedSearches   SavedSearch[]
+  searchHistory   SearchHistoryEntry[]
+  hints           Hint[]
+  citationTemplates CitationTemplate[]
+  faceEmbeddings    FaceEmbedding[]
+  faceClusters      FaceCluster[]
+  memoryStories     MemoryStory[]
+  socialArchiveImports SocialArchiveImport[]
+  socialArchiveItems   SocialArchiveItem[]
+  personMergeAudits PersonMergeAudit[]
+  wikiPages       WikiPage[]
+  wikiLinks       WikiLink[]
+  archiveSearches ArchiveSearch[]
+  branding        WorkspaceBranding?
+  pdfExportJobs   PdfExportJob[]
+  dnaProfiles     DnaProfile[]
+  dnaImportJobs   DnaImportJob[]
+  cemeteries      Cemetery[]
+  burialSites     BurialSite[]
+  memorials       Memorial[]
+  burialPhotogrammetryJobs BurialPhotogrammetryJob[]
+  webhookEndpoints WebhookEndpoint[]
+  webhookEvents   WebhookEvent[]
 
   @@index([tenantId])
   @@unique([tenantId, name])
@@ -1552,6 +1627,7 @@ enum UserConsentKey {
   GDPR_DATA_PROCESSING
   GLOBAL_MATCHING
   AI_LOCAL_PROCESSING
+  DNA_DATA_IMPORT
 }
 
 model PublicShare {
@@ -1722,4 +1798,909 @@ model OpsErrorLog {
   @@index([requestId])
   @@index([createdAt])
   @@index([statusCode])
+}
+
+// --- BLOCK 1: Collaboration & Family Communication ---
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  CONTEXT
+}
+
+enum ConversationContextType {
+  PERSON
+  FAMILY
+  EVENT
+  MATCH
+}
+
+model Conversation {
+  id          String                   @id @default(cuid())
+  workspaceId String
+  type        ConversationType
+  title       String?
+  contextType ConversationContextType?
+  contextId   String?
+  createdById String
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  workspace    Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User                      @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, contextType, contextId])
+}
+
+model ConversationParticipant {
+  id             String    @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String    @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
+  readReceipts MessageReadReceipt[]
+
+  @@index([conversationId, createdAt])
+}
+
+model MessageAttachment {
+  id        String @id @default(cuid())
+  messageId String
+  mediaId   String
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+enum NotificationSource {
+  MESSENGER
+  MATCH
+  MODERATION
+  INVITE
+  CALENDAR
+  ACTIVITY
+  SYSTEM
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  workspaceId String
+  userId      String
+  source      NotificationSource
+  title       String
+  body        String             @db.Text
+  deepLink    String?
+  sourceId    String?
+  readAt      DateTime?
+  createdAt   DateTime           @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, workspaceId, readAt])
+  @@index([workspaceId, createdAt])
+}
+
+model NotificationPreference {
+  id          String             @id @default(cuid())
+  userId      String
+  workspaceId String?
+  source      NotificationSource
+  enabled     Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId, source])
+  @@index([userId])
+}
+
+enum ActivityEventType {
+  PERSON_CREATED
+  PERSON_UPDATED
+  MEDIA_UPLOADED
+  DOCUMENT_UPLOADED
+  MATCH_FOUND
+  MESSAGE_SENT
+  INVITE_SENT
+  STORY_PUBLISHED
+  RELATIONSHIP_ADDED
+  CUSTOM
+}
+
+model ActivityEvent {
+  id          String            @id @default(cuid())
+  workspaceId String
+  actorUserId String?
+  type        ActivityEventType
+  summary     String
+  deepLink    String?
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([actorUserId])
+}
+
+model PersonEditLock {
+  id          String   @id @default(cuid())
+  workspaceId String
+  personId    String
+  userId      String
+  field       String?
+  version     Int      @default(1)
+  acquiredAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, field])
+  @@index([workspaceId, personId])
+  @@index([expiresAt])
+}
+
+// --- BLOCK 2: Knowledge Quality (Search, Hints, Evidence, Merge, Wiki) ---
+
+enum HintStatus {
+  OPEN
+  ACCEPTED
+  DISMISSED
+}
+
+enum HintSource {
+  MATCHING
+  DOCUMENT
+  PHOTO
+  GAPS
+  EXTERNAL_ARCHIVE
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  name        String
+  query       String
+  filters     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId])
+}
+
+model SearchHistoryEntry {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  query       String
+  filters     Json?
+  resultCount Int?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId, createdAt])
+}
+
+model Hint {
+  id               String     @id @default(cuid())
+  workspaceId      String
+  source           HintSource
+  status           HintStatus @default(OPEN)
+  entityType       String
+  entityId         String
+  targetEntityType String?
+  targetEntityId   String?
+  title            String
+  summary          String?    @db.Text
+  score            Float      @default(0)
+  metadata         Json?
+  resolvedById     String?
+  resolvedAt       DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  workspace  Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  resolvedBy User?        @relation("HintResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  reasons    HintReason[]
+
+  @@index([workspaceId, status])
+  @@index([entityType, entityId])
+  @@index([source, status])
+}
+
+model HintReason {
+  id     String @id @default(cuid())
+  hintId String
+  code   String
+  label  String
+  weight Float  @default(1)
+  detail Json?
+
+  hint Hint @relation(fields: [hintId], references: [id], onDelete: Cascade)
+
+  @@index([hintId])
+}
+
+// --- BLOCK 5: External Archives Integration ---
+
+enum ArchiveSearchStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model ArchiveSearch {
+  id            String              @id @default(cuid())
+  workspaceId   String
+  provider      String
+  status        ArchiveSearchStatus @default(QUEUED)
+  query         Json
+  results       Json?
+  resultCount   Int?
+  error         String?             @db.Text
+  requestedById String
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestedBy User      @relation("ArchiveSearchRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([status])
+}
+
+model PersonMergeAudit {
+  id          String   @id @default(cuid())
+  workspaceId String
+  survivorId  String
+  mergedId    String
+  performedBy String
+  preview     Json
+  snapshot    Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  performer User      @relation("PersonMergePerformer", fields: [performedBy], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([survivorId])
+  @@index([mergedId])
+}
+
+model CitationTemplate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  format      String   @db.Text
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model WikiPage {
+  id          String    @id @default(cuid())
+  workspaceId String
+  familyId    String?
+  slug        String
+  title       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  family    Family?        @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  revisions WikiRevision[]
+  linksFrom WikiLink[]     @relation("WikiLinkFrom")
+  linksTo   WikiLink[]     @relation("WikiLinkTo")
+
+  @@unique([workspaceId, slug])
+  @@index([familyId])
+  @@index([deletedAt])
+}
+
+model WikiRevision {
+  id           String   @id @default(cuid())
+  wikiPageId   String
+  version      Int
+  content      String   @db.Text
+  authorUserId String?
+  createdAt    DateTime @default(now())
+
+  wikiPage WikiPage @relation(fields: [wikiPageId], references: [id], onDelete: Cascade)
+  author   User?    @relation("WikiRevisionAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([wikiPageId, version])
+  @@index([wikiPageId])
+}
+
+model WikiLink {
+  id           String  @id @default(cuid())
+  workspaceId  String
+  fromPageId   String
+  toPageId     String?
+  toEntityType String?
+  toEntityId   String?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  fromPage  WikiPage  @relation("WikiLinkFrom", fields: [fromPageId], references: [id], onDelete: Cascade)
+  toPage    WikiPage? @relation("WikiLinkTo", fields: [toPageId], references: [id], onDelete: SetNull)
+
+  @@index([fromPageId])
+  @@index([toEntityType, toEntityId])
+}
+
+// --- BLOCK 3: Media & AI Memory Engine ---
+
+enum FaceClusterStatus {
+  UNREVIEWED
+  CONFIRMED
+  ASSIGNED
+  MERGED
+  ARCHIVED
+}
+
+enum FaceEmbeddingStatus {
+  PENDING
+  READY
+  FAILED
+  SKIPPED
+}
+
+enum MemoryStoryStatus {
+  DRAFT
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum MediaTranscriptStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum SocialArchiveProvider {
+  INSTAGRAM
+  FACEBOOK
+  TWITTER
+  VK
+  ODNOKLASSNIKI
+  TELEGRAM
+  UNKNOWN
+}
+
+enum SocialArchiveImportStatus {
+  UPLOADED
+  PARSING
+  PREVIEW_READY
+  PARSE_FAILED
+  CONFIRMING
+  COMPLETED
+  CONFIRM_FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum SocialArchiveItemKind {
+  PHOTO
+  VIDEO
+  POST_WITH_MEDIA
+  STORY
+}
+
+enum SocialArchiveItemStatus {
+  STAGED
+  SELECTED
+  IMPORTED
+  SKIPPED
+  FAILED
+}
+
+model FaceEmbedding {
+  id           String              @id @default(cuid())
+  workspaceId  String
+  faceTagId    String              @unique
+  vectorJson   Json
+  model        String              @default("mvp-hash-v1")
+  status       FaceEmbeddingStatus @default(PENDING)
+  qualityScore Float?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  faceTag   PhotoFaceTag       @relation(fields: [faceTagId], references: [id], onDelete: Cascade)
+  clusterMember FaceClusterMember?
+
+  @@index([workspaceId, status])
+}
+
+model FaceCluster {
+  id                        String            @id @default(cuid())
+  workspaceId               String
+  status                    FaceClusterStatus @default(UNREVIEWED)
+  personId                  String?
+  label                     String?
+  memberCount               Int               @default(0)
+  representativeEmbeddingId String?
+  lastRebuildAt             DateTime?
+  assignedById              String?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  person    Person?             @relation(fields: [personId], references: [id], onDelete: SetNull)
+  members   FaceClusterMember[]
+
+  @@index([workspaceId, status, memberCount])
+}
+
+model FaceClusterMember {
+  id                 String  @id @default(cuid())
+  clusterId          String
+  embeddingId        String  @unique
+  distanceToCentroid Float   @default(0)
+  isRepresentative   Boolean @default(false)
+
+  cluster   FaceCluster   @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  embedding FaceEmbedding @relation(fields: [embeddingId], references: [id], onDelete: Cascade)
+
+  @@index([clusterId])
+}
+
+model MemoryStory {
+  id                String            @id @default(cuid())
+  workspaceId       String
+  title             String
+  description       String?           @db.Text
+  mediaId           String?
+  subjectPersonId   String
+  narratorPersonId  String?
+  language          String            @default("ru")
+  status            MemoryStoryStatus @default(DRAFT)
+  summary           String?           @db.Text
+  mentionedPersonIds Json?
+  recordedAt        DateTime?
+  createdById       String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  media       Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  subjectPerson  Person @relation("MemoryStorySubject", fields: [subjectPersonId], references: [id], onDelete: Cascade)
+  narratorPerson Person? @relation("MemoryStoryNarrator", fields: [narratorPersonId], references: [id], onDelete: SetNull)
+  creator     User      @relation("MemoryStoryCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  transcriptJobs MediaTranscriptJob[]
+
+  @@index([workspaceId, status])
+  @@index([subjectPersonId])
+  @@index([deletedAt])
+}
+
+model MediaTranscript {
+  id          String   @id @default(cuid())
+  mediaId     String   @unique
+  text        String   @db.Text
+  segments    Json?
+  language    String   @default("ru")
+  confidence  Float?
+  editedAt    DateTime?
+  editedById  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+}
+
+model MediaTranscriptJob {
+  id            String                @id @default(cuid())
+  mediaId       String
+  memoryStoryId String?
+  status        MediaTranscriptStatus @default(QUEUED)
+  error         String?               @db.Text
+  requestedBy   String?
+  language      String                @default("ru")
+  completedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  memoryStory MemoryStory? @relation(fields: [memoryStoryId], references: [id], onDelete: SetNull)
+
+  @@index([mediaId, createdAt])
+  @@index([status])
+}
+
+model SocialArchiveImport {
+  id            String                    @id @default(cuid())
+  workspaceId   String
+  provider      SocialArchiveProvider     @default(UNKNOWN)
+  status        SocialArchiveImportStatus @default(UPLOADED)
+  fileName      String
+  stagingKey    String
+  sizeBytes     Int
+  parsedCount   Int                       @default(0)
+  selectedCount Int                       @default(0)
+  importedCount Int                       @default(0)
+  error         String?                   @db.Text
+  expiresAt     DateTime?
+  createdById   String
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User                 @relation("SocialArchiveImportCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  items     SocialArchiveItem[]
+
+  @@index([workspaceId, status, createdAt])
+  @@index([expiresAt])
+}
+
+model SocialArchiveItem {
+  id                String                  @id @default(cuid())
+  workspaceId       String
+  importId          String
+  externalId        String
+  kind              SocialArchiveItemKind   @default(PHOTO)
+  title             String?
+  caption           String?                 @db.Text
+  takenAt           DateTime?
+  stagingMediaKey   String?
+  privacyFlags      Json                    @default("[]")
+  status            SocialArchiveItemStatus @default(STAGED)
+  selected          Boolean                 @default(false)
+  committedMediaId  String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  import    SocialArchiveImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, externalId])
+  @@index([importId, status])
+  @@index([workspaceId])
+}
+
+// --- BLOCK 5: Webhooks API ---
+
+enum WebhookEventType {
+  PERSON_CREATED
+  MEDIA_UPLOADED
+  STORY_PUBLISHED
+  MATCH_FOUND
+  MESSAGE_CREATED
+  PING
+}
+
+enum WebhookEventStatus {
+  PENDING
+  DELIVERING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+  CANCELLED
+}
+
+enum WebhookEndpointStatus {
+  ACTIVE
+  DISABLED
+}
+
+model WebhookEndpoint {
+  id                  String                @id @default(cuid())
+  workspaceId         String
+  url                 String
+  description         String?
+  secretHash          String
+  secretPrefix        String
+  secretEnc           String
+  subscribedEvents    WebhookEventType[]
+  status              WebhookEndpointStatus @default(ACTIVE)
+  createdById         String
+  disabledAt          DateTime?
+  lastSuccessAt       DateTime?
+  consecutiveFailures Int                   @default(0)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User          @relation("WebhookEndpointCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  events    WebhookEvent[]
+
+  @@index([workspaceId, status])
+}
+
+model WebhookEvent {
+  id             String             @id @default(cuid())
+  workspaceId    String
+  endpointId     String
+  eventType      WebhookEventType
+  status         WebhookEventStatus @default(PENDING)
+  payload        Json
+  entityType     String?
+  entityId       String?
+  attemptCount   Int                @default(0)
+  nextRetryAt    DateTime?
+  deliveredAt    DateTime?
+  lastError      String?            @db.Text
+  idempotencyKey String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  workspace Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  endpoint  WebhookEndpoint          @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  attempts  WebhookDeliveryAttempt[]
+
+  @@index([endpointId, createdAt])
+  @@index([workspaceId, status, nextRetryAt])
+}
+
+model WebhookDeliveryAttempt {
+  id                  String   @id @default(cuid())
+  eventId             String
+  attemptNumber       Int
+  httpStatus          Int?
+  responseBodySnippet String?  @db.Text
+  durationMs          Int?
+  errorMessage        String?  @db.Text
+  createdAt           DateTime @default(now())
+
+  event WebhookEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, attemptNumber])
+}
+
+// --- BLOCK 5: Integrations, Enterprise & Long-tail Value ---
+
+model WorkspaceBranding {
+  id                String   @id @default(cuid())
+  workspaceId       String   @unique
+  displayName       String?
+  logoStorageKey    String?
+  logoBucket        String?
+  primaryColor      String?  @default("#2d5a27")
+  secondaryColor    String?
+  customDomain      String?  @unique
+  domainVerified    Boolean  @default(false)
+  domainVerifyToken String?
+  faviconUrl        String?
+  footerText        String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+enum PdfExportTemplateCode {
+  FAMILY_BOOK_STANDARD
+  FAMILY_BOOK_A2
+  TREE_POSTER_A3
+}
+
+enum PdfExportJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model PdfExportJob {
+  id                String                @id @default(cuid())
+  workspaceId       String
+  requestedById     String
+  templateCode      PdfExportTemplateCode
+  rootPersonId      String?
+  familyId          String?
+  status            PdfExportJobStatus    @default(QUEUED)
+  objectKey         String?
+  downloadUrl       String?
+  downloadExpiresAt DateTime?
+  previewHtml       String?               @db.Text
+  error             String?               @db.Text
+  options           Json?
+  completedAt       DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestedBy User      @relation("PdfExportRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([requestedById])
+}
+
+enum DnaProvider {
+  TWENTY_THREE_AND_ME
+  ANCESTRY
+  UNKNOWN
+}
+
+enum DnaImportJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model DnaProfile {
+  id          String      @id @default(cuid())
+  workspaceId String
+  userId      String
+  provider    DnaProvider @default(UNKNOWN)
+  snpCount    Int         @default(0)
+  fileKey     String?
+  fileName    String?
+  importedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model DnaImportJob {
+  id          String             @id @default(cuid())
+  workspaceId String
+  userId      String
+  status      DnaImportJobStatus @default(QUEUED)
+  fileKey     String
+  fileName    String
+  provider    DnaProvider?
+  snpCount    Int?
+  error       String?            @db.Text
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([userId])
+}
+
+model Cemetery {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  burialSites BurialSite[]
+
+  @@index([workspaceId])
+}
+
+model BurialSite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  cemeteryId  String
+  personId    String?
+  plotLabel   String?
+  latitude    Float?
+  longitude   Float?
+  burialDate  DateTime?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  cemetery  Cemetery  @relation(fields: [cemeteryId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  memorials Memorial[]
+  photogrammetryJobs BurialPhotogrammetryJob[]
+
+  @@index([workspaceId])
+  @@index([cemeteryId])
+  @@index([personId])
+}
+
+model Memorial {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  burialSiteId String
+  title        String
+  inscription  String?  @db.Text
+  photoMediaId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  burialSite BurialSite @relation(fields: [burialSiteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([burialSiteId])
+}
+
+enum BurialPhotogrammetryStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model BurialPhotogrammetryJob {
+  id            String                     @id @default(cuid())
+  workspaceId   String
+  burialSiteId  String
+  sourceMediaId String?
+  status        BurialPhotogrammetryStatus @default(QUEUED)
+  sceneJson     Json?
+  error         String?                    @db.Text
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  completedAt   DateTime?
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  burialSite BurialSite @relation(fields: [burialSiteId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, burialSiteId])
+  @@index([burialSiteId])
 }

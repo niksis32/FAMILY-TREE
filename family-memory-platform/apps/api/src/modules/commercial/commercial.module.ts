@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { PrivacyModule } from '../privacy/privacy.module';
+import { CollaborationModule } from '../collaboration/collaboration.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { BillingService } from './billing.service';
 import { CommercialAuditService } from './commercial-audit.service';
@@ -15,7 +16,7 @@ import { PrivacyService } from './privacy.service';
 import { UsageMeterService } from './usage-meter.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule, WorkspacesModule, forwardRef(() => PrivacyModule)],
+  imports: [PrismaModule, AuthModule, WorkspacesModule, CollaborationModule, forwardRef(() => PrivacyModule)],
   controllers: [CommercialController],
   providers: [
     CommercialPlansService,

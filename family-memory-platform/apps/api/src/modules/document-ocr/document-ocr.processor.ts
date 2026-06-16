@@ -4,6 +4,7 @@ import { DOCUMENT_OCR_QUEUE, isOcrEligibleMimeType } from '@family/shared';
 import { Worker, type Job } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { SearchService } from '../search/search.service';
 import { DocumentIntelligenceOcrRunnerService } from '../document-intelligence/document-intelligence-ocr-runner.service';
 
 export interface DocumentOcrJobPayload {
@@ -23,6 +24,7 @@ export class DocumentOcrProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly ocrRunner: DocumentIntelligenceOcrRunnerService,
+    private readonly search: SearchService,
   ) {}
 
   onModuleInit() {
@@ -103,6 +105,7 @@ export class DocumentOcrProcessor implements OnModuleInit, OnModuleDestroy {
       }
 
       await this.finishJob(jobId, 'COMPLETED');
+      await this.search.indexDocument(documentId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Document OCR failed';
       await this.finishJob(jobId, 'FAILED', message);

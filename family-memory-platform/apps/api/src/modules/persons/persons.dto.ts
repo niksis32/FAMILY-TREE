@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreatePersonDto {
   @IsString()
@@ -43,4 +43,8 @@ export class CreatePersonDto {
   avatarMediaId?: string;
 }
 
-export class UpdatePersonDto extends PartialType(CreatePersonDto) {}
+export class UpdatePersonDto extends PartialType(CreatePersonDto) {
+  @IsOptional()
+  @IsInt()
+  expectedVersion?: number;
+}

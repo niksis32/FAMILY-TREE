@@ -21,8 +21,8 @@ export class UpdateTreePrivacyDto {
 }
 
 export class UpdateUserConsentDto {
-  @IsIn(['GDPR_DATA_PROCESSING', 'GLOBAL_MATCHING', 'AI_LOCAL_PROCESSING'])
-  consentKey!: 'GDPR_DATA_PROCESSING' | 'GLOBAL_MATCHING' | 'AI_LOCAL_PROCESSING';
+  @IsIn(['GDPR_DATA_PROCESSING', 'GLOBAL_MATCHING', 'AI_LOCAL_PROCESSING', 'DNA_DATA_IMPORT'])
+  consentKey!: 'GDPR_DATA_PROCESSING' | 'GLOBAL_MATCHING' | 'AI_LOCAL_PROCESSING' | 'DNA_DATA_IMPORT';
 
   @IsBoolean()
   granted!: boolean;

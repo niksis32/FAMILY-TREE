@@ -6,6 +6,7 @@ import {
   type ModerationReport,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
 import { CommunityReputationService } from '../community-reputation/community-reputation.service';
 import { CreateModerationReportDto, ModerationResolveDto } from './community-moderation.dto';
 import { ModeratePostDto } from './community-moderation-post.dto';
@@ -50,6 +51,7 @@ export class CommunityModerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reputation: CommunityReputationService,
+    private readonly collaborationHooks: CollaborationHooksService,
   ) {}
 
   createReport(reporterId: string, dto: CreateModerationReportDto) {
@@ -195,6 +197,8 @@ export class CommunityModerationService {
       },
     });
 
+    await this.collaborationHooks.onModerationPostApproved(post.authorId, postId);
+
     return { ok: true };
   }
 
@@ -225,6 +229,12 @@ export class CommunityModerationService {
         dto.moderatorNote ?? 'Moderation hide',
       );
     }
+
+    await this.collaborationHooks.onModerationPostHidden(
+      post.authorId,
+      postId,
+      dto.moderatorNote,
+    );
 
     return { ok: true };
   }
@@ -280,6 +290,10 @@ export class CommunityModerationService {
 
     if (dto.status === ModerationReportStatus.DISMISSED && dto.applyStrikeToTargetAuthor) {
       throw new BadRequestException('Cannot apply strike when dismissing');
+    }
+
+    if (dto.status === ModerationReportStatus.RESOLVED || dto.status === ModerationReportStatus.DISMISSED) {
+      await this.collaborationHooks.onModerationReportResolved(report.reporterId, reportId);
     }
 
     return { ok: true };

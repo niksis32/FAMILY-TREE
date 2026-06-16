@@ -61,6 +61,15 @@ export function SettingsPageContent() {
             <Link href="/settings/export">
               <Button type="button">{t('export')}</Button>
             </Link>
+            <Link href="/settings/webhooks">
+              <Button type="button">{t('webhooks')}</Button>
+            </Link>
+            <Link href="/settings/branding">
+              <Button type="button">{t('branding')}</Button>
+            </Link>
+            <Link href="/settings/dna">
+              <Button type="button">{t('dna')}</Button>
+            </Link>
           </div>
         </Card>
       </div>

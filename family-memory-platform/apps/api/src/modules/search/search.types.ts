@@ -1,4 +1,6 @@
-export type SearchCategory = 'people' | 'documents' | 'places' | 'sources';
+import type { SearchCategory, SearchFilters } from '@family/shared';
+
+export type { SearchCategory, SearchFilters };
 
 export interface SearchDocument {
   id: string;
@@ -8,11 +10,11 @@ export interface SearchDocument {
   entityId: string;
   year?: number;
   tags?: string[];
-  /** Workspace scope for people, documents, sources */
   workspaceId?: string;
-  /** Lowercase: public | family | private (people, documents) */
   privacyLevel?: string;
   isLiving?: boolean;
+  familyId?: string;
+  evidenceQuality?: number;
 }
 
 export interface CategorizedSearchResults {
@@ -21,4 +23,19 @@ export interface CategorizedSearchResults {
   documents: SearchDocument[];
   places: SearchDocument[];
   sources: SearchDocument[];
+  wiki: SearchDocument[];
+  evidence: SearchDocument[];
+  burials: SearchDocument[];
+}
+
+export interface FacetedSearchResponse {
+  q: string;
+  filters: SearchFilters;
+  facets: {
+    categories: Record<string, number>;
+    years: Record<string, number>;
+    tags: Record<string, number>;
+  };
+  total: number;
+  hits: SearchDocument[];
 }

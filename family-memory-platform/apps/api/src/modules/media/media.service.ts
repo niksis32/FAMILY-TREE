@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
@@ -10,6 +11,7 @@ import { MinioStorageService } from '../../common/storage/minio-storage.service'
 import { PrismaService } from '../../prisma/prisma.service';
 import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import { AssetPrivacyService } from '../privacy/asset-privacy.service';
+import { WebhookDomainHooksService } from '../webhooks/webhook-domain-hooks.service';
 import {
   ALLOWED_MEDIA_MIME_TYPES,
   MAX_MEDIA_FILE_SIZE_BYTES,
@@ -25,6 +27,7 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly minio: MinioStorageService,
     private readonly assetPrivacy: AssetPrivacyService,
+    @Optional() private readonly webhookHooks?: WebhookDomainHooksService,
   ) {}
 
   async findAll(user?: AuthenticatedUser | null) {
@@ -109,6 +112,14 @@ export class MediaService {
       storageKey: media.storageKey,
       mimeType: media.mimeType,
       sizeBytes: media.sizeBytes,
+    });
+
+    void this.webhookHooks?.onMediaUploaded({
+      workspaceId: media.workspaceId,
+      mediaId: media.id,
+      title: media.title,
+      mimeType: media.mimeType,
+      personId: media.personId,
     });
 
     return media;

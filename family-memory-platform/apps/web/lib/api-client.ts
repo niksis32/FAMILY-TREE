@@ -87,6 +87,10 @@ export function apiPatch<T>(path: string, body: unknown, token?: string | null):
   return apiRequest<T>(path, { method: 'PATCH', body, token });
 }
 
+export function apiPut<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+  return apiRequest<T>(path, { method: 'PUT', body, token });
+}
+
 export function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE', token });
 }
@@ -608,6 +612,8 @@ export const apiClient = {
     uploadUrl: (input: { fileName: string; mimeType: string; sizeBytes: number }, token?: string | null) =>
       apiPost<MediaUploadUrlResponse>('/documents/upload-url', input, token),
     create: (input: unknown, token?: string | null) => apiPost<DocumentRecord>('/documents', input, token),
+    update: (id: string, input: { ocrText?: string }, token?: string | null) =>
+      apiPatch<DocumentRecord>(`/documents/${id}`, input, token),
     remove: (id: string, token?: string | null) => apiDelete<DocumentRecord>(`/documents/${id}`, token),
   },
   documentIntelligence: {
@@ -638,8 +644,12 @@ export const apiClient = {
     ) => apiPost<unknown>(`/document-intelligence/${documentId}/reject`, body, token),
   },
   documentOcr: {
-    enqueue: (documentId: string, token?: string | null) =>
-      apiPost<{ id: string; status: string }>(`/document-ocr/${documentId}/enqueue`, {}, token),
+    enqueue: (documentId: string, token?: string | null, language = 'ru', force = false) =>
+      apiPost<{ id: string; status: string }>(
+        `/document-ocr/${documentId}/enqueue?language=${encodeURIComponent(language)}${force ? '&force=true' : ''}`,
+        {},
+        token,
+      ),
     status: (documentId: string, token?: string | null) =>
       apiGet<{
         documentId: string;
@@ -1158,6 +1168,141 @@ export const apiClient = {
         token,
       ),
   },
+  messenger: {
+    listConversations: (token: string) =>
+      apiGet<import('@family/shared').ConversationSummary[]>('/conversations', token),
+    getConversation: (id: string, token: string) =>
+      apiGet<import('@family/shared').ConversationSummary>(`/conversations/${id}`, token),
+    listMessages: (id: string, token: string, cursor?: string) =>
+      apiGet<{ items: import('@family/shared').MessageSummary[]; nextCursor: string | null }>(
+        `/conversations/${id}/messages${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        token,
+      ),
+    createDirect: (participantUserId: string, token: string) =>
+      apiPost<import('@family/shared').ConversationSummary>('/conversations/direct', { participantUserId }, token),
+    createGroup: (title: string, participantUserIds: string[], token: string) =>
+      apiPost<import('@family/shared').ConversationSummary>('/conversations/group', { title, participantUserIds }, token),
+    sendMessage: (id: string, body: { body: string; attachmentMediaIds?: string[] }, token: string) =>
+      apiPost<import('@family/shared').MessageSummary>(`/conversations/${id}/messages`, body, token),
+    markRead: (id: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/conversations/${id}/read`, {}, token),
+  },
+  notifications: {
+    list: (token: string, unreadOnly?: boolean) =>
+      apiGet<import('@family/shared').NotificationSummary[]>(
+        `/notifications${unreadOnly ? '?unreadOnly=true' : ''}`,
+        token,
+      ),
+    unreadCount: (token: string) => apiGet<number>('/notifications/unread-count', token),
+    markRead: (id: string, token: string) =>
+      apiPatch<import('@family/shared').NotificationSummary>(`/notifications/${id}/read`, {}, token),
+    markAllRead: (token: string) => apiPost<{ ok: boolean }>('/notifications/read-all', {}, token),
+    preferences: (token: string, workspaceId?: string) =>
+      apiGet<import('@family/shared').NotificationPreferenceSummary[]>(
+        `/notifications/preferences${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ''}`,
+        token,
+      ),
+    updatePreference: (
+      body: { source: import('@family/shared').NotificationSource; enabled: boolean; workspaceId?: string },
+      token: string,
+    ) => apiPatch<import('@family/shared').NotificationPreferenceSummary[]>('/notifications/preferences', body, token),
+  },
+  activityFeed: {
+    list: (token: string, opts?: { type?: string; cursor?: string; limit?: number }) => {
+      const params = new URLSearchParams();
+      if (opts?.type) params.set('type', opts.type);
+      if (opts?.cursor) params.set('cursor', opts.cursor);
+      if (opts?.limit) params.set('limit', String(opts.limit));
+      const q = params.toString();
+      return apiGet<import('@family/shared').ActivityFeedResponse>(`/activity-feed${q ? `?${q}` : ''}`, token);
+    },
+  },
+  calendar: {
+    listEvents: (token: string, from?: string, to?: string) => {
+      const params = new URLSearchParams();
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const q = params.toString();
+      return apiGet<import('@family/shared').CalendarEventSummary[]>(`/calendar/events${q ? `?${q}` : ''}`, token);
+    },
+    downloadIcal: async (token: string, from?: string, to?: string) => {
+      const params = new URLSearchParams();
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const q = params.toString();
+      const res = await fetch(`${getApiBaseUrl()}/calendar/export.ics${q ? `?${q}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new ApiError(res.status, '/calendar/export.ics');
+      return res.text();
+    },
+  },
+  collaboration: {
+    getLock: (personId: string, token: string) =>
+      apiGet<import('@family/shared').PersonEditLockSummary | null>(`/collaboration/persons/${personId}/lock`, token),
+    acquireLock: (personId: string, token: string, field?: string) =>
+      apiPost<import('@family/shared').PersonEditLockSummary>(`/collaboration/persons/${personId}/lock`, { field }, token),
+    releaseLock: (personId: string, token: string) =>
+      apiDelete<{ ok: boolean }>(`/collaboration/persons/${personId}/lock`, token),
+  },
+  searchAdvanced: {
+    faceted: (token: string | null, params: Record<string, string | number | undefined>) => {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== '') q.set(k, String(v));
+      }
+      return apiGet<import('@family/shared').FacetedSearchResults>(`/search/faceted?${q}`, token);
+    },
+    saved: (token: string) => apiGet<import('@family/shared').SavedSearchSummary[]>('/search/saved', token),
+    createSaved: (body: { name: string; query: string; filters?: import('@family/shared').SearchFilters }, token: string) =>
+      apiPost<import('@family/shared').SavedSearchSummary>('/search/saved', body, token),
+    history: (token: string) => apiGet<import('@family/shared').SearchHistorySummary[]>('/search/history', token),
+  },
+  hints: {
+    list: (token: string, status = 'OPEN') =>
+      apiGet<import('@family/shared').HintSummary[]>(`/hints?status=${status}`, token),
+    explain: (id: string, token: string) => apiGet<import('@family/shared').HintSummary>(`/hints/${id}`, token),
+    accept: (id: string, token: string) => apiPost<import('@family/shared').HintSummary>(`/hints/${id}/accept`, {}, token),
+    dismiss: (id: string, token: string) => apiPost<import('@family/shared').HintSummary>(`/hints/${id}/dismiss`, {}, token),
+    sync: (token: string) => apiPost<void>('/hints/actions/sync', {}, token),
+  },
+  duplicateMerge: {
+    preview: (survivorId: string, mergedId: string, token: string) =>
+      apiPost<import('@family/shared').MergePreview>('/duplicate-merge/preview', { survivorId, mergedId }, token),
+    execute: (survivorId: string, mergedId: string, token: string) =>
+      apiPost<{ auditId: string }>('/duplicate-merge/execute', { survivorId, mergedId, confirm: true }, token),
+    audits: (token: string) =>
+      apiGet<import('@family/shared').PersonMergeAuditSummary[]>('/duplicate-merge/audits', token),
+  },
+  evidence: {
+    listCitations: (token: string, personId?: string, eventId?: string) => {
+      const params = new URLSearchParams();
+      if (personId) params.set('personId', personId);
+      if (eventId) params.set('eventId', eventId);
+      const q = params.toString();
+      return apiGet<import('@family/shared').EvidenceCitationSummary[]>(`/evidence/citations${q ? `?${q}` : ''}`, token);
+    },
+    exportBibliography: (token: string, format: 'text' | 'bibtex' | 'json' = 'text') =>
+      apiGet<import('@family/shared').BibliographyExport>(`/evidence/bibliography/export?format=${format}`, token),
+    listTemplates: (token: string) =>
+      apiGet<import('@family/shared').CitationTemplateSummary[]>('/evidence/templates', token),
+  },
+  wiki: {
+    list: (token: string, familyId?: string) =>
+      apiGet<import('@family/shared').WikiPageSummary[]>(
+        `/wiki${familyId ? `?familyId=${encodeURIComponent(familyId)}` : ''}`,
+        token,
+      ),
+    getBySlug: (slug: string, token: string) =>
+      apiGet<import('@family/shared').WikiPageSummary & { revisions: import('@family/shared').WikiRevisionSummary[] }>(
+        `/wiki/pages/${encodeURIComponent(slug)}`,
+        token,
+      ),
+    create: (body: { slug: string; title: string; content: string; familyId?: string }, token: string) =>
+      apiPost<import('@family/shared').WikiPageSummary>('/wiki', body, token),
+    update: (id: string, body: { title?: string; content?: string }, token: string) =>
+      apiPatch<import('@family/shared').WikiPageSummary>(`/wiki/${id}`, body, token),
+  },
   matching: {
     profile: (token?: string | null) =>
       apiGet<import('@family/shared').MatchProfileDto>('/matching/profile', token),
@@ -1189,6 +1334,117 @@ export const apiClient = {
         {},
         token,
       ),
+  },
+  faceClustering: {
+    peopleSummary: (token: string) =>
+      apiGet<import('@family/shared').PeopleSummaryDto>('/media/people/summary', token),
+    listClusters: (token: string, status?: string) =>
+      apiGet<import('@family/shared').FaceClusterSummaryDto[]>(
+        `/face-clusters${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+        token,
+      ),
+    cluster: (id: string, token: string) =>
+      apiGet<import('@family/shared').FaceClusterSummaryDto & { members: import('@family/shared').FaceClusterMemberDto[] }>(
+        `/face-clusters/${id}`,
+        token,
+      ),
+    rebuild: (token: string) => apiPost<{ ok: boolean }>('/face-clusters/rebuild', {}, token),
+    assignPerson: (clusterId: string, personId: string, token: string) =>
+      apiPost<unknown>(`/face-clusters/${clusterId}/assign-person`, { personId }, token),
+  },
+  memoryStories: {
+    list: (token: string, personId?: string) =>
+      apiGet<import('@family/shared').MemoryStoryDto[]>(
+        `/memory-stories${personId ? `?personId=${encodeURIComponent(personId)}` : ''}`,
+        token,
+      ),
+    one: (id: string, token: string) => apiGet<import('@family/shared').MemoryStoryDto>(`/memory-stories/${id}`, token),
+    create: (body: unknown, token: string) =>
+      apiPost<import('@family/shared').MemoryStoryDto>('/memory-stories', body, token),
+    updateTranscript: (id: string, body: { text: string }, token: string) =>
+      apiPatch<import('@family/shared').MemoryStoryDto>(`/memory-stories/${id}/transcript`, body, token),
+    retryTranscript: (id: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/memory-stories/${id}/transcript/retry`, {}, token),
+  },
+  socialArchiveImport: {
+    providers: (token: string) => apiGet<unknown[]>('/social-archive-import/providers', token),
+    create: (body: unknown, token: string) => apiPost<unknown>('/social-archive-import', body, token),
+    one: (id: string, token: string) => apiGet<unknown>(`/social-archive-import/${id}`, token),
+    items: (id: string, token: string) => apiGet<unknown>(`/social-archive-import/${id}/items`, token),
+    select: (id: string, body: unknown, token: string) =>
+      apiPatch<unknown>(`/social-archive-import/${id}/items/selection`, body, token),
+    confirm: (id: string, body: unknown, token: string) =>
+      apiPost<unknown>(`/social-archive-import/${id}/confirm`, body, token),
+  },
+  askArchive: {
+    ask: (body: { question: string; language?: string }, token: string) =>
+      apiPost<import('@family/shared').AskArchiveAnswerDto>('/ask-archive', body, token),
+  },
+  webhooks: {
+    listEndpoints: (token: string) =>
+      apiGet<import('@family/shared').WebhookEndpointSummary[]>('/webhooks/endpoints', token),
+    createEndpoint: (body: unknown, token: string) =>
+      apiPost<import('@family/shared').WebhookEndpointCreateResult>('/webhooks/endpoints', body, token),
+    listEvents: (token: string, query?: string) =>
+      apiGet<{ items: import('@family/shared').WebhookEventSummary[]; nextCursor: string | null }>(
+        `/webhooks/events${query ? `?${query}` : ''}`,
+        token,
+      ),
+    testEndpoint: (id: string, token: string) =>
+      apiPost<{ ok: boolean }>(`/webhooks/endpoints/${id}/test`, {}, token),
+  },
+  externalArchives: {
+    providers: (token: string) => apiGet<unknown[]>('/external-archives/providers', token),
+    search: (body: unknown, token: string) =>
+      apiPost<{ searchId: string; status: string }>('/external-archives/search', body, token),
+    getSearch: (id: string, token: string) => apiGet<unknown>(`/external-archives/searches/${id}`, token),
+    importRecord: (body: unknown, token: string) => apiPost<unknown>('/external-archives/import', body, token),
+    imported: (token: string) => apiGet<unknown[]>('/external-archives/imported', token),
+  },
+  branding: {
+    get: (token: string) => apiGet<Record<string, unknown>>('/branding', token),
+    update: (body: unknown, token: string) => apiPatch<Record<string, unknown>>('/branding', body, token),
+    resolve: (host: string) => apiGet<Record<string, unknown>>(`/branding/resolve?host=${encodeURIComponent(host)}`),
+    setCustomDomain: (customDomain: string, token: string) =>
+      apiPut<Record<string, unknown>>('/branding/custom-domain', { customDomain }, token),
+    verifyDomain: (token: string) => apiPost<Record<string, unknown>>('/branding/custom-domain/verify', {}, token),
+    provisionSsl: (token: string) =>
+      apiPost<Record<string, unknown>>('/branding/custom-domain/provision-ssl', {}, token),
+    logoUploadUrl: (body: { fileName: string; mimeType: string }, token: string) =>
+      apiPost<Record<string, unknown>>('/branding/logo/upload-url', body, token),
+  },
+  pdfExport: {
+    templates: (token: string) => apiGet<unknown[]>('/export/templates', token),
+    preview: (body: unknown, token: string) => apiPost<{ html: string }>('/export/preview', body, token),
+    createJob: (body: unknown, token: string) => apiPost<unknown>('/export/jobs', body, token),
+    getJob: (id: string, token: string) => apiGet<unknown>(`/export/jobs/${id}`, token),
+  },
+  dna: {
+    profile: (token: string) => apiGet<unknown>('/dna/profile', token),
+    grantConsent: (token: string) => apiPost<{ ok: boolean }>('/dna/consent/import', {}, token),
+    uploadUrl: (fileName: string, token: string) =>
+      apiPost<{ uploadUrl: string; storageKey: string }>('/dna/upload-url', { fileName }, token),
+    createImportJob: (body: unknown, token: string) => apiPost<unknown>('/dna/import-jobs', body, token),
+    deleteProfile: (token: string) => apiDelete<{ ok: boolean }>('/dna/profile', token),
+  },
+  cemetery: {
+    listCemeteries: (token: string) => apiGet<unknown[]>('/cemetery/cemeteries', token),
+    createCemetery: (body: unknown, token: string) => apiPost<unknown>('/cemetery/cemeteries', body, token),
+    listBurialSites: (token: string) => apiGet<unknown[]>('/cemetery/burial-sites', token),
+    createBurialSite: (body: unknown, token: string) => apiPost<unknown>('/cemetery/burial-sites', body, token),
+    map: (token: string) => apiGet<unknown>('/cemetery/map', token),
+    reconstruction: (burialSiteId: string, token: string) =>
+      apiGet<unknown>(`/cemetery/burial-sites/${burialSiteId}/reconstruction`, token),
+    searchBurials: (q: string, token: string) =>
+      apiGet<{ q: string; hits: unknown[] }>(`/cemetery/search?q=${encodeURIComponent(q)}`, token),
+    requestPhotogrammetry: (burialSiteId: string, body: { sourceMediaId?: string }, token: string) =>
+      apiPost<unknown>(`/cemetery/burial-sites/${burialSiteId}/reconstruction/request`, body, token),
+    getPhotogrammetryJob: (jobId: string, token: string) =>
+      apiGet<unknown>(`/cemetery/photogrammetry-jobs/${jobId}`, token),
+    planRoute: (body: { burialSiteIds: string[] }, token: string) =>
+      apiPost<unknown>('/cemetery/routes/plan', body, token),
+    analyzePhoto: (body: { mediaId: string }, token: string) =>
+      apiPost<unknown>('/cemetery/analyze-photo', body, token),
   },
 };
 

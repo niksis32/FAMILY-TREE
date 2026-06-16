@@ -9,6 +9,7 @@ import { MetricTile, PageHero, QuickActionCard } from '@family/ui';
 import { PremiumLink } from '@/lib/premium-link';
 import { Button } from '@/components/ui';
 import { Link } from '@/i18n/navigation';
+import { ActivityFeedPanel } from '@/features/activity-feed/activity-feed-panel';
 import { apiClient, formatApiError } from '@/lib/api-client';
 
 export function PremiumDashboard() {
@@ -86,6 +87,8 @@ export function PremiumDashboard() {
           <QuickActionCard LinkComponent={PremiumLink} href="/research" title={t('actionResearch')} description={t('actionResearchDesc')} icon={<FileText className="h-5 w-5" />} />
         </div>
       </section>
+
+      <ActivityFeedPanel />
 
       <GamificationOverview />
     </div>

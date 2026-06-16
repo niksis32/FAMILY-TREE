@@ -138,6 +138,34 @@ def _pages_from_pdf(content: bytes, lang: str, dpi: int = 200) -> list[dict[str,
     return pages
 
 
+def detect_document_language(content: bytes, mime_type: str | None, fallback: str = "ru") -> str:
+    """Lightweight script detection from OCR sample (Cyrillic vs Latin)."""
+    try:
+        if not tesseract_available():
+            return fallback
+        lang = tesseract_lang("rus+eng")
+        if _is_pdf(content, mime_type):
+            pages = _pages_from_pdf(content, lang, dpi=120)
+        elif _is_image(content, mime_type):
+            pages = _pages_from_image(content, lang)
+        else:
+            return fallback
+        sample = " ".join(
+            block.get("text", "")
+            for page in pages[:1]
+            for block in page.get("blocks", [])
+        )[:2000]
+        cyr = sum(1 for ch in sample if "\u0400" <= ch <= "\u04ff")
+        lat = sum(1 for ch in sample if ch.isalpha() and ord(ch) < 128)
+        if cyr > max(lat * 0.25, 5):
+            return "ru"
+        if lat > 8:
+            return "en"
+        return fallback
+    except Exception:  # noqa: BLE001
+        return fallback
+
+
 def run_ocr_on_bytes(
     content: bytes,
     mime_type: str | None,
@@ -146,7 +174,11 @@ def run_ocr_on_bytes(
     if not tesseract_available():
         raise RuntimeError("Tesseract OCR binary is not available")
 
-    lang = tesseract_lang(language)
+    detected = language
+    if (language or "").lower() in ("auto", "und", ""):
+        detected = detect_document_language(content, mime_type, "ru")
+
+    lang = tesseract_lang(detected)
 
     if _is_pdf(content, mime_type):
         pages = _pages_from_pdf(content, lang)
@@ -166,6 +198,7 @@ def run_ocr_on_bytes(
         "pages": pages,
         "engine": "tesseract",
         "language": lang,
+        "detectedLanguage": detected,
         "averageConfidence": round(sum(confidences) / len(confidences), 4) if confidences else 0.0,
     }
 

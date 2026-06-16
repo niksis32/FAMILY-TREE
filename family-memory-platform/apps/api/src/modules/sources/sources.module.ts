@@ -10,5 +10,6 @@ import { SourcesService } from './sources.service';
   imports: [AuthModule, PrismaModule, SearchModule],
   controllers: [SourcesController],
   providers: [SourcesService],
+  exports: [SourcesService],
 })
 export class SourcesModule {}

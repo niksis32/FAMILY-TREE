@@ -8,6 +8,15 @@ export * from './community-graphql';
 export * from './community-spam';
 export * from './workspace-export';
 export * from './living-person';
+export * from './realtime';
+export * from './calendar-reminder';
+export * from './media-ai';
+export * from './webhooks';
+export * from './external-archives';
+export * from './pdf-export';
+export * from './dna-import';
+export * from './burials-index';
+export * from './burial-photogrammetry';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

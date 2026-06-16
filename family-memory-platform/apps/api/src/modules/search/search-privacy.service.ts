@@ -120,7 +120,7 @@ export class SearchPrivacyService {
         continue;
       }
 
-      if (hit.category === 'sources') {
+      if (hit.category === 'sources' || hit.category === 'wiki' || hit.category === 'evidence') {
         const workspaceId = hit.workspaceId;
         if (workspaceId && !isPlatformAdmin && !memberWorkspaceIds.has(workspaceId)) continue;
         if (!user && workspaceId) continue;

@@ -1,6 +1,7 @@
 import './bootstrap-env';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX } from '@family/shared';
 import { AppModule } from './app.module';
@@ -21,6 +22,7 @@ function parseCorsOrigins(): string[] {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Dev (variant A/B in DOCKER_LOCAL_WINDOWS.md): web :3000 → API :4000 — browser requires CORS.
   app.enableCors({

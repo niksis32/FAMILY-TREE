@@ -28,12 +28,19 @@ export class DocumentOcrQueueService {
     return this.enqueue(documentId, requestedBy, language);
   }
 
-  async enqueue(documentId: string, requestedBy?: string, language = 'ru') {
+  async enqueue(documentId: string, requestedBy?: string, language = 'ru', force = false) {
     const document = await this.prisma.document.findFirst({
       where: { id: documentId, deletedAt: null },
     });
     if (!document) {
       return null;
+    }
+
+    if (!force) {
+      const latest = await this.getLatestJob(documentId);
+      if (latest?.status === 'COMPLETED' || latest?.status === 'QUEUED' || latest?.status === 'PROCESSING') {
+        return latest;
+      }
     }
 
     const jobRecord = await this.prisma.documentOcrJob.create({

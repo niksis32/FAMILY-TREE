@@ -152,7 +152,12 @@ export class PrivacyCenterService {
   }
 
   private async listConsents(userId: string): Promise<UserConsentRecord[]> {
-    const keys: UserConsentKey[] = ['GDPR_DATA_PROCESSING', 'GLOBAL_MATCHING', 'AI_LOCAL_PROCESSING'];
+    const keys: UserConsentKey[] = [
+      'GDPR_DATA_PROCESSING',
+      'GLOBAL_MATCHING',
+      'AI_LOCAL_PROCESSING',
+      'DNA_DATA_IMPORT',
+    ];
     const rows = await this.prisma.userConsent.findMany({ where: { userId } });
     const byKey = new Map(rows.map((r) => [r.consentKey, r]));
 

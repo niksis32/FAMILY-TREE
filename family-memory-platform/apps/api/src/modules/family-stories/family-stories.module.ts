@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -13,7 +14,15 @@ import { FamilyStoriesPrivacyService } from './family-stories-privacy.service';
 import { FamilyStoriesService } from './family-stories.service';
 
 @Module({
-  imports: [AuthModule, AiModule, TimelineModule, MapModule, MediaModule, DocumentsModule],
+  imports: [
+    AuthModule,
+    AiModule,
+    TimelineModule,
+    MapModule,
+    MediaModule,
+    DocumentsModule,
+    forwardRef(() => WebhooksModule),
+  ],
   controllers: [
     FamilyStoriesController,
     FamilyStoriesModerationController,

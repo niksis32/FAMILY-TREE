@@ -19,6 +19,6 @@ import { QuestEngineService } from './quest-engine.service';
     AchievementService,
     GamificationActivityService,
   ],
-  exports: [GamificationActivityService, GamificationService],
+  exports: [GamificationActivityService, GamificationService, ProgressCalculatorService],
 })
 export class GamificationModule {}

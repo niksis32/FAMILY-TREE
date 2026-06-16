@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
@@ -40,6 +41,7 @@ import { isFamilyStoryModerationEnabled } from './family-stories.config';
 import { generatePublicStoryToken, hashPublicStoryToken } from './family-stories.token';
 import { normalizeStorySlug, slugifyTitle } from './family-stories.slug';
 import { createHash } from 'node:crypto';
+import { WebhookDomainHooksService } from '../webhooks/webhook-domain-hooks.service';
 
 @Injectable()
 export class FamilyStoriesService {
@@ -53,6 +55,7 @@ export class FamilyStoriesService {
     private readonly ai: AiService,
     private readonly pdf: FamilyStoriesPdfService,
     private readonly config: ConfigService,
+    @Optional() private readonly webhookHooks?: WebhookDomainHooksService,
   ) {}
 
   private moderationEnabled(): boolean {
@@ -118,6 +121,10 @@ export class FamilyStoriesService {
         publishedAt: publishState.publishedAt,
       },
     });
+
+    if (publishState.publishStatus === 'PUBLISHED') {
+      void this.emitStoryPublishedWebhook(story);
+    }
 
     return { ...toDetailDto(story), publicToken: raw, publicUrl: `/s/${raw}` };
   }
@@ -263,7 +270,19 @@ export class FamilyStoriesService {
       },
     });
 
+    void this.emitStoryPublishedWebhook(updated);
+
     return toDetailDto(updated);
+  }
+
+  private emitStoryPublishedWebhook(story: Pick<FamilyStory, 'workspaceId' | 'id' | 'title' | 'slug' | 'visibility'>) {
+    void this.webhookHooks?.onStoryPublished({
+      workspaceId: story.workspaceId,
+      storyId: story.id,
+      title: story.title,
+      slug: story.slug,
+      visibility: story.visibility,
+    });
   }
 
   async rejectStory(storyId: string, moderatorId: string, note: string) {

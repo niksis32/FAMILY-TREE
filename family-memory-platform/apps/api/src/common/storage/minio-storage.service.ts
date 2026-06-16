@@ -29,6 +29,10 @@ export class MinioStorageService {
     return this.config.get<string>('MINIO_BUCKET_DOCUMENTS') ?? 'family-documents';
   }
 
+  get dnaBucket() {
+    return this.config.get<string>('MINIO_BUCKET_DNA') ?? 'family-dna';
+  }
+
   createClient(): MinioClient {
     const accessKey = this.config.get<string>('MINIO_ROOT_USER');
     const secretKey = this.config.get<string>('MINIO_ROOT_PASSWORD');
@@ -57,7 +61,7 @@ export class MinioStorageService {
     });
   }
 
-  buildObjectKey(prefix: 'uploads' | 'documents', fileName: string) {
+  buildObjectKey(prefix: 'uploads' | 'documents' | 'dna', fileName: string) {
     const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const datePrefix = new Date().toISOString().slice(0, 10);
     return `${prefix}/${datePrefix}/${randomUUID()}-${safeFileName}`;
@@ -80,31 +84,37 @@ export class MinioStorageService {
     port: number;
     mediaBucket: string;
     documentsBucket: string;
+    dnaBucket: string;
     mediaBucketExists?: boolean;
     documentsBucketExists?: boolean;
+    dnaBucketExists?: boolean;
     error?: string;
   }> {
     const endpoint = this.config.get<string>('MINIO_ENDPOINT') ?? 'localhost';
     const port = Number(this.config.get<string>('MINIO_PORT') ?? 9000);
     const mediaBucket = this.mediaBucket;
     const documentsBucket = this.documentsBucket;
+    const dnaBucket = this.dnaBucket;
 
     try {
       const client = this.createClient();
       await client.listBuckets();
-      const [mediaBucketExists, documentsBucketExists] = await Promise.all([
+      const [mediaBucketExists, documentsBucketExists, dnaBucketExists] = await Promise.all([
         client.bucketExists(mediaBucket),
         client.bucketExists(documentsBucket),
+        client.bucketExists(dnaBucket),
       ]);
 
       return {
-        ok: mediaBucketExists && documentsBucketExists,
+        ok: mediaBucketExists && documentsBucketExists && dnaBucketExists,
         endpoint,
         port,
         mediaBucket,
         documentsBucket,
+        dnaBucket,
         mediaBucketExists,
         documentsBucketExists,
+        dnaBucketExists,
       };
     } catch (error) {
       return {
@@ -113,6 +123,7 @@ export class MinioStorageService {
         port,
         mediaBucket,
         documentsBucket,
+        dnaBucket,
         error: error instanceof Error ? error.message : 'MinIO unreachable',
       };
     }

@@ -49,6 +49,10 @@ import { StorytellingModule } from './modules/storytelling/storytelling.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { WorkspaceExportModule } from './modules/workspace-export/workspace-export.module';
+import { CollaborationBlockModule } from './modules/collaboration/collaboration-block.module';
+import { KnowledgeBlockModule } from './modules/knowledge/knowledge-block.module';
+import { MediaAiBlockModule } from './modules/media-ai/media-ai-block.module';
+import { IntegrationsBlockModule } from './modules/integrations/integrations-block.module';
 
 /**
  * Root application module — registers all MVP domain modules.
@@ -132,6 +136,10 @@ import { WorkspaceExportModule } from './modules/workspace-export/workspace-expo
     CommercialModule,
     PrivacyModule,
     WorkspaceExportModule,
+    CollaborationBlockModule,
+    KnowledgeBlockModule,
+    MediaAiBlockModule,
+    IntegrationsBlockModule,
   ],
 })
 export class AppModule {}

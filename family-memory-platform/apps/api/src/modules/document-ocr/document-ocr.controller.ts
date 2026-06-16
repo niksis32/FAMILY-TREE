@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -15,11 +15,18 @@ export class DocumentOcrController {
   @Post(':documentId/enqueue')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'EDITOR')
-  enqueue(@Param('documentId') documentId: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.queue.enqueue(documentId, user.id);
+  enqueue(
+    @Param('documentId') documentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('language') language?: string,
+    @Query('force') force?: string,
+  ) {
+    return this.queue.enqueue(documentId, user.id, language ?? 'ru', force === 'true');
   }
 
   @Get(':documentId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'EDITOR', 'VIEWER')
   async status(@Param('documentId') documentId: string) {
     const job = await this.queue.getLatestJob(documentId);
     if (!job) return { documentId, status: null };

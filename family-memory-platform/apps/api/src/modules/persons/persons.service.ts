@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { Person, Prisma } from '@prisma/client';
 import {
   defaultPrivacyForNewLivingPerson,
@@ -15,6 +15,7 @@ import { SearchService } from '../search/search.service';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
 import { AccessControlService } from '../privacy/access-control.service';
 import type { CreatePersonDto, UpdatePersonDto } from './persons.dto';
+import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 
 @Injectable()
 export class PersonsService {
@@ -23,6 +24,7 @@ export class PersonsService {
     private readonly search: SearchService,
     private readonly media: MediaService,
     private readonly access: AccessControlService,
+    @Optional() private readonly webhooks?: WebhookEmitterService,
   ) {}
 
   async findAll(user?: AuthenticatedUser) {
@@ -88,6 +90,7 @@ export class PersonsService {
       data: workspaceScopedCreateData(this.toPersonCreateData(dto)),
     });
     await this.indexPerson(person.id);
+    void this.emitPersonCreatedWebhook(person);
     return person;
   }
 
@@ -226,6 +229,35 @@ export class PersonsService {
       await this.search.indexPerson(personId);
     } catch {
       // Search indexing must not block core CRUD writes.
+    }
+  }
+
+  private async emitPersonCreatedWebhook(
+    person: Pick<
+      Person,
+      'id' | 'workspaceId' | 'givenName' | 'familyName' | 'birthDate' | 'deathDate' | 'isLiving' | 'privacyLevel'
+    >,
+  ) {
+    if (!this.webhooks) return;
+    try {
+      const displayName = [person.givenName, person.familyName].filter(Boolean).join(' ');
+      await this.webhooks.emit({
+        workspaceId: person.workspaceId,
+        eventType: 'PERSON_CREATED',
+        entityType: 'person',
+        entityId: person.id,
+        data: {
+          personId: person.id,
+          displayName,
+          birthYear: person.isLiving ? null : person.birthDate?.getUTCFullYear() ?? null,
+          deathYear: person.isLiving ? null : person.deathDate?.getUTCFullYear() ?? null,
+          isLiving: person.isLiving,
+          privacyLevel: person.privacyLevel,
+          url: `/persons/${person.id}`,
+        },
+      });
+    } catch {
+      // Webhook delivery must not block person create.
     }
   }
 }

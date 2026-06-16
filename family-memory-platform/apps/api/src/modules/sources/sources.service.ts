@@ -34,10 +34,19 @@ export class SourcesService {
         repository: dto.repository,
         url: dto.url,
         notes: dto.notes,
+        externalProvider: dto.externalProvider,
+        externalRecordId: dto.externalRecordId,
+        attributionText: dto.attributionText,
       }),
     });
     await this.indexSource(source.id);
     return source;
+  }
+
+  async findByExternalRecord(externalProvider: string, externalRecordId: string) {
+    return this.prisma.source.findFirst({
+      where: { externalProvider, externalRecordId, deletedAt: null },
+    });
   }
 
   async update(id: string, dto: UpdateSourceDto) {

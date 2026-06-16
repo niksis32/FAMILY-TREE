@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { PlanEntitlements } from '@family/shared';
+import { WEBHOOKS_ENABLED_FLAG } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PLAN_ENTITLEMENTS } from './commercial.constants';
 
@@ -69,6 +70,26 @@ export class CommercialContextService {
     if (override) return ctx;
     if (!ctx.entitlements.features[featureKey]) {
       throw new ForbiddenException(`Feature "${featureKey}" is not included in plan ${ctx.planCode}`);
+    }
+    return ctx;
+  }
+
+  async assertWebhooksEnabled(workspaceId: string, userId: string) {
+    const ctx = await this.resolveForUser(workspaceId, userId);
+    const override = await this.prisma.featureFlag.findFirst({
+      where: {
+        key: WEBHOOKS_ENABLED_FLAG,
+        enabled: true,
+        OR: [
+          { scope: 'GLOBAL' },
+          { scope: 'WORKSPACE', workspaceId },
+          { scope: 'USER', userId },
+        ],
+      },
+    });
+    if (override) return ctx;
+    if (!ctx.entitlements.features.webhooksEnabled) {
+      throw new ForbiddenException('Webhooks feature is not enabled for this workspace');
     }
     return ctx;
   }

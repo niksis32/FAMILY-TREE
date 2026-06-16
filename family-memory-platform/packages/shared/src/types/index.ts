@@ -41,3 +41,8 @@ export * from './privacy';
 export * from './privacy-audit';
 export * from './mfa';
 export * from './admin-ops';
+export * from './collaboration';
+export * from './knowledge-quality';
+export * from './media-ai';
+export * from './webhooks';
+export * from './external-archives';

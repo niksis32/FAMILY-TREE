@@ -18,6 +18,8 @@ export const PLAN_ENTITLEMENTS: Record<SubscriptionPlanCode, PlanEntitlements> =
       multiWorkspace: false,
       reportExport: false,
       onPremDeploy: false,
+      whiteLabel: false,
+      webhooksEnabled: false,
     },
   },
   FAMILY: {
@@ -35,6 +37,8 @@ export const PLAN_ENTITLEMENTS: Record<SubscriptionPlanCode, PlanEntitlements> =
       multiWorkspace: false,
       reportExport: true,
       onPremDeploy: false,
+      whiteLabel: false,
+      webhooksEnabled: false,
     },
   },
   RESEARCHER: {
@@ -52,6 +56,8 @@ export const PLAN_ENTITLEMENTS: Record<SubscriptionPlanCode, PlanEntitlements> =
       multiWorkspace: false,
       reportExport: true,
       onPremDeploy: false,
+      whiteLabel: false,
+      webhooksEnabled: false,
     },
   },
   PROFESSIONAL: {
@@ -69,6 +75,8 @@ export const PLAN_ENTITLEMENTS: Record<SubscriptionPlanCode, PlanEntitlements> =
       multiWorkspace: true,
       reportExport: true,
       onPremDeploy: false,
+      whiteLabel: true,
+      webhooksEnabled: true,
     },
   },
   ON_PREM: {
@@ -86,6 +94,8 @@ export const PLAN_ENTITLEMENTS: Record<SubscriptionPlanCode, PlanEntitlements> =
       multiWorkspace: true,
       reportExport: true,
       onPremDeploy: true,
+      whiteLabel: true,
+      webhooksEnabled: true,
     },
   },
 };

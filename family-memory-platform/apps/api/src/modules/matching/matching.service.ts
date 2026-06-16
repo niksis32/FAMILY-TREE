@@ -1,7 +1,8 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import {
   MATCH_SCORE_AUTO_REVIEW_THRESHOLD,
   MATCH_SCORE_REVIEW_THRESHOLD,
+  WEBHOOK_MATCH_MIN_SCORE,
 } from '@family/shared';
 import type { MatchReasonDto, TreeMatchCandidateDto } from '@family/shared';
 import { TreeMatchCandidateStatus, TreeMatchRunStatus } from '@prisma/client';
@@ -11,6 +12,8 @@ import { AccessControlService } from '../privacy/access-control.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { MatchingIndexService } from './matching-index.service';
 import { isCrossWorkspace, isEligibleForGlobalMatching } from './matching-privacy.util';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
+import { WebhookDomainHooksService } from '../webhooks/webhook-domain-hooks.service';
 import { MatchingQueueService } from './matching.queue';
 import { MatchingScoringService } from './matching-scoring.service';
 import { PersonMatchLoader } from './person-match.loader';
@@ -27,6 +30,8 @@ export class MatchingService {
     private readonly queue: MatchingQueueService,
     private readonly scoring: MatchingScoringService,
     private readonly access: AccessControlService,
+    private readonly collaborationHooks: CollaborationHooksService,
+    @Optional() private readonly webhookHooks?: WebhookDomainHooksService,
   ) {}
 
   getScoringInfo() {
@@ -190,7 +195,7 @@ export class MatchingService {
           const status: TreeMatchCandidateStatus =
             score >= MATCH_SCORE_AUTO_REVIEW_THRESHOLD ? 'NEEDS_REVIEW' : 'NEW';
 
-          await this.prisma.treeMatchCandidate.upsert({
+          const candidate = await this.prisma.treeMatchCandidate.upsert({
             where: {
               sourcePersonId_targetPersonId: {
                 sourcePersonId: personId,
@@ -214,6 +219,16 @@ export class MatchingService {
               status: status === 'NEEDS_REVIEW' ? 'NEEDS_REVIEW' : undefined,
             },
           });
+          if (score >= WEBHOOK_MATCH_MIN_SCORE) {
+            void this.webhookHooks?.onMatchFound({
+              workspaceId: run.workspaceId,
+              candidateId: candidate.id,
+              sourcePersonId: personId,
+              targetPersonId: hit.personId,
+              score,
+              status: candidate.status,
+            });
+          }
           created += 1;
         }
       }
@@ -231,6 +246,15 @@ export class MatchingService {
           },
         },
       });
+
+      if (run.requestedBy) {
+        await this.collaborationHooks.onMatchRunCompleted(
+          run.workspaceId,
+          run.requestedBy,
+          runId,
+          created,
+        );
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       await this.prisma.treeMatchRun.update({

@@ -62,6 +62,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-family-media}
       MINIO_BUCKET_DOCUMENTS: ${MINIO_BUCKET_DOCUMENTS:-family-documents}
+      MINIO_BUCKET_DNA: ${MINIO_BUCKET_DNA:-family-dna}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       AI_SERVICE_URL: http://ai-service:8000
       COMMUNITY_GRAPHQL_ENABLED: "true"
