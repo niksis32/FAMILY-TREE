@@ -22,6 +22,8 @@ export function SettingsBrandingPage() {
   const [customDomain, setCustomDomain] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [dnsHint, setDnsHint] = useState<{ dnsTxtRecord?: string; txtValue?: string } | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const whiteLabel = overview?.enabledFeatures?.includes('whiteLabel') ?? false;
 
@@ -31,6 +33,7 @@ export function SettingsBrandingPage() {
       const data = (await apiClient.branding.get(token)) as BrandingState;
       setBranding(data);
       setCustomDomain(data.customDomain ?? '');
+      setLogoUrl((data as { logoUrl?: string }).logoUrl ?? null);
     } catch (e) {
       setStatus(formatApiError(e));
     }
@@ -96,6 +99,27 @@ export function SettingsBrandingPage() {
     }
   }
 
+  async function uploadLogo() {
+    if (!token || !logoFile) return;
+    setStatus(null);
+    try {
+      const presign = (await apiClient.branding.logoUploadUrl(
+        { fileName: logoFile.name, contentType: logoFile.type || 'image/png' },
+        token,
+      )) as { uploadUrl: string };
+      const put = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        body: logoFile,
+        headers: { 'Content-Type': logoFile.type || 'image/png' },
+      });
+      if (!put.ok) throw new Error(`Logo upload failed: ${put.status}`);
+      await load();
+      setStatus(t('logoUploaded'));
+    } catch (e) {
+      setStatus(formatApiError(e));
+    }
+  }
+
   if (loading) return <p className="text-sm text-stone-500">{t('loading')}</p>;
   if (workspaceError) return <p className="text-sm text-red-600">{workspaceError}</p>;
   if (!whiteLabel) {
@@ -140,6 +164,22 @@ export function SettingsBrandingPage() {
         <Button className="mt-4" type="button" onClick={() => void saveBranding()}>
           {t('save')}
         </Button>
+        <div className="mt-6 border-t pt-4 dark:border-slate-700">
+          <h3 className="text-sm font-semibold">{t('logo')}</h3>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="mt-2 h-12 object-contain" />
+          ) : null}
+          <Input
+            className="mt-2"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+          />
+          <Button className="mt-2" type="button" variant="secondary" disabled={!logoFile} onClick={() => void uploadLogo()}>
+            {t('uploadLogo')}
+          </Button>
+        </div>
       </Card>
 
       <Card>

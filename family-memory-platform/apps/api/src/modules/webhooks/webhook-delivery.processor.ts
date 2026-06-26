@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  WEBHOOK_AUTO_DISABLE_AFTER,
   WEBHOOK_DELIVERY_QUEUE,
   WEBHOOK_HTTP_TIMEOUT_MS,
   WEBHOOK_MAX_ATTEMPTS,
@@ -156,6 +157,7 @@ export class WebhookDeliveryProcessor implements OnModuleInit, OnModuleDestroy {
         where: { id: endpointId },
         data: { consecutiveFailures: { increment: 1 } },
       });
+      await this.maybeAutoDisableEndpoint(endpointId);
       return;
     }
 
@@ -176,6 +178,7 @@ export class WebhookDeliveryProcessor implements OnModuleInit, OnModuleDestroy {
       where: { id: endpointId },
       data: { consecutiveFailures: { increment: 1 } },
     });
+    await this.maybeAutoDisableEndpoint(endpointId);
 
     await this.deliveryQueue.enqueue(
       { eventId, endpointId, attemptNumber: nextAttempt },
@@ -201,6 +204,27 @@ export class WebhookDeliveryProcessor implements OnModuleInit, OnModuleDestroy {
         errorMessage: errorMessage ?? null,
       },
     });
+  }
+
+  private async maybeAutoDisableEndpoint(endpointId: string) {
+    const endpoint = await this.prisma.webhookEndpoint.findUnique({
+      where: { id: endpointId },
+      select: { consecutiveFailures: true, status: true },
+    });
+    if (
+      !endpoint ||
+      endpoint.status !== 'ACTIVE' ||
+      endpoint.consecutiveFailures < WEBHOOK_AUTO_DISABLE_AFTER
+    ) {
+      return;
+    }
+    await this.prisma.webhookEndpoint.update({
+      where: { id: endpointId },
+      data: { status: 'DISABLED', disabledAt: new Date() },
+    });
+    this.logger.warn(
+      `Webhook endpoint ${endpointId} auto-disabled after ${endpoint.consecutiveFailures} consecutive failures`,
+    );
   }
 
   private encryptionKey() {

@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { CollaborationModule } from '../collaboration/collaboration.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { GamificationModule } from '../gamification/gamification.module';
@@ -17,6 +18,7 @@ import { MediaService } from './media.service';
     PrivacyModule,
     forwardRef(() => PhotoAnalysisModule),
     forwardRef(() => WebhooksModule),
+    CollaborationModule,
   ],
   controllers: [MediaController],
   providers: [MediaService],

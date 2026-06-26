@@ -53,6 +53,7 @@ import { CollaborationBlockModule } from './modules/collaboration/collaboration-
 import { KnowledgeBlockModule } from './modules/knowledge/knowledge-block.module';
 import { MediaAiBlockModule } from './modules/media-ai/media-ai-block.module';
 import { IntegrationsBlockModule } from './modules/integrations/integrations-block.module';
+import { ExperienceBlockModule } from './modules/experience/experience-block.module';
 
 /**
  * Root application module — registers all MVP domain modules.
@@ -140,6 +141,7 @@ import { IntegrationsBlockModule } from './modules/integrations/integrations-blo
     KnowledgeBlockModule,
     MediaAiBlockModule,
     IntegrationsBlockModule,
+    ExperienceBlockModule,
   ],
 })
 export class AppModule {}

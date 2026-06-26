@@ -1,13 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CalendarEventSummary } from '@family/shared';
-import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui';
 import { PageHero } from '@family/ui';
 import { apiClient, formatApiError } from '@/lib/api-client';
+import { CalendarGrid } from './calendar-grid';
+
+function yearBounds(date: Date) {
+  const from = new Date(date.getFullYear(), 0, 1);
+  const to = new Date(date.getFullYear() + 1, 11, 31);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
 
 export function CalendarPage() {
   const { session, isReady } = useAuth();
@@ -15,20 +21,21 @@ export function CalendarPage() {
   const [events, setEvents] = useState<CalendarEventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const range = useMemo(() => yearBounds(new Date()), []);
 
   const load = useCallback(async () => {
     if (!session?.accessToken) return;
     setLoading(true);
     setError('');
     try {
-      const rows = await apiClient.calendar.listEvents(session.accessToken);
+      const rows = await apiClient.calendar.listEvents(session.accessToken, range.from, range.to);
       setEvents(rows);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [session?.accessToken]);
+  }, [session?.accessToken, range.from, range.to]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -38,7 +45,7 @@ export function CalendarPage() {
   async function downloadIcal() {
     if (!session?.accessToken) return;
     try {
-      const text = await apiClient.calendar.downloadIcal(session.accessToken);
+      const text = await apiClient.calendar.downloadIcal(session.accessToken, range.from, range.to);
       const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -61,23 +68,11 @@ export function CalendarPage() {
       />
       {error ? <p className="text-sm text-rose-600" role="alert">{error}</p> : null}
 
-      <div className="rounded-2xl border bg-white/80 dark:border-slate-800 dark:bg-slate-950/60">
-        {loading ? <p className="p-4 text-sm text-stone-500">{t('loading')}</p> : null}
-        <ul className="divide-y dark:divide-slate-800">
-          {events.map((ev) => (
-            <li key={ev.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-              <div>
-                <p className="font-medium">{ev.title}</p>
-                <p className="text-xs text-stone-500">{new Date(ev.date).toLocaleDateString()} · {ev.kind}</p>
-              </div>
-              {ev.deepLink ? (
-                <Link href={ev.deepLink} className="text-family-primary hover:underline">{t('open')}</Link>
-              ) : null}
-            </li>
-          ))}
-          {!loading && events.length === 0 ? <li className="p-4 text-sm text-stone-500">{t('empty')}</li> : null}
-        </ul>
-      </div>
+      <CalendarGrid events={events} loading={loading} />
+
+      {!loading && events.length === 0 ? (
+        <p className="text-center text-sm text-stone-500">{t('empty')}</p>
+      ) : null}
     </div>
   );
 }

@@ -32,7 +32,9 @@ type AiFeature =
   | 'story.document-summary'
   | 'story.family'
   | 'story.migration'
-  | 'story.era-context';
+  | 'story.era-context'
+  | 'ask-archive.narrative'
+  | 'speech.transcribe';
 
 export type AiRequestAudit = {
   userId: string;
@@ -144,6 +146,14 @@ export class AiService {
 
   storyEraContext(body: Record<string, unknown>, audit?: AiRequestAudit) {
     return this.request('story.era-context', 'POST', '/story/era-context', body, audit);
+  }
+
+  askArchiveNarrative(body: Record<string, unknown>, audit?: AiRequestAudit) {
+    return this.request('ask-archive.narrative', 'POST', '/ask-archive/narrative', body, audit);
+  }
+
+  speechTranscribe(body: Record<string, unknown>, audit?: AiRequestAudit) {
+    return this.request('speech.transcribe', 'POST', '/speech/transcribe', body, audit);
   }
 
   isAiEnabled() {

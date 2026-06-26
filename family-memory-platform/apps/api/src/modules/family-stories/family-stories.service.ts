@@ -42,6 +42,7 @@ import { generatePublicStoryToken, hashPublicStoryToken } from './family-stories
 import { normalizeStorySlug, slugifyTitle } from './family-stories.slug';
 import { createHash } from 'node:crypto';
 import { WebhookDomainHooksService } from '../webhooks/webhook-domain-hooks.service';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
 
 @Injectable()
 export class FamilyStoriesService {
@@ -56,6 +57,7 @@ export class FamilyStoriesService {
     private readonly pdf: FamilyStoriesPdfService,
     private readonly config: ConfigService,
     @Optional() private readonly webhookHooks?: WebhookDomainHooksService,
+    @Optional() private readonly collaborationHooks?: CollaborationHooksService,
   ) {}
 
   private moderationEnabled(): boolean {
@@ -275,13 +277,20 @@ export class FamilyStoriesService {
     return toDetailDto(updated);
   }
 
-  private emitStoryPublishedWebhook(story: Pick<FamilyStory, 'workspaceId' | 'id' | 'title' | 'slug' | 'visibility'>) {
+  private emitStoryPublishedWebhook(story: Pick<FamilyStory, 'workspaceId' | 'id' | 'title' | 'slug' | 'visibility' | 'createdById'>) {
+    if (!story.workspaceId) return;
     void this.webhookHooks?.onStoryPublished({
       workspaceId: story.workspaceId,
       storyId: story.id,
       title: story.title,
       slug: story.slug,
       visibility: story.visibility,
+    });
+    void this.collaborationHooks?.onStoryPublished({
+      workspaceId: story.workspaceId,
+      actorUserId: story.createdById,
+      storyId: story.id,
+      title: story.title,
     });
   }
 

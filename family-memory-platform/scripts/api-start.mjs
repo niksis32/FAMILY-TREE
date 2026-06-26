@@ -39,6 +39,29 @@ if (!existsSync(mainJs)) {
   process.exit(1);
 }
 
+const port = Number(process.env.API_PORT || 4000);
+if (process.env.API_START_KEEP_PORT !== '1' && process.platform !== 'win32') {
+  try {
+    const listeners = execSync(`ss -lptn "sport = :${port}" 2>/dev/null || true`, {
+      encoding: 'utf8',
+    });
+    if (listeners.includes(`:${port}`)) {
+      console.warn(`[api:start] port ${port} busy — stopping previous listener`);
+      execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: 'ignore', shell: true });
+      try {
+        const pids = execSync(`lsof -ti:${port} 2>/dev/null || true`, { encoding: 'utf8' }).trim();
+        if (pids) {
+          execSync(`kill -9 ${pids.replace(/\s+/g, ' ')}`, { stdio: 'ignore', shell: true });
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ss/lsof unavailable — proceed and let Node report EADDRINUSE */
+  }
+}
+
 execSync('node dist/main.js', {
   cwd: apiDir,
   stdio: 'inherit',

@@ -20,6 +20,12 @@ export class ExternalArchivesController {
     return this.service.listProviders();
   }
 
+  @Get('quota')
+  @Roles('ADMIN', 'EDITOR', 'VIEWER')
+  quota(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.getQuotaUsage(user.id);
+  }
+
   @Post('search')
   @Roles('ADMIN', 'EDITOR', 'VIEWER')
   search(@Body() dto: ExternalArchiveSearchDto, @CurrentUser() user: AuthenticatedUser) {

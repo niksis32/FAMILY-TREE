@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type {
   ExternalArchiveImportedSource,
   ExternalArchiveProviderId,
@@ -11,6 +13,10 @@ import type {
   ExternalArchiveRecordSummary,
   ExternalArchiveSearchJobSummary,
   ExternalArchiveSearchParams,
+} from '@family/shared';
+import {
+  ARCHIVE_SEARCH_MONTHLY_QUOTA_FREE,
+  ARCHIVE_SEARCH_MONTHLY_QUOTA_PRO,
 } from '@family/shared';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -21,6 +27,7 @@ import { ImportAsSourceService } from './import-as-source.service';
 import type { ExternalArchiveSearchDto, ImportExternalRecordDto } from './external-archives.dto';
 import { FamilySearchProvider } from './providers/familysearch.provider';
 import type { ExternalRecordProvider } from './providers/external-record.provider';
+import { CommercialContextService } from '../commercial/commercial-context.service';
 
 @Injectable()
 export class ExternalArchivesService {
@@ -34,6 +41,7 @@ export class ExternalArchivesService {
     private readonly queue: ArchiveSearchQueueService,
     private readonly importAsSource: ImportAsSourceService,
     private readonly familySearch: FamilySearchProvider,
+    private readonly commercial: CommercialContextService,
   ) {
     this.providers = new Map<ExternalArchiveProviderId, ExternalRecordProvider>([
       ['FAMILYSEARCH', this.familySearch],
@@ -63,6 +71,7 @@ export class ExternalArchivesService {
   async startSearch(dto: ExternalArchiveSearchDto, user: AuthenticatedUser) {
     this.compliance.assertProviderAllowed(dto.provider);
     const workspaceId = this.requireWorkspaceId();
+    await this.assertArchiveQuota(workspaceId, user.id);
 
     const query: ExternalArchiveSearchParams = {
       givenName: dto.givenName,
@@ -78,7 +87,7 @@ export class ExternalArchivesService {
         workspaceId,
         provider: dto.provider,
         status: 'QUEUED',
-        query,
+        query: query as Prisma.InputJsonValue,
         requestedById: user.id,
       },
     });
@@ -181,7 +190,7 @@ export class ExternalArchivesService {
         where: { id: searchId },
         data: {
           status: 'COMPLETED',
-          results,
+          results: results as unknown as Prisma.InputJsonValue,
           resultCount: results.length,
           completedAt: new Date(),
           error: null,
@@ -207,6 +216,39 @@ export class ExternalArchivesService {
       throw new BadRequestException(`Provider "${providerId}" is not registered`);
     }
     return provider;
+  }
+
+  async getQuotaUsage(userId: string) {
+    const workspaceId = this.requireWorkspaceId();
+    const commercial = await this.commercial.resolveForUser(workspaceId, userId);
+    const quota =
+      commercial.planCode === 'PROFESSIONAL' ||
+      commercial.planCode === 'ON_PREM' ||
+      commercial.entitlements.features.reportExport
+        ? ARCHIVE_SEARCH_MONTHLY_QUOTA_PRO
+        : ARCHIVE_SEARCH_MONTHLY_QUOTA_FREE;
+
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+
+    const used = await this.prisma.archiveSearch.count({
+      where: { workspaceId, createdAt: { gte: monthStart } },
+    });
+
+    return { quota, used, remaining: Math.max(0, quota - used) };
+  }
+
+  private async assertArchiveQuota(workspaceId: string, userId: string) {
+    const usage = await this.getQuotaUsage(userId);
+    if (usage.used >= usage.quota) {
+      throw new ForbiddenException({
+        code: 'ARCHIVE_QUOTA_EXCEEDED',
+        message: `Monthly archive search quota exceeded (${usage.quota})`,
+        quota: usage.quota,
+        used: usage.used,
+      });
+    }
   }
 
   private toSearchSummary(

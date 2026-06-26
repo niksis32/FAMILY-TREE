@@ -78,6 +78,9 @@ model User {
   dnaProfiles                DnaProfile[]
   dnaImportJobs              DnaImportJob[]
   webhookEndpointsCreated    WebhookEndpoint[]      @relation("WebhookEndpointCreator")
+  onboardingProgress         OnboardingProgress[]
+  storyTranslationJobs       StoryTranslationJob[]  @relation("StoryTranslationRequester")
+  questLeaderboardOptIn      QuestLeaderboardOptIn[]
 
   @@index([role])
   @@index([deletedAt])
@@ -1172,12 +1175,15 @@ model Workspace {
   pdfExportJobs   PdfExportJob[]
   dnaProfiles     DnaProfile[]
   dnaImportJobs   DnaImportJob[]
+  dnaMatchCandidates DnaMatchCandidate[]
   cemeteries      Cemetery[]
   burialSites     BurialSite[]
   memorials       Memorial[]
   burialPhotogrammetryJobs BurialPhotogrammetryJob[]
   webhookEndpoints WebhookEndpoint[]
   webhookEvents   WebhookEvent[]
+  onboardingProgress OnboardingProgress[]
+  questLeaderboardOptIn QuestLeaderboardOptIn[]
 
   @@index([tenantId])
   @@unique([tenantId, name])
@@ -1375,6 +1381,8 @@ model FamilyStory {
   createdBy   User       @relation("FamilyStoryCreator", fields: [createdById], references: [id], onDelete: Cascade)
   moderatedBy User?      @relation("FamilyStoryModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
   views       FamilyStoryView[]
+  locales     StoryLocale[]
+  translationJobs StoryTranslationJob[]
 
   @@index([workspaceId])
   @@index([createdById])
@@ -2669,6 +2677,8 @@ model Memorial {
   title        String
   inscription  String?  @db.Text
   photoMediaId String?
+  shareToken   String?  @unique
+  shareEnabled Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -2677,6 +2687,28 @@ model Memorial {
 
   @@index([workspaceId])
   @@index([burialSiteId])
+}
+
+enum DnaMatchStatus {
+  SUGGESTED
+  DISMISSED
+}
+
+model DnaMatchCandidate {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  profileUserId  String
+  displayLabel   String
+  sharedSegments Int            @default(0)
+  totalCm        Float          @default(0)
+  confidence     Float          @default(0)
+  status         DnaMatchStatus @default(SUGGESTED)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, profileUserId])
 }
 
 enum BurialPhotogrammetryStatus {
@@ -2703,4 +2735,93 @@ model BurialPhotogrammetryJob {
 
   @@index([workspaceId, burialSiteId])
   @@index([burialSiteId])
+}
+
+// --- BLOCK 4: Experience & Retention ---
+
+enum StoryLocaleStatus {
+  DRAFT
+  TRANSLATING
+  READY
+  FAILED
+}
+
+enum StoryTranslationJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model OnboardingProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  workspaceId    String
+  currentStep    String   @default("welcome")
+  completedSteps Json     @default("[]")
+  skippedSteps   Json     @default("[]")
+  isCompleted    Boolean  @default(false)
+  payload        Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model StoryLocale {
+  id            String            @id @default(cuid())
+  storyId       String
+  locale        String
+  sourceLocale  String            @default("ru")
+  title         String?
+  narrativeText String?           @db.Text
+  status        StoryLocaleStatus @default(DRAFT)
+  translatedAt  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  story FamilyStory           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  jobs  StoryTranslationJob[]
+
+  @@unique([storyId, locale])
+  @@index([storyId])
+}
+
+model StoryTranslationJob {
+  id            String                    @id @default(cuid())
+  storyId       String
+  storyLocaleId String?
+  targetLocale  String
+  status        StoryTranslationJobStatus @default(QUEUED)
+  error         String?                   @db.Text
+  requestedById String
+  completedAt   DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  story       FamilyStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyLocale StoryLocale? @relation(fields: [storyLocaleId], references: [id], onDelete: SetNull)
+  requestedBy User         @relation("StoryTranslationRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([storyId, status])
+}
+
+model QuestLeaderboardOptIn {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  optedIn     Boolean  @default(false)
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId, optedIn])
 }

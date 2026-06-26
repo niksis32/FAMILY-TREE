@@ -25,6 +25,7 @@ export interface CategorizedSearchResults {
   sources: SearchDocument[];
   wiki: SearchDocument[];
   evidence: SearchDocument[];
+  memories: SearchDocument[];
   burials: SearchDocument[];
 }
 
@@ -38,4 +39,5 @@ export interface FacetedSearchResponse {
   };
   total: number;
   hits: SearchDocument[];
+  nextCursor?: string | null;
 }

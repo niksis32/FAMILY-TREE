@@ -3,6 +3,7 @@ import { RedisModule } from '../../common/redis/redis.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { SourcesModule } from '../sources/sources.module';
+import { CommercialModule } from '../commercial/commercial.module';
 import { ArchiveComplianceService } from './archive-compliance.service';
 import { ArchiveSearchProcessor } from './archive-search.processor';
 import { ArchiveSearchQueueService } from './archive-search.queue';
@@ -12,7 +13,7 @@ import { ImportAsSourceService } from './import-as-source.service';
 import { FamilySearchProvider } from './providers/familysearch.provider';
 
 @Module({
-  imports: [AuthModule, PrismaModule, RedisModule, SourcesModule],
+  imports: [AuthModule, PrismaModule, RedisModule, SourcesModule, CommercialModule],
   controllers: [ExternalArchivesController],
   providers: [
     ExternalArchivesService,

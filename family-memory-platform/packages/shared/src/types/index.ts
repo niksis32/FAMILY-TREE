@@ -46,3 +46,4 @@ export * from './knowledge-quality';
 export * from './media-ai';
 export * from './webhooks';
 export * from './external-archives';
+export * from './experience-block';

@@ -2,6 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
+import type { Readable } from 'node:stream';
 
 export type MinioClient = {
   presignedPutObject: (bucket: string, objectName: string, expiry: number) => Promise<string>;
@@ -13,6 +14,7 @@ export type MinioClient = {
     size?: number,
     metaData?: Record<string, string>,
   ) => Promise<void>;
+  getObject: (bucket: string, objectName: string) => Promise<Readable>;
   listBuckets: () => Promise<Array<{ name: string }>>;
   bucketExists: (bucket: string) => Promise<boolean>;
 };
@@ -76,6 +78,18 @@ export class MinioStorageService {
   async presignedDownload(bucket: string, objectKey: string, expirySeconds: number) {
     const client = this.createClient();
     return client.presignedGetObject(bucket, objectKey, expirySeconds);
+  }
+
+  async downloadBuffer(bucket: string, objectKey: string): Promise<Buffer> {
+    const client = this.createClient();
+    const stream = await client.getObject(bucket, objectKey);
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      stream.on('error', reject);
+      stream.on('end', resolve);
+    });
+    return Buffer.concat(chunks);
   }
 
   async checkHealth(): Promise<{

@@ -42,7 +42,13 @@ export class MediaTranscriptProcessor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handle(job: Job<TranscriptJobPayload>) {
-    const { jobId, mediaId, memoryStoryId, language } = job.data;
-    await this.memoryStories.processTranscriptInline(jobId, mediaId, memoryStoryId, language);
+    const { jobId, mediaId, memoryStoryId, language, requestedBy } = job.data;
+    await this.memoryStories.processTranscriptInline(
+      jobId,
+      mediaId,
+      memoryStoryId,
+      language,
+      requestedBy,
+    );
   }
 }

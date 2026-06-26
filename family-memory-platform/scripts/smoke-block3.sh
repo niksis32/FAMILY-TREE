@@ -63,13 +63,20 @@ curl -sf -X POST "${HDR[@]}" -H "Content-Type: application/json" \
   -d '{}' | json_pipe
 
 echo ""
-echo "[6/7] POST /ask-archive"
-curl -sf -X POST "${HDR[@]}" -H "Content-Type: application/json" \
+echo "[6/8] POST /ask-archive"
+ASK_JSON=$(curl -sf -X POST "${HDR[@]}" -H "Content-Type: application/json" \
   "$API/ask-archive" \
-  -d '{"question":"family archive test","language":"ru"}' | json_pipe
+  -d '{"question":"family archive test","language":"ru"}')
+echo "$ASK_JSON" | json_pipe
+CITATIONS=$(echo "$ASK_JSON" | { command -v jq >/dev/null && jq '.citations | length' || echo 0; })
+echo "Citations count: $CITATIONS"
 
 echo ""
-echo "[7/7] GET /document-ocr status (if documents exist)"
+echo "[7/8] POST /face-clusters/rebuild (inline or queued)"
+curl -sf -X POST "${HDR[@]}" "$API/face-clusters/rebuild" | json_pipe
+
+echo ""
+echo "[8/8] GET /document-ocr status (if documents exist)"
 DOC_ID=$(curl -sf "${HDR[@]}" "$API/documents" | { command -v jq >/dev/null && jq -r '.[0].id // empty' || true; })
 if [[ -n "$DOC_ID" ]]; then
   curl -sf "${HDR[@]}" "$API/document-ocr/$DOC_ID/status" | json_pipe

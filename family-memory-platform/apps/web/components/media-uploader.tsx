@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, RotateCcw, Upload } from 'lucide-react';
+import { AlertCircle, Camera, RotateCcw, Upload } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { MediaPreview } from '@/components/media-preview';
 import { ProgressBar } from '@family/ui';
@@ -26,6 +26,7 @@ export function MediaUploader({ onUploaded }: { onUploaded?: () => void }) {
   const { session } = useAuth();
   const t = useTranslations('mediaUploader');
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const cameraRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<UploadState>('idle');
@@ -135,10 +136,22 @@ export function MediaUploader({ onUploaded }: { onUploaded?: () => void }) {
           accept={allowedMimeTypes.join(',')}
           onChange={(event) => void handleFiles(event.target.files)}
         />
+        <input
+          ref={cameraRef}
+          className="hidden"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(event) => void handleFiles(event.target.files)}
+        />
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button type="button" onClick={() => inputRef.current?.click()} disabled={status === 'uploading'}>
             {t('chooseFile')}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => cameraRef.current?.click()} disabled={status === 'uploading'}>
+            <Camera className="mr-2 h-4 w-4" />
+            {t('takePhoto')}
           </Button>
           {status === 'error' && pendingFile ? (
             <Button type="button" variant="secondary" onClick={() => void runUpload(pendingFile)}>

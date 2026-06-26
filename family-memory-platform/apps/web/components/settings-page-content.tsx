@@ -61,6 +61,9 @@ export function SettingsPageContent() {
             <Link href="/settings/export">
               <Button type="button">{t('export')}</Button>
             </Link>
+            <Link href="/settings/security">
+              <Button type="button">MFA / Passkeys</Button>
+            </Link>
             <Link href="/settings/webhooks">
               <Button type="button">{t('webhooks')}</Button>
             </Link>

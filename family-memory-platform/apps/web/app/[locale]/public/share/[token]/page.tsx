@@ -3,14 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui';
-import { apiClient } from '@/lib/api-client';
+import { TreeCanvas } from '@/components/tree-canvas';
+import { apiClient, type TreeGraphResponse } from '@/lib/api-client';
 
 type PublicSharePayload =
   | { type: 'PERSON'; person: { givenName: string; familyName?: string | null; birthDate?: string | null } }
   | {
       type: 'FAMILY_TREE';
       familyId: string;
-      tree?: { name?: string | null; members: Array<{ givenName: string; familyName?: string | null }> };
+      tree?: {
+        name?: string | null;
+        members: Array<{ givenName: string; familyName?: string | null }>;
+        graph?: TreeGraphResponse;
+      };
     }
   | { type: 'MEDIA_BUNDLE'; items: Array<{ id: string; fileName: string }> }
   | { type: string; resourceId?: string };
@@ -45,7 +50,7 @@ export default function PublicShareViewerPage() {
   const { share, payload } = data;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-12">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-12">
       <Card>
         <p className="text-xs uppercase tracking-widest text-family-accent">Публичный просмотр</p>
         <h1 className="mt-2 text-2xl font-semibold">{share.label ?? 'Семейный архив'}</h1>
@@ -61,17 +66,26 @@ export default function PublicShareViewerPage() {
         </Card>
       ) : null}
 
-      {payload.type === 'FAMILY_TREE' && payload.tree ? (
-        <Card>
-          <h2 className="text-lg font-semibold">{payload.tree.name ?? 'Семейное древо'}</h2>
-          <ul className="mt-4 space-y-2">
-            {payload.tree.members.map((m) => (
-              <li key={`${m.givenName}-${m.familyName}`} className="rounded-lg border px-3 py-2 text-sm">
-                {[m.givenName, m.familyName].filter(Boolean).join(' ')}
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {payload.type === 'FAMILY_TREE' && 'tree' in payload && payload.tree ? (
+        <div className="space-y-4">
+          <Card>
+            <h2 className="text-lg font-semibold">{payload.tree.name ?? 'Семейное древо'}</h2>
+            <p className="mt-1 text-sm text-stone-500">Участников: {payload.tree.members.length}</p>
+          </Card>
+          {payload.tree.graph && payload.tree.graph.nodes.length > 0 ? (
+            <TreeCanvas graph={payload.tree.graph} />
+          ) : (
+            <Card>
+              <ul className="mt-2 space-y-2">
+                {payload.tree.members.map((m) => (
+                  <li key={`${m.givenName}-${m.familyName}`} className="rounded-lg border px-3 py-2 text-sm">
+                    {[m.givenName, m.familyName].filter(Boolean).join(' ')}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
       ) : null}
 
       {payload.type === 'MEDIA_BUNDLE' && 'items' in payload ? (

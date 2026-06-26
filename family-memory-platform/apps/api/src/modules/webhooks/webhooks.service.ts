@@ -12,7 +12,7 @@ import {
   type WebhookEventSummary,
   type WebhookEventType,
 } from '@family/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, WebhookEventStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
 import { CommercialContextService } from '../commercial/commercial-context.service';
@@ -156,7 +156,7 @@ export class WebhooksService {
         workspaceId,
         ...(query.endpointId ? { endpointId: query.endpointId } : {}),
         ...(query.eventType ? { eventType: query.eventType } : {}),
-        ...(query.status ? { status: query.status } : {}),
+        ...(query.status ? { status: query.status as WebhookEventStatus } : {}),
         ...(query.cursor ? { id: { lt: query.cursor } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -178,7 +178,7 @@ export class WebhooksService {
     const row = await this.prisma.webhookEvent.findFirst({
       where: { id, workspaceId },
       include: {
-        deliveryAttempts: { orderBy: { attemptNumber: 'asc' } },
+        attempts: { orderBy: { attemptNumber: 'asc' } },
       },
     });
     if (!row) throw new NotFoundException('Webhook event not found');
@@ -186,12 +186,12 @@ export class WebhooksService {
     return {
       ...this.mapEvent(row),
       payload: (row.payload as Record<string, unknown>) ?? {},
-      attempts: row.deliveryAttempts.map((attempt) => ({
+      attempts: row.attempts.map((attempt) => ({
         id: attempt.id,
         attemptNumber: attempt.attemptNumber,
         httpStatus: attempt.httpStatus,
         responseBodySnippet: attempt.responseBodySnippet,
-        durationMs: attempt.durationMs,
+        durationMs: attempt.durationMs ?? 0,
         errorMessage: attempt.errorMessage,
         createdAt: attempt.createdAt.toISOString(),
       })),

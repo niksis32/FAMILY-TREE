@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { FacetedSearchResults, SearchHistorySummary, SavedSearchSummary } from '@family/shared';
+import type { FacetedSearchResults, SearchHistorySummary, SavedSearchSummary, SearchHit } from '@family/shared';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui';
@@ -17,6 +17,8 @@ export function AdvancedSearchPage() {
   const [q, setQ] = useState('');
   const [category, setCategory] = useState<string>('');
   const [results, setResults] = useState<FacetedSearchResults | null>(null);
+  const [allHits, setAllHits] = useState<SearchHit[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedSearchSummary[]>([]);
   const [history, setHistory] = useState<SearchHistorySummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ export function AdvancedSearchPage() {
     }
   }, [session?.accessToken]);
 
-  const runSearch = useCallback(async () => {
+  const runSearch = useCallback(async (cursor?: string) => {
     if (!session?.accessToken || !q.trim()) return;
     setLoading(true);
     setError('');
@@ -44,9 +46,13 @@ export function AdvancedSearchPage() {
       const data = await apiClient.searchAdvanced.faceted(session.accessToken, {
         q: q.trim(),
         ...(category ? { categories: category } : {}),
+        ...(cursor ? { cursor } : {}),
+        limit: 20,
       });
       setResults(data);
-      void loadMeta();
+      setNextCursor(data.nextCursor ?? null);
+      setAllHits((prev) => (cursor ? [...prev, ...data.hits] : data.hits));
+      if (!cursor) void loadMeta();
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -108,7 +114,7 @@ export function AdvancedSearchPage() {
             ))}
           </div>
           <ul className="mt-4 space-y-2">
-            {results.hits.map((hit) => (
+            {allHits.map((hit) => (
               <li key={hit.id} className="rounded-lg border border-stone-100 p-3 dark:border-slate-800">
                 <div className="text-xs uppercase text-stone-500">{t(`category.${hit.category}`)}</div>
                 <div className="font-medium">{hit.title}</div>
@@ -116,6 +122,11 @@ export function AdvancedSearchPage() {
               </li>
             ))}
           </ul>
+          {nextCursor ? (
+            <Button className="mt-4" variant="secondary" disabled={loading} onClick={() => void runSearch(nextCursor)}>
+              {t('loadMore')}
+            </Button>
+          ) : null}
         </section>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">

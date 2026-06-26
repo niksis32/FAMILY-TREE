@@ -5,6 +5,8 @@ import { PersonCard, PrivacyBadge } from '@/components/domain';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Card, EmptyState, FormField, Input, PageHeader, Select, Textarea } from '@/components/ui';
 import { apiClient, ApiError, formatApiError } from '@/lib/api-client';
+import { cachePerson, getCachedPerson } from '@/lib/offline/idb';
+import { queuePersonUpdate } from '@/lib/offline/sync-engine';
 import { GenerateStoryPanel } from '@/features/ai-storytelling/generate-story-panel';
 
 type PersonDetail = {
@@ -55,11 +57,34 @@ export function PersonDetailsWorkspace({ id }: { id: string }) {
 
   async function load() {
     try {
+      if (!navigator.onLine) {
+        const cached = await getCachedPerson(id);
+        if (cached?.data) {
+          const data = cached.data as PersonDetail;
+          setPerson(data);
+          setEditForm(personToForm(data));
+          setStatus('Профиль загружен из offline-кэша');
+          return;
+        }
+      }
       const data = (await apiClient.persons.one(id, session?.accessToken)) as PersonDetail;
       setPerson(data);
       setEditForm(personToForm(data));
       setStatus('Профиль загружен из API');
+      await cachePerson({
+        id,
+        data: data as unknown as Record<string, unknown>,
+        cachedAt: new Date().toISOString(),
+      });
     } catch (error) {
+      const cached = await getCachedPerson(id);
+      if (cached?.data) {
+        const data = cached.data as PersonDetail;
+        setPerson(data);
+        setEditForm(personToForm(data));
+        setStatus('Профиль загружен из offline-кэша');
+        return;
+      }
       setStatus(formatApiError(error));
       setPerson(null);
     }
@@ -75,18 +100,30 @@ export function PersonDetailsWorkspace({ id }: { id: string }) {
     setIsSaving(true);
     setStatus('Сохраняем изменения...');
     try {
-      await apiClient.persons.update(
-        id,
-        {
-          ...editForm,
-          patronymic: editForm.patronymic || undefined,
-          familyName: editForm.familyName || undefined,
-          birthDate: editForm.birthDate || undefined,
-          deathDate: editForm.deathDate || undefined,
-          biography: editForm.biography || undefined,
-        },
-        session?.accessToken,
-      );
+      const payload = {
+        ...editForm,
+        patronymic: editForm.patronymic || undefined,
+        familyName: editForm.familyName || undefined,
+        birthDate: editForm.birthDate || undefined,
+        deathDate: editForm.deathDate || undefined,
+        biography: editForm.biography || undefined,
+      };
+
+      if (!navigator.onLine) {
+        await queuePersonUpdate(id, payload as Record<string, unknown>);
+        const nextPerson = { ...person, ...editForm } as PersonDetail;
+        setPerson(nextPerson);
+        await cachePerson({
+          id,
+          data: nextPerson as unknown as Record<string, unknown>,
+          cachedAt: new Date().toISOString(),
+        });
+        setIsEditing(false);
+        setStatus('Сохранено offline — синхронизируется при подключении');
+        return;
+      }
+
+      await apiClient.persons.update(id, payload, session?.accessToken);
       await load();
       setIsEditing(false);
       setStatus('Профиль сохранён');

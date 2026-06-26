@@ -7,6 +7,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Badge, Card, FormField } from '@/components/ui';
 import { PersonSearchCombobox } from '@/components/person-search-combobox';
 import { apiClient, formatApiError } from '@/lib/api-client';
+import { cacheTree, getCachedTree } from '@/lib/offline/idb';
 import type { PersonSummary } from '@family/shared';
 import { TreeViewDataProvider } from './tree-view-data-context';
 import type { TreeDisplayMode } from './tree-view-data-context';
@@ -75,13 +76,31 @@ export function TreeExperienceShell({
     }
     setLoading(true);
     setError(null);
+    const cacheKey = `${rootPersonId}:${JSON.stringify(filters)}`;
     try {
+      if (!navigator.onLine) {
+        const cached = (await getCachedTree(cacheKey)) as TreeViewDataResponse | undefined;
+        if (cached) {
+          setData(cached);
+          const root =
+            cached.nodes.find((n) => n.personId === cached.meta.rootPersonId) ?? cached.nodes[0] ?? null;
+          setSelectedNode((current) => current ?? root);
+          return;
+        }
+      }
       const response = await apiClient.tree.viewData(rootPersonId.trim(), filters, session?.accessToken);
       setData(response);
+      await cacheTree(cacheKey, response);
       const root =
         response.nodes.find((n) => n.personId === response.meta.rootPersonId) ?? response.nodes[0] ?? null;
       setSelectedNode((current) => current ?? root);
     } catch (err) {
+      const cached = (await getCachedTree(cacheKey)) as TreeViewDataResponse | undefined;
+      if (cached) {
+        setData(cached);
+        setError(null);
+        return;
+      }
       setData(null);
       setError(formatApiError(err));
     } finally {

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { Button, Input } from '@/components/ui';
 import { StoryTemplateSelector } from './story-template-selector';
+import { StoryLocalePanel } from '@/features/story-translation/story-locale-panel';
 import { apiClient, formatApiError } from '@/lib/api-client';
 
 const defaultConfig: FamilyStoryConfig = {
@@ -57,6 +58,7 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
   const [publicSlugUrl, setPublicSlugUrl] = useState<string | null>(null);
   const [publishStatus, setPublishStatus] = useState<FamilyStoryPublishStatusId>('draft');
   const [moderationNote, setModerationNote] = useState<string | null>(null);
+  const [narrativeText, setNarrativeText] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +78,7 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
       setConfig(story.config);
       setPublishStatus(story.publishStatus);
       setModerationNote(story.moderationNote ?? null);
+      setNarrativeText((story as { narrativeText?: string | null }).narrativeText ?? null);
       if (story.visibility === 'public' && story.slug && story.publishStatus === 'published') {
         setPublicSlugUrl(`${window.location.origin}/p/${story.slug}`);
       } else {
@@ -326,6 +329,10 @@ export function StoryBuilder({ storyId }: { storyId?: string }) {
           </>
         ) : null}
       </div>
+
+      {storyId ? (
+        <StoryLocalePanel storyId={storyId} sourceTitle={title} sourceNarrative={narrativeText} />
+      ) : null}
     </div>
   );
 }

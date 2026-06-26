@@ -10,6 +10,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
 import { SearchService } from '../search/search.service';
+import { AiService } from '../ai/ai.service';
+import { MinioStorageService } from '../../common/storage/minio-storage.service';
+import { ConfigService } from '@nestjs/config';
 import type { CreateMemoryStoryDto, UpdateMemoryStoryDto, UpdateTranscriptDto } from './memory-stories.dto';
 
 @Injectable()
@@ -21,6 +24,9 @@ export class MemoryStoriesService {
     private readonly redis: RedisService,
     private readonly workspaceContext: WorkspaceContextService,
     private readonly search: SearchService,
+    private readonly ai: AiService,
+    private readonly minio: MinioStorageService,
+    private readonly config: ConfigService,
   ) {}
 
   private requireWorkspaceId(): string {
@@ -169,7 +175,7 @@ export class MemoryStoriesService {
 
     const queue = this.getTranscriptQueue();
     if (!queue) {
-      await this.processTranscriptInline(jobRecord.id, mediaId, memoryStoryId, language);
+      await this.processTranscriptInline(jobRecord.id, mediaId, memoryStoryId, language, requestedBy);
       return jobRecord;
     }
 
@@ -177,7 +183,13 @@ export class MemoryStoriesService {
     return jobRecord;
   }
 
-  async processTranscriptInline(jobId: string, mediaId: string, memoryStoryId: string, language: string) {
+  async processTranscriptInline(
+    jobId: string,
+    mediaId: string,
+    memoryStoryId: string,
+    language: string,
+    requestedBy?: string,
+  ) {
     await this.prisma.mediaTranscriptJob.update({
       where: { id: jobId },
       data: { status: 'PROCESSING' },
@@ -187,24 +199,37 @@ export class MemoryStoriesService {
       const media = await this.prisma.media.findFirst({ where: { id: mediaId, deletedAt: null } });
       if (!media) throw new Error('Media not found');
 
+      const aiResult = await this.tryAiTranscription(media, language, requestedBy);
       const placeholderText =
         language === 'en'
           ? '[Transcript placeholder — enable AI service with Whisper for automatic speech-to-text.]'
-          : '[Транскcript placeholder — включите AI service (Whisper) для автоматического распознавания речи.]';
+          : '[Transcript placeholder — включите AI service (Whisper) для автоматического распознавания речи.]';
 
-      const segments = [{ startMs: 0, endMs: 1000, text: placeholderText, confidence: 0.3 }];
+      const text = aiResult?.text ?? placeholderText;
+      const segments = aiResult?.segments ?? [
+        { startMs: 0, endMs: 1000, text: placeholderText, confidence: 0.3 },
+      ];
+      const confidence = aiResult ? 0.75 : 0.3;
+      const assumptionTag = aiResult?.engine ? `[engine: ${aiResult.engine}]` : '[assumption: STT stub]';
 
       await this.prisma.mediaTranscript.upsert({
         where: { mediaId },
-        create: { mediaId, text: placeholderText, segments, language, confidence: 0.3 },
-        update: { text: placeholderText, segments, language, confidence: 0.3 },
+        create: { mediaId, text, segments, language, confidence },
+        update: { text, segments, language, confidence },
       });
+
+      if (media.mimeType?.startsWith('video/') && !media.audioDerivativeKey) {
+        await this.prisma.media.update({
+          where: { id: mediaId },
+          data: { audioDerivativeKey: `derivatives/${mediaId}/audio.wav` },
+        });
+      }
 
       await this.prisma.memoryStory.update({
         where: { id: memoryStoryId },
         data: {
           status: 'READY',
-          summary: `${placeholderText.slice(0, 120)}… [assumption: STT stub]`,
+          summary: `${text.slice(0, 120)}… ${assumptionTag}`,
         },
       });
 
@@ -225,6 +250,48 @@ export class MemoryStoriesService {
         data: { status: 'FAILED' },
       });
     }
+  }
+
+  private async tryAiTranscription(
+    media: { id: string; bucket: string | null; storageKey: string; mimeType: string | null },
+    language: string,
+    requestedBy?: string,
+  ): Promise<{
+    text: string;
+    segments: Array<{ startMs: number; endMs: number; text: string; confidence?: number }>;
+    engine?: string;
+  } | null> {
+    if (this.config.get<string>('AI_SERVICE_ENABLED') !== 'true' || !requestedBy) {
+      return null;
+    }
+
+    const client = this.minio.createClient();
+    const bucket = media.bucket || this.minio.mediaBucket;
+    const downloadUrl = await client.presignedGetObject(bucket, media.storageKey, 15 * 60);
+
+    const result = await this.ai.speechTranscribe(
+      {
+        mediaId: media.id,
+        downloadUrl,
+        mimeType: media.mimeType,
+        language,
+      },
+      { userId: requestedBy, scope: { mediaId: media.id } },
+    );
+
+    const data = this.ai.extractData<{
+      status?: string;
+      text?: string;
+      segments?: Array<{ startMs: number; endMs: number; text: string; confidence?: number }>;
+      engine?: string;
+    }>(result);
+
+    if (!data?.text?.trim()) return null;
+    return {
+      text: data.text.trim(),
+      segments: data.segments ?? [{ startMs: 0, endMs: 1000, text: data.text.trim(), confidence: 0.5 }],
+      engine: data.engine ?? data.status,
+    };
   }
 
   private toDto(

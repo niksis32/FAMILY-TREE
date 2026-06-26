@@ -11,6 +11,7 @@ import { MinioStorageService } from '../../common/storage/minio-storage.service'
 import { PrismaService } from '../../prisma/prisma.service';
 import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import { AssetPrivacyService } from '../privacy/asset-privacy.service';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
 import { WebhookDomainHooksService } from '../webhooks/webhook-domain-hooks.service';
 import {
   ALLOWED_MEDIA_MIME_TYPES,
@@ -28,6 +29,7 @@ export class MediaService {
     private readonly minio: MinioStorageService,
     private readonly assetPrivacy: AssetPrivacyService,
     @Optional() private readonly webhookHooks?: WebhookDomainHooksService,
+    @Optional() private readonly collaborationHooks?: CollaborationHooksService,
   ) {}
 
   async findAll(user?: AuthenticatedUser | null) {
@@ -121,6 +123,15 @@ export class MediaService {
       mimeType: media.mimeType,
       personId: media.personId,
     });
+
+    if (user?.id) {
+      void this.collaborationHooks?.onMediaUploaded({
+        workspaceId: media.workspaceId,
+        actorUserId: user.id,
+        mediaId: media.id,
+        title: media.title ?? 'Медиа',
+      });
+    }
 
     return media;
   }

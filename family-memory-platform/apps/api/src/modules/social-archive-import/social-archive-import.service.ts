@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
 import { MinioStorageService } from '../../common/storage/minio-storage.service';
+import type { SocialArchiveProvider } from '@prisma/client';
 import type {
   ConfirmSocialImportDto,
   CreateSocialImportDto,
@@ -76,7 +77,7 @@ export class SocialArchiveImportService {
     const importRow = await this.prisma.socialArchiveImport.create({
       data: {
         workspaceId,
-        provider: dto.provider ?? 'UNKNOWN',
+        provider: (dto.provider ?? 'UNKNOWN') as SocialArchiveProvider,
         status: dto.manifestItems?.length ? 'PREVIEW_READY' : 'UPLOADED',
         fileName: dto.fileName,
         stagingKey: dto.stagingKey ?? `staging/${workspaceId}/${Date.now()}`,
@@ -259,6 +260,48 @@ export class SocialArchiveImportService {
     });
 
     return { importedCount: imported, skipped: selected.length - imported };
+  }
+
+  async parseImportArchive(
+    importId: string,
+    loadItems: (
+      stagingKey: string,
+      fileName: string,
+      provider: SocialArchiveProvider,
+    ) => Promise<
+      Array<{
+        externalId: string;
+        kind?: string;
+        title?: string;
+        caption?: string;
+        takenAt?: string;
+        stagingMediaKey?: string;
+        privacyFlags?: string[];
+      }>
+    >,
+  ) {
+    const row = await this.prisma.socialArchiveImport.findUnique({ where: { id: importId } });
+    if (!row) return;
+
+    await this.prisma.socialArchiveImport.update({
+      where: { id: importId },
+      data: { status: 'PARSING' },
+    });
+
+    try {
+      const items = await loadItems(row.stagingKey, row.fileName, row.provider);
+      if (!items.length) {
+        throw new Error('No importable items found in archive');
+      }
+      await this.stageItems(importId, row.workspaceId, items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Parse failed';
+      await this.prisma.socialArchiveImport.update({
+        where: { id: importId },
+        data: { status: 'PARSE_FAILED', error: message },
+      });
+      throw error;
+    }
   }
 
   async getUploadUrl(fileName: string) {

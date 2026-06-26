@@ -7,6 +7,7 @@ import { GamificationController } from './gamification.controller';
 import { GamificationService } from './gamification.service';
 import { ProgressCalculatorService } from './progress-calculator.service';
 import { QuestEngineService } from './quest-engine.service';
+import { QuestLeaderboardService } from './quest-leaderboard.service';
 
 /** Family Quest — premium research gamification */
 @Module({
@@ -16,9 +17,10 @@ import { QuestEngineService } from './quest-engine.service';
     GamificationService,
     ProgressCalculatorService,
     QuestEngineService,
+    QuestLeaderboardService,
     AchievementService,
     GamificationActivityService,
   ],
-  exports: [GamificationActivityService, GamificationService, ProgressCalculatorService],
+  exports: [GamificationActivityService, GamificationService, ProgressCalculatorService, QuestLeaderboardService],
 })
 export class GamificationModule {}

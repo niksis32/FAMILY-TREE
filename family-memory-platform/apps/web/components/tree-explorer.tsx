@@ -7,7 +7,9 @@ import { useAuth } from '@/components/auth-provider';
 import { TreeCanvas } from '@/components/tree-canvas';
 import { Badge, Button, Card, FormField, Select } from '@/components/ui';
 import { PersonSearchCombobox } from '@/components/person-search-combobox';
-import { apiClient, formatApiError, type TreeGraphResponse, type TreePersonNode, type TreeViewMode } from '@/lib/api-client';
+import { ShareModal } from '@/features/privacy/share-modal';
+import { useWorkspaceId } from '@/features/collaboration/use-workspace-id';
+import { apiClient, formatApiError, type FamilyRecord, type TreeGraphResponse, type TreePersonNode, type TreeViewMode } from '@/lib/api-client';
 import { formatPersonLabel } from '@/lib/person-display';
 import type { PersonSummary } from '@family/shared';
 
@@ -24,15 +26,18 @@ function personSurname(person: Pick<PersonSummary, 'familyName'>) {
 
 export function TreeExplorer() {
   const { session } = useAuth();
+  const workspaceId = useWorkspaceId();
   const t = useTranslations('treeWorkspace');
   const tCommon = useTranslations('common');
   const [persons, setPersons] = useState<PersonSummary[]>([]);
+  const [families, setFamilies] = useState<FamilyRecord[]>([]);
   const [selectedSurname, setSelectedSurname] = useState('');
   const [rootPersonId, setRootPersonId] = useState('');
   const [mode, setMode] = useState<TreeViewMode>('descendants');
   const [graph, setGraph] = useState<TreeGraphResponse>(emptyGraph);
   const [selectedPerson, setSelectedPerson] = useState<TreePersonNode | null>(null);
   const [status, setStatus] = useState('');
+  const [shareOpen, setShareOpen] = useState(false);
 
   const modes = useMemo(
     () =>
@@ -61,8 +66,12 @@ export function TreeExplorer() {
   useEffect(() => {
     async function loadPersons() {
       try {
-        const list = await apiClient.persons.list(session?.accessToken);
+        const [list, familyList] = await Promise.all([
+          apiClient.persons.list(session?.accessToken),
+          apiClient.families.list(session?.accessToken),
+        ]);
         setPersons(list);
+        setFamilies(familyList);
       } catch (error) {
         setStatus(formatApiError(error));
       }
@@ -135,6 +144,18 @@ export function TreeExplorer() {
 
   const statusLine = status || t('pickSurnameAndRoot');
 
+  const shareFamilyId = useMemo(() => {
+    if (!rootPersonId) return null;
+    for (const family of families) {
+      if (family.members?.some((m) => m.person.id === rootPersonId)) {
+        return family.id;
+      }
+    }
+    return null;
+  }, [families, rootPersonId]);
+
+  const shareFamilyName = families.find((f) => f.id === shareFamilyId)?.name;
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
       <div className="space-y-4">
@@ -182,6 +203,11 @@ export function TreeExplorer() {
                 {item.label}
               </Button>
             ))}
+            {session?.accessToken && shareFamilyId ? (
+              <Button type="button" variant="secondary" onClick={() => setShareOpen(true)}>
+                Поделиться деревом
+              </Button>
+            ) : null}
           </div>
 
           {rootNode ? (
@@ -207,6 +233,18 @@ export function TreeExplorer() {
           setSelectedPerson(null);
         }}
       />
+
+      {session?.accessToken && shareFamilyId ? (
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          token={session.accessToken}
+          resourceType="FAMILY_TREE"
+          resourceId={shareFamilyId}
+          workspaceId={workspaceId ?? undefined}
+          label={shareFamilyName ?? 'Семейное древо'}
+        />
+      ) : null}
     </div>
   );
 }

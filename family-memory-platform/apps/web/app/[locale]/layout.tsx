@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { HtmlLocaleAttrs } from '@/components/html-locale-attrs';
+import { BrandingProvider } from '@/components/branding-provider';
 import { APP_LOCALES, type AppLocale } from '@family/shared';
 
 /** Production Docker: set NEXT_STATIC_LOCALES=en,ru to avoid 5000+ SSG pages on small VPS. */
@@ -28,8 +29,10 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <HtmlLocaleAttrs />
-      {children}
+      <BrandingProvider>
+        <HtmlLocaleAttrs />
+        {children}
+      </BrandingProvider>
     </NextIntlClientProvider>
   );
 }

@@ -42,6 +42,7 @@ export interface FacetedSearchResults {
   };
   total: number;
   hits: SearchHit[];
+  nextCursor?: string | null;
 }
 
 export interface SavedSearchSummary {

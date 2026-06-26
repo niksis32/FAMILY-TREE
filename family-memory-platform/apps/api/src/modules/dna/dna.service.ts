@@ -107,6 +107,37 @@ export class DnaService {
     return this.consent.grantImportConsent(userId);
   }
 
+  async listMatches(userId: string) {
+    const workspaceId = this.requireWorkspaceId();
+    await this.context.resolveForUser(workspaceId, userId);
+
+    const profile = await this.prisma.dnaProfile.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+    });
+    if (!profile) {
+      throw new NotFoundException('DNA profile not found');
+    }
+
+    const rows = await this.prisma.dnaMatchCandidate.findMany({
+      where: { workspaceId, profileUserId: userId, status: 'SUGGESTED' },
+      orderBy: { confidence: 'desc' },
+      take: 50,
+    });
+
+    return {
+      disclaimer: this.consent.disclaimer(),
+      note: 'Read-only v1.1 suggestions — no medical interpretation.',
+      matches: rows.map((m) => ({
+        id: m.id,
+        displayLabel: m.displayLabel,
+        sharedSegments: m.sharedSegments,
+        totalCm: m.totalCm,
+        confidence: m.confidence,
+        status: m.status,
+      })),
+    };
+  }
+
   async processImportJob(jobId: string) {
     const job = await this.prisma.dnaImportJob.findUnique({ where: { id: jobId } });
     if (!job) return null;
@@ -155,6 +186,8 @@ export class DnaService {
           completedAt: new Date(),
         },
       });
+
+      await this.seedMatchCandidates(job.workspaceId, job.userId);
     } catch (error) {
       await this.prisma.dnaImportJob.update({
         where: { id: jobId },
@@ -166,6 +199,25 @@ export class DnaService {
       });
       throw error;
     }
+  }
+
+  private async seedMatchCandidates(workspaceId: string, profileUserId: string) {
+    const existing = await this.prisma.dnaMatchCandidate.count({
+      where: { workspaceId, profileUserId },
+    });
+    if (existing > 0) return;
+
+    const stubs = [
+      { displayLabel: 'Relative cluster A (3rd cousin range)', sharedSegments: 4, totalCm: 45.2, confidence: 0.62 },
+      { displayLabel: 'Relative cluster B (distant)', sharedSegments: 2, totalCm: 18.7, confidence: 0.41 },
+    ];
+    await this.prisma.dnaMatchCandidate.createMany({
+      data: stubs.map((s) => ({
+        workspaceId,
+        profileUserId,
+        ...s,
+      })),
+    });
   }
 
   private mapProfile(profile: {

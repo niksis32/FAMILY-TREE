@@ -157,8 +157,23 @@ export class CalendarService {
     dayAfter.setDate(dayAfter.getDate() + 1);
 
     const events = await this.listEvents(tomorrow.toISOString(), dayAfter.toISOString());
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+
     let sent = 0;
     for (const ev of events) {
+      const alreadySent = await this.prisma.notification.findFirst({
+        where: {
+          userId,
+          workspaceId: snapshot.workspaceId,
+          source: 'CALENDAR',
+          sourceId: ev.id,
+          createdAt: { gte: startOfToday },
+        },
+        select: { id: true },
+      });
+      if (alreadySent) continue;
+
       await this.notifications.deliver({
         workspaceId: snapshot.workspaceId,
         userId,

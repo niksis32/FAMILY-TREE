@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { AskArchiveAnswerDto, AskArchiveCitationDto } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
+import { AiService } from '../ai/ai.service';
 import { SearchService } from '../search/search.service';
 import type { AskArchiveDto } from './ask-archive.dto';
 
@@ -11,11 +13,14 @@ export class AskArchiveService {
     private readonly prisma: PrismaService,
     private readonly workspaceContext: WorkspaceContextService,
     private readonly search: SearchService,
+    private readonly ai: AiService,
+    private readonly config: ConfigService,
   ) {}
 
   async ask(dto: AskArchiveDto, userId: string): Promise<AskArchiveAnswerDto> {
     const workspaceId = this.workspaceContext.getSnapshot().workspaceId;
     const query = dto.question.trim();
+    const language = dto.language ?? 'ru';
     const citations: AskArchiveCitationDto[] = [];
 
     if (workspaceId) {
@@ -47,19 +52,51 @@ export class AskArchiveService {
     const uniqueCitations = this.dedupeCitations(citations).slice(0, dto.limit ?? 8);
     const hasSources = uniqueCitations.length > 0;
 
-    const answer = hasSources
-      ? this.buildAnswerFromCitations(query, uniqueCitations, dto.language ?? 'ru')
-      : dto.language === 'en'
-        ? 'No matching archive sources found in your workspace (privacy filters applied). Try rephrasing or upload more documents/memories.'
-        : 'В workspace не найдено подходящих источников архива (с учётом privacy). Переформулируйте вопрос или загрузите документы/воспоминания.';
+    let answer: string;
+    let usedLlm = false;
+
+    if (hasSources && this.config.get<string>('AI_SERVICE_ENABLED') === 'true') {
+      const llmResult = await this.ai.askArchiveNarrative(
+        {
+          question: query,
+          language,
+          citations: uniqueCitations.map((c) => ({
+            sourceType: c.sourceType,
+            entityId: c.entityId,
+            title: c.title,
+            excerpt: c.excerpt,
+            deepLink: c.deepLink,
+            confidence: c.confidence,
+          })),
+        },
+        { userId, workspaceId },
+      );
+      const data = this.ai.extractData<{ ok?: boolean; answer?: string }>(llmResult);
+      if (data?.answer?.trim()) {
+        answer = data.answer.trim();
+        usedLlm = Boolean(data.ok);
+      } else {
+        answer = this.buildAnswerFromCitations(query, uniqueCitations, language);
+      }
+    } else {
+      answer = hasSources
+        ? this.buildAnswerFromCitations(query, uniqueCitations, language)
+        : language === 'en'
+          ? 'No matching archive sources found in your workspace (privacy filters applied). Try rephrasing or upload more documents/memories.'
+          : 'В workspace не найдено подходящих источников архива (с учётом privacy). Переформулируйте вопрос или загрузите документы/воспоминания.';
+    }
 
     return {
       answer,
       citations: uniqueCitations,
       assumptions: hasSources
-        ? ['Answer synthesized from keyword/structured retrieval — not a verified genealogical conclusion.']
+        ? [
+            usedLlm
+              ? 'Answer synthesized via local LLM from retrieved citations — verify against originals.'
+              : 'Answer synthesized from keyword/structured retrieval — not a verified genealogical conclusion.',
+          ]
         : ['No sources matched — answer is generic guidance only.'],
-      uncertaintyScore: hasSources ? 0.35 : 0.85,
+      uncertaintyScore: hasSources ? (usedLlm ? 0.28 : 0.35) : 0.85,
       privacyRedacted: true,
     };
   }

@@ -3,15 +3,17 @@ import { RedisModule } from '../../common/redis/redis.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { CommercialModule } from '../commercial/commercial.module';
+import { AiModule } from '../ai/ai.module';
 import { BurialIndexService } from './burial-index.service';
 import { BurialPhotogrammetryProcessor } from './burial-photogrammetry.processor';
 import { BurialPhotogrammetryQueueService } from './burial-photogrammetry.queue';
 import { CemeteryController } from './cemetery.controller';
+import { CemeteryPublicController } from './cemetery-public.controller';
 import { CemeteryService } from './cemetery.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CommercialModule, RedisModule],
-  controllers: [CemeteryController],
+  imports: [PrismaModule, AuthModule, CommercialModule, RedisModule, AiModule],
+  controllers: [CemeteryController, CemeteryPublicController],
   providers: [
     CemeteryService,
     BurialIndexService,

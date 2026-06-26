@@ -21,6 +21,8 @@ import {
   Landmark,
   BookMarked,
   Archive,
+  Trophy,
+  Compass,
 } from 'lucide-react';
 
 export type NavItemKey =
@@ -47,7 +49,9 @@ export type NavItemKey =
   | 'hints'
   | 'mergeWizard'
   | 'evidence'
-  | 'wiki';
+  | 'wiki'
+  | 'quests'
+  | 'onboarding';
 
 export interface PlatformNavItem {
   href: string;
@@ -104,11 +108,13 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
       { href: '/evidence', key: 'evidence', icon: FileText },
       { href: '/wiki', key: 'wiki', icon: BookOpen },
       { href: '/research', key: 'research', icon: Network },
+      { href: '/quests', key: 'quests', icon: Trophy },
     ],
   },
   {
     groupKey: 'social',
     items: [
+      { href: '/onboarding', key: 'onboarding', icon: Compass },
       { href: '/messages', key: 'messages', icon: MessageCircle },
       { href: '/calendar', key: 'calendar', icon: CalendarDays },
       { href: '/community', key: 'community', icon: Globe2 },

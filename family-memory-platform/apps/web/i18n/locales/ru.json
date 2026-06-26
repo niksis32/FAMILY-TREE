@@ -45,6 +45,8 @@
     "mergeWizard": "Слияние дубликатов",
     "evidence": "Доказательная база",
     "wiki": "Семейная вики",
+    "quests": "Семейные квесты",
+    "onboarding": "Старт",
     "groups": {
       "explore": "Исследование",
       "records": "Архив",
@@ -77,7 +79,23 @@
     "loading": "Загрузка…",
     "empty": "Нет событий в выбранном диапазоне.",
     "exportIcal": "Экспорт iCal",
-    "open": "Открыть"
+    "open": "Открыть",
+    "viewMonth": "Месяц",
+    "viewWeek": "Неделя",
+    "today": "Сегодня",
+    "prev": "Предыдущий период",
+    "next": "Следующий период",
+    "noEventsDay": "Нет событий в этот день.",
+    "moreEvents": "ещё {count}",
+    "weekdays": {
+      "mon": "Пн",
+      "tue": "Вт",
+      "wed": "Ср",
+      "thu": "Чт",
+      "fri": "Пт",
+      "sat": "Сб",
+      "sun": "Вс"
+    }
   },
   "notifications": {
     "title": "Уведомления",
@@ -100,6 +118,7 @@
     "saveSearch": "Сохранить поиск",
     "allCategories": "Все категории",
     "results": "Результатов: {count}",
+    "loadMore": "Загрузить ещё",
     "savedTitle": "Сохранённые поиски",
     "historyTitle": "История поиска",
     "emptySaved": "Нет сохранённых поисков.",
@@ -123,7 +142,8 @@
     "refresh": "Обновить",
     "accept": "Принять",
     "dismiss": "Отклонить",
-    "empty": "Нет открытых подсказок."
+    "empty": "Нет открытых подсказок.",
+    "openMerge": "Открыть merge wizard"
   },
   "mergeWizard": {
     "eyebrow": "Дубликаты",
@@ -138,7 +158,16 @@
     "documents": "Документы",
     "citations": "Цитаты",
     "execute": "Подтвердить слияние",
-    "confirmMerge": "Действие необратимо. Продолжить?"
+    "confirmMerge": "Действие необратимо. Продолжить?",
+    "candidatePicker": "Из inbox совпадений",
+    "fieldResolution": "Разрешение полей",
+    "field": "Поле",
+    "survivorValue": "Основная",
+    "mergedValue": "Объединяемая",
+    "resolution": "Оставить",
+    "keepSurvivor": "Основную",
+    "keepMerged": "Объединяемую",
+    "combineBiography": "Объединить биографии"
   },
   "evidence": {
     "eyebrow": "Источники",
@@ -148,7 +177,15 @@
     "empty": "Цитат пока нет.",
     "linkedEvent": "Событие",
     "exportText": "Экспорт библиографии",
-    "exportBibtex": "Экспорт BibTeX"
+    "exportBibtex": "Экспорт BibTeX",
+    "createCitation": "Создать цитату",
+    "source": "Источник",
+    "selectSource": "Выберите источник…",
+    "person": "Персона",
+    "selectEvent": "Выберите событие (необяз.)…",
+    "page": "Страница",
+    "detail": "Детали / цитата",
+    "saveCitation": "Сохранить цитату"
   },
   "wiki": {
     "eyebrow": "Семейные знания",
@@ -162,7 +199,10 @@
     "contentHint": "Используйте [[slug-страницы]] и @person:id для ссылок",
     "create": "Создать страницу",
     "defaultContent": "Новая страница семейной вики.",
-    "version": "Версия"
+    "version": "Версия",
+    "revisionHistory": "История версий",
+    "compareWithLatest": "Сравнить с последней",
+    "current": "Текущая"
   },
   "premiumDashboard": {
     "eyebrow": "Генеалогический интеллект",
@@ -921,6 +961,7 @@
     "hint": "JPEG, PNG, WebP, PDF, MP4, MP3. Metadata в PostgreSQL (по умолчанию приватно).",
     "personIdPlaceholder": "ID персоны для привязки (необязательно)",
     "chooseFile": "Выбрать файл",
+    "takePhoto": "Сделать фото",
     "retry": "Повторить",
     "openFile": "Открыть загруженный файл",
     "idle": "Готово к загрузке",
@@ -1347,11 +1388,17 @@
       "eyebrow": "Интеграции",
       "title": "Поиск во внешних архивах",
       "description": "FamilySearch: поиск записей и импорт как Source с атрибуцией.",
+      "tosBanner": "Внешние записи требуют атрибуции по условиям провайдера. Импортированные источники сохраняются с текстом courtesy.",
       "givenName": "Имя",
       "familyName": "Фамилия",
       "search": "Искать",
       "searching": "Поиск…",
       "providers": "Провайдеры",
+      "quota": "Поисков в месяц",
+      "remaining": "осталось",
+      "preview": "Просмотр",
+      "dismiss": "Закрыть",
+      "sourceLink": "Открыть у источника",
       "import": "Импортировать как источник",
       "importSuccess": "Источник импортирован"
     },
@@ -1389,6 +1436,12 @@
       "title": "Webhooks",
       "description": "Endpoints для интеграторов (ADMIN).",
       "loading": "Загрузка…",
+      "wizardStep1": "1. URL",
+      "wizardStep2": "2. События",
+      "wizardStep3": "3. Готово",
+      "urlHint": "Нужен HTTPS URL (например https://example.com/hooks/family)",
+      "next": "Далее",
+      "back": "Назад",
       "createEndpoint": "Новый endpoint",
       "descriptionField": "Описание (опционально)",
       "create": "Создать endpoint",
@@ -1396,10 +1449,14 @@
       "secretOnce": "Signing secret (сохраните сейчас)",
       "endpoints": "Активные endpoints",
       "noEndpoints": "Endpoints пока нет.",
+      "disabled": "Отключён после ошибок доставки",
       "test": "Тест ping",
       "testSent": "Тест поставлен в очередь.",
       "recentEvents": "Последние доставки",
-      "noEvents": "Событий пока нет."
+      "noEvents": "Событий пока нет.",
+      "allStatuses": "Все статусы",
+      "retry": "Повторить",
+      "retryQueued": "Повтор поставлен в очередь."
     },
     "branding": {
       "title": "Брендинг и домен",
@@ -1418,12 +1475,19 @@
       "domainConfigured": "Домен настроен — добавьте DNS TXT.",
       "domainVerified": "Домен отмечен как verified.",
       "sslQueued": "TLS provisioning в очереди",
-      "verifiedBadge": "Домен verified — можно запросить TLS."
+      "verifiedBadge": "Домен verified — можно запросить TLS.",
+      "logo": "Логотип",
+      "uploadLogo": "Загрузить логотип",
+      "logoUploaded": "Логотип загружен."
     },
     "dna": {
       "title": "DNA импорт",
       "description": "Импорт raw DNA только для генеалогии, с consent.",
       "loading": "Загрузка…",
+      "wizardStep1": "1. Consent",
+      "wizardStep2": "2. Загрузка",
+      "wizardStep3": "3. Импорт",
+      "wizardStep4": "4. Профиль",
       "disclaimer": "Raw DNA используется только для генеалогического matching. Без health/trait анализа.",
       "grantConsent": "Дать consent на импорт",
       "consentGranted": "Consent записан.",
@@ -1437,7 +1501,9 @@
       "file": "Файл",
       "importedAt": "Импортирован",
       "deleteProfile": "Удалить DNA профиль",
-      "deleted": "DNA профиль удалён."
+      "deleted": "DNA профиль удалён.",
+      "matches": "Предложения совпадений",
+      "matchesNote": "Только чтение v1.1 — без медицинской интерпретации."
     }
   },
   "historicalMap": {
@@ -1465,5 +1531,51 @@
       "events-map": "Карта событий",
       "historical-places": "Исторические места"
     }
+  },
+  "onboarding": {
+    "eyebrow": "Активация",
+    "title": "Мастер onboarding",
+    "description": "Настройте семейный архив по шагам. Прогресс сохраняется — можно продолжить после перезагрузки.",
+    "loading": "Загрузка прогресса…",
+    "next": "Шаг выполнен",
+    "skip": "Пропустить",
+    "finish": "Завершить",
+    "openStep": "Открыть шаг",
+    "resumeHint": "Прогресс сохранён автоматически",
+    "steps": {
+      "welcome": "Добро пожаловать",
+      "createTree": "Изучите древо",
+      "addPerson": "Добавьте первого человека",
+      "uploadPhoto": "Загрузите фото",
+      "inviteFamily": "Пригласите семью",
+      "complete": "Готово"
+    },
+    "hints": {
+      "welcome": "Family Memory помогает сохранять фото, документы и истории поколений.",
+      "createTree": "Откройте древо и выберите корневую персону.",
+      "addPerson": "Создайте профиль с датой или местом рождения.",
+      "uploadPhoto": "На мобильном — съёмка камерой; на десктопе — перетащите скан.",
+      "inviteFamily": "Пригласите редакторов в workspace.",
+      "complete": "Можно переходить к квестам и историям."
+    }
+  },
+  "questsPage": {
+    "eyebrow": "Удержание",
+    "title": "Семейные квесты",
+    "description": "Квесты исследования в рамках workspace с опциональным рейтингом.",
+    "leaderboardTitle": "Таблица лидеров (opt-in)",
+    "leaderboardHint": "В рейтинге только участники с согласием.",
+    "displayName": "Имя в рейтинге",
+    "optIn": "Участвовать",
+    "optOut": "Отказаться",
+    "leaderboardEmpty": "Пока никто не участвует.",
+    "branchCompletion": "Завершение веток"
+  },
+  "storyTranslation": {
+    "title": "Перевод истории",
+    "hint": "Перевод контента истории — отдельно от языка интерфейса.",
+    "translate": "Перевести",
+    "source": "Оригинал",
+    "empty": "Запросите перевод для сравнения side-by-side."
   }
 }

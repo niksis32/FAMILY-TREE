@@ -35,6 +35,7 @@ export class SearchController {
         familyId: query.familyId,
         sort: query.sort,
         limit: query.limit,
+        cursor: query.cursor,
       },
       user,
     );

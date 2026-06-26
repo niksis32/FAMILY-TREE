@@ -83,13 +83,61 @@ fi
 if [[ -z "$WORKSPACE_ID" || "$WORKSPACE_ID" == "null" ]]; then
   echo "WARN: workspace не найден — пропуск export"
 else
-  curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
-    "$API/workspaces/$WORKSPACE_ID/exports" | json_pipe
+  EXPORT_JSON=$(curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
+    "$API/workspaces/$WORKSPACE_ID/exports")
+  echo "$EXPORT_JSON" | json_pipe
+  EXPORT_JOB_ID=""
+  if command -v jq >/dev/null 2>&1; then
+    EXPORT_JOB_ID=$(echo "$EXPORT_JSON" | jq -r '.id // empty')
+  fi
+  if [[ -n "$EXPORT_JOB_ID" && "$EXPORT_JOB_ID" != "null" ]]; then
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      JOB_STATUS=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+        "$API/workspaces/$WORKSPACE_ID/exports/$EXPORT_JOB_ID" | jq -r '.status // empty' 2>/dev/null || echo "")
+      if [[ "$JOB_STATUS" == "COMPLETED" ]]; then
+        MANIFEST=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+          "$API/workspaces/$WORKSPACE_ID/exports/$EXPORT_JOB_ID" | jq -r '.manifest.mediaBinariesIncluded // 0' 2>/dev/null || echo "0")
+        echo "OK: workspace export COMPLETED (mediaBinariesIncluded=$MANIFEST)"
+        break
+      fi
+      if [[ "$JOB_STATUS" == "FAILED" ]]; then
+        echo "WARN: workspace export FAILED"
+        break
+      fi
+      sleep 2
+    done
+  fi
   echo "OK: workspace export job (workspace=$WORKSPACE_ID)"
 fi
 
 echo ""
 echo "[9/9] public share create + resolve"
+FAMILY_ID=""
+if command -v jq >/dev/null 2>&1; then
+  FAMILY_ID=$(curl -sf -H "Authorization: Bearer $TOKEN" "$API/families" | jq -r '.[0].id // empty')
+fi
+
+if [[ -n "$FAMILY_ID" && "$FAMILY_ID" != "null" ]]; then
+  SHARE_JSON=$(curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"resourceType\":\"FAMILY_TREE\",\"resourceId\":\"$FAMILY_ID\",\"hideLivingPersons\":true,\"workspaceId\":\"$WORKSPACE_ID\"}" \
+    "$API/privacy/public-shares")
+  RAW_TOKEN=$(
+    if command -v jq >/dev/null 2>&1; then
+      echo "$SHARE_JSON" | jq -r '.publicToken'
+    else
+      echo "$SHARE_JSON" | extract_json_string publicToken
+    fi
+  )
+  RESOLVE=$(curl -sf "$API/public/share/$RAW_TOKEN")
+  echo "$RESOLVE" | json_pipe
+  if command -v jq >/dev/null 2>&1; then
+    PAYLOAD_TYPE=$(echo "$RESOLVE" | jq -r '.payload.type // empty')
+    if [[ "$PAYLOAD_TYPE" == "FAMILY_TREE" ]]; then
+      echo "OK: public FAMILY_TREE share (token prefix: ${RAW_TOKEN:0:8}...)"
+    fi
+  fi
+else
 PERSON_ID=""
 if command -v jq >/dev/null 2>&1; then
   PERSON_ID=$(curl -sf -H "Authorization: Bearer $TOKEN" "$API/persons" | jq -r '.[0].id // empty')
@@ -113,6 +161,7 @@ else
   )
   curl -sf "$API/public/share/$RAW_TOKEN" | json_pipe
   echo "OK: public share resolve (token prefix: ${RAW_TOKEN:0:8}...)"
+fi
 fi
 
 echo ""

@@ -176,7 +176,7 @@ export class PdfExportService {
       title: branding?.displayName ?? workspace?.name ?? 'Family Book',
       persons,
       treeData,
-      familyBranchName: familyId ? (await this.familyName(familyId)) : undefined,
+      familyBranchName: familyId ? ((await this.familyName(familyId)) ?? undefined) : undefined,
       branding: branding
         ? {
             displayName: branding.displayName,

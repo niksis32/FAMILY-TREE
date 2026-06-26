@@ -15,6 +15,7 @@ import {
 } from '@simplewebauthn/server';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import {
   decryptSecret,
   encryptSecret,
@@ -22,20 +23,45 @@ import {
   hashToken,
 } from './mfa-crypto';
 
+const PASSKEY_CHALLENGE_TTL_SECONDS = 5 * 60;
+const PASSKEY_CHALLENGE_PREFIX = 'webauthn:challenge:';
+
 @Injectable()
 export class MfaService {
+  /** Fallback when Redis is unavailable (single-instance dev). */
   private readonly passkeyChallenges = new Map<string, { challenge: string; expiresAt: number }>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly redis: RedisService,
   ) {}
 
-  private storeChallenge(key: string, challenge: string) {
-    this.passkeyChallenges.set(key, { challenge, expiresAt: Date.now() + 5 * 60 * 1000 });
+  private challengeRedisKey(key: string) {
+    return `${PASSKEY_CHALLENGE_PREFIX}${key}`;
   }
 
-  private consumeChallenge(key: string): string {
+  private async storeChallenge(key: string, challenge: string) {
+    const client = this.redis.getConnection();
+    if (client) {
+      await client.setex(this.challengeRedisKey(key), PASSKEY_CHALLENGE_TTL_SECONDS, challenge);
+      return;
+    }
+    this.passkeyChallenges.set(key, { challenge, expiresAt: Date.now() + PASSKEY_CHALLENGE_TTL_SECONDS * 1000 });
+  }
+
+  private async consumeChallenge(key: string): Promise<string> {
+    const client = this.redis.getConnection();
+    if (client) {
+      const redisKey = this.challengeRedisKey(key);
+      const challenge = await client.get(redisKey);
+      await client.del(redisKey);
+      if (!challenge) {
+        throw new BadRequestException('Passkey challenge expired');
+      }
+      return challenge;
+    }
+
     const row = this.passkeyChallenges.get(key);
     this.passkeyChallenges.delete(key);
     if (!row || row.expiresAt < Date.now()) {
@@ -198,7 +224,7 @@ export class MfaService {
       })),
     });
 
-    this.storeChallenge(`register:${userId}`, options.challenge);
+    await this.storeChallenge(`register:${userId}`, options.challenge);
     return options;
   }
 
@@ -206,7 +232,7 @@ export class MfaService {
     this.assertHttpsForPasskeys();
     const verification = await verifyRegistrationResponse({
       response: response as never,
-      expectedChallenge: this.consumeChallenge(`register:${userId}`),
+      expectedChallenge: await this.consumeChallenge(`register:${userId}`),
       expectedOrigin: this.expectedOrigin(),
       expectedRPID: this.rpId(),
       requireUserVerification: true,
@@ -251,7 +277,7 @@ export class MfaService {
       })),
       userVerification: 'preferred',
     });
-    this.storeChallenge(`auth:${mfaSessionToken}`, options.challenge);
+    await this.storeChallenge(`auth:${mfaSessionToken}`, options.challenge);
     return options;
   }
 
@@ -266,7 +292,7 @@ export class MfaService {
 
     const verification = await verifyAuthenticationResponse({
       response: response as never,
-      expectedChallenge: this.consumeChallenge(`auth:${mfaSessionToken}`),
+      expectedChallenge: await this.consumeChallenge(`auth:${mfaSessionToken}`),
       expectedOrigin: this.expectedOrigin(),
       expectedRPID: this.rpId(),
       credential: {

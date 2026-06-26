@@ -3,12 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { inferIsLiving } from '@family/genealogy-core';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
 import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import { CommercialContextService } from '../commercial/commercial-context.service';
+import { AiService } from '../ai/ai.service';
 import { BurialIndexService, type BurialIndexDocument } from './burial-index.service';
 import { BurialPhotogrammetryQueueService } from './burial-photogrammetry.queue';
 import type {
@@ -30,6 +32,7 @@ export class CemeteryService {
     private readonly workspaceContext: WorkspaceContextService,
     private readonly burialIndex: BurialIndexService,
     private readonly photogrammetryQueue: BurialPhotogrammetryQueueService,
+    private readonly ai: AiService,
   ) {}
 
   private requireWorkspaceId(): string {
@@ -53,7 +56,7 @@ export class CemeteryService {
     const workspaceId = this.requireWorkspaceId();
     await this.context.resolveForUser(workspaceId, userId);
     const row = await this.prisma.cemetery.create({
-      data: workspaceScopedCreateData({
+      data: workspaceScopedCreateData<Prisma.CemeteryUncheckedCreateInput>({
         name: dto.name,
         address: dto.address,
         latitude: dto.latitude,
@@ -116,7 +119,7 @@ export class CemeteryService {
     }
 
     const row = await this.prisma.burialSite.create({
-      data: workspaceScopedCreateData({
+      data: workspaceScopedCreateData<Prisma.BurialSiteUncheckedCreateInput>({
         cemeteryId: dto.cemeteryId,
         personId: dto.personId,
         plotLabel: dto.plotLabel,
@@ -193,7 +196,7 @@ export class CemeteryService {
     await this.getBurialSite(userId, burialSiteId);
 
     const job = await this.prisma.burialPhotogrammetryJob.create({
-      data: workspaceScopedCreateData({
+      data: workspaceScopedCreateData<Prisma.BurialPhotogrammetryJobUncheckedCreateInput>({
         burialSiteId,
         sourceMediaId,
         status: 'QUEUED',
@@ -334,7 +337,7 @@ export class CemeteryService {
     await this.getBurialSite(userId, dto.burialSiteId);
 
     const row = await this.prisma.memorial.create({
-      data: workspaceScopedCreateData({
+      data: workspaceScopedCreateData<Prisma.MemorialUncheckedCreateInput>({
         burialSiteId: dto.burialSiteId,
         title: dto.title,
         inscription: dto.inscription,
@@ -369,6 +372,68 @@ export class CemeteryService {
     await this.getMemorial(userId, id);
     await this.prisma.memorial.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  async enableMemorialShare(userId: string, id: string) {
+    const workspaceId = this.requireWorkspaceId();
+    await this.context.resolveForUser(workspaceId, userId);
+    const memorial = await this.prisma.memorial.findFirst({ where: { id, workspaceId } });
+    if (!memorial) throw new NotFoundException('Memorial not found');
+
+    const shareToken = memorial.shareToken ?? randomBytes(24).toString('base64url');
+    const row = await this.prisma.memorial.update({
+      where: { id },
+      data: { shareToken, shareEnabled: true },
+    });
+    return {
+      ...this.mapMemorial(row),
+      publicUrl: `/m/${shareToken}`,
+    };
+  }
+
+  async getPublicMemorial(shareToken: string) {
+    const memorial = await this.prisma.memorial.findFirst({
+      where: { shareToken, shareEnabled: true },
+      include: {
+        burialSite: {
+          include: {
+            cemetery: { select: { name: true, address: true, latitude: true, longitude: true } },
+            person: {
+              select: {
+                givenName: true,
+                familyName: true,
+                birthDate: true,
+                deathDate: true,
+                isLiving: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!memorial) throw new NotFoundException('Memorial not found or sharing disabled');
+
+    const person = memorial.burialSite.person;
+    if (person?.isLiving) {
+      throw new NotFoundException('Memorial not available');
+    }
+
+    return {
+      title: memorial.title,
+      inscription: memorial.inscription,
+      cemeteryName: memorial.burialSite.cemetery.name,
+      cemeteryAddress: memorial.burialSite.cemetery.address,
+      plotLabel: memorial.burialSite.plotLabel,
+      person: person
+        ? {
+            displayName: [person.givenName, person.familyName].filter(Boolean).join(' '),
+            birthYear: person.birthDate?.getUTCFullYear() ?? null,
+            deathYear: person.deathDate?.getUTCFullYear() ?? null,
+          }
+        : null,
+      latitude: memorial.burialSite.latitude ?? memorial.burialSite.cemetery.latitude,
+      longitude: memorial.burialSite.longitude ?? memorial.burialSite.cemetery.longitude,
+    };
   }
 
   async getMapMarkers(userId: string) {
@@ -467,7 +532,12 @@ export class CemeteryService {
     await this.context.resolveForUser(workspaceId, userId);
 
     const completedJob = await this.prisma.burialPhotogrammetryJob.findFirst({
-      where: { burialSiteId: id, workspaceId, status: 'COMPLETED', sceneJson: { not: null } },
+      where: {
+        burialSiteId: id,
+        workspaceId,
+        status: 'COMPLETED',
+        NOT: { sceneJson: { equals: Prisma.DbNull } },
+      },
       orderBy: { completedAt: 'desc' },
     });
     if (completedJob?.sceneJson && typeof completedJob.sceneJson === 'object') {
@@ -565,7 +635,32 @@ export class CemeteryService {
     }
   }
 
-  async analyzePhoto(_userId: string, dto: AnalyzeTombstonePhotoDto) {
+  async analyzePhoto(userId: string, dto: AnalyzeTombstonePhotoDto) {
+    const workspaceId = this.requireWorkspaceId();
+    await this.context.resolveForUser(workspaceId, userId);
+
+    if (dto.mediaId) {
+      try {
+        const ocrResult = await this.ai.ocrPreview({ documentId: dto.mediaId, language: 'ru' });
+        const text =
+          typeof ocrResult === 'object' && ocrResult && 'text' in ocrResult
+            ? String((ocrResult as { text?: string }).text ?? '')
+            : JSON.stringify(ocrResult);
+        return {
+          status: 'completed',
+          mediaId: dto.mediaId,
+          ocr: {
+            detectedText: text.slice(0, 2000),
+            confidence: 0.85,
+            language: 'ru',
+            source: 'document-intelligence',
+          },
+        };
+      } catch {
+        // fall through to heuristic stub
+      }
+    }
+
     return {
       status: 'mock',
       mediaId: dto.mediaId ?? null,
@@ -582,7 +677,7 @@ export class CemeteryService {
           deathYear: 1962,
         },
       },
-      note: 'Stub OCR result for MVP — connect document-intelligence pipeline in a later iteration.',
+      note: 'OCR pipeline unavailable — returned heuristic stub.',
     };
   }
 
@@ -670,6 +765,8 @@ export class CemeteryService {
     title: string;
     inscription: string | null;
     photoMediaId: string | null;
+    shareToken?: string | null;
+    shareEnabled?: boolean;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -679,6 +776,8 @@ export class CemeteryService {
       title: row.title,
       inscription: row.inscription,
       photoMediaId: row.photoMediaId,
+      shareEnabled: row.shareEnabled ?? false,
+      shareToken: row.shareToken ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

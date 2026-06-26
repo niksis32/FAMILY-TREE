@@ -9,3 +9,14 @@ export class AssignClusterPersonDto {
   @IsString({ each: true })
   embeddingIds?: string[];
 }
+
+export class MergeClustersDto {
+  @IsString()
+  targetClusterId!: string;
+}
+
+export class SplitClusterDto {
+  @IsArray()
+  @IsString({ each: true })
+  embeddingIds!: string[];
+}

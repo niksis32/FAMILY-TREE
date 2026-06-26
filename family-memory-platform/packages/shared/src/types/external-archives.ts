@@ -1,4 +1,4 @@
-export type ExternalArchiveProviderId = 'FAMILYSEARCH';
+import type { ExternalArchiveProviderId } from '../constants/external-archives';
 
 export interface ExternalArchiveProviderSummary {
   id: ExternalArchiveProviderId;

@@ -9,6 +9,7 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useTheme } from '@/components/theme-provider';
 import { CommandPalette } from '@/components/command-palette';
 import { NotificationBell } from '@/features/notifications/notification-bell';
+import { OfflineBadge } from '@/components/pwa/offline-badge';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
@@ -139,6 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible sm:flex-nowrap">
+              <OfflineBadge />
               <CommandPalette />
               <NotificationBell />
               <LocaleSwitcher />

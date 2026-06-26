@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { ActivityEventType } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityRecorderService } from '../activity-feed/activity-recorder.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -134,5 +135,119 @@ export class CollaborationHooksService {
       deepLink: '/community',
       sourceId: reportId,
     });
+  }
+
+  async onMediaUploaded(params: {
+    workspaceId: string;
+    actorUserId: string;
+    mediaId: string;
+    title: string;
+  }) {
+    await this.notifyWorkspaceActivity({
+      workspaceId: params.workspaceId,
+      actorUserId: params.actorUserId,
+      title: 'Новое медиа в архиве',
+      body: '{actor} загрузил(а) медиа: {label}',
+      label: params.title,
+      deepLink: `/media?highlight=${params.mediaId}`,
+      sourceId: params.mediaId,
+      activityType: 'MEDIA_UPLOADED',
+      activitySummary: `Загружено медиа: ${params.title}`,
+      entityType: 'media',
+      entityId: params.mediaId,
+    });
+  }
+
+  async onDocumentUploaded(params: {
+    workspaceId: string;
+    actorUserId: string;
+    documentId: string;
+    title: string;
+  }) {
+    await this.notifyWorkspaceActivity({
+      workspaceId: params.workspaceId,
+      actorUserId: params.actorUserId,
+      title: 'Новый документ в архиве',
+      body: '{actor} добавил(а) документ: {label}',
+      label: params.title,
+      deepLink: `/documents?highlight=${params.documentId}`,
+      sourceId: params.documentId,
+      activityType: 'DOCUMENT_UPLOADED',
+      activitySummary: `Добавлен документ: ${params.title}`,
+      entityType: 'document',
+      entityId: params.documentId,
+    });
+  }
+
+  async onStoryPublished(params: {
+    workspaceId: string;
+    actorUserId: string;
+    storyId: string;
+    title: string;
+  }) {
+    await this.notifyWorkspaceActivity({
+      workspaceId: params.workspaceId,
+      actorUserId: params.actorUserId,
+      title: 'Опубликована семейная история',
+      body: '{actor} опубликовал(а) историю: {label}',
+      label: params.title,
+      deepLink: `/stories/${params.storyId}`,
+      sourceId: params.storyId,
+      activityType: 'STORY_PUBLISHED',
+      activitySummary: `Опубликована история: ${params.title}`,
+      entityType: 'family_story',
+      entityId: params.storyId,
+    });
+  }
+
+  private async notifyWorkspaceActivity(params: {
+    workspaceId: string;
+    actorUserId: string;
+    title: string;
+    body: string;
+    label: string;
+    deepLink: string;
+    sourceId: string;
+    activityType: ActivityEventType;
+    activitySummary: string;
+    entityType: string;
+    entityId: string;
+  }) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: params.actorUserId },
+      select: { displayName: true, email: true },
+    });
+    const actorLabel = actor?.displayName ?? actor?.email ?? 'Участник';
+    const notificationBody = params.body
+      .replace('{actor}', actorLabel)
+      .replace('{label}', params.label);
+
+    await this.activity.record({
+      workspaceId: params.workspaceId,
+      actorUserId: params.actorUserId,
+      type: params.activityType,
+      summary: params.activitySummary,
+      deepLink: params.deepLink,
+      entityType: params.entityType,
+      entityId: params.entityId,
+    });
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId: params.workspaceId },
+      select: { userId: true },
+    });
+
+    for (const member of members) {
+      if (member.userId === params.actorUserId) continue;
+      await this.notifications.deliver({
+        workspaceId: params.workspaceId,
+        userId: member.userId,
+        source: 'ACTIVITY',
+        title: params.title,
+        body: notificationBody,
+        deepLink: params.deepLink,
+        sourceId: params.sourceId,
+      });
+    }
   }
 }

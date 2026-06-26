@@ -37,6 +37,7 @@ export class SearchService {
       familyId?: string;
       sort?: 'relevance' | 'year_asc' | 'year_desc' | 'title';
       limit?: number;
+      cursor?: string;
     },
     user?: AuthenticatedUser,
     options?: { recordHistory?: boolean },
@@ -57,6 +58,7 @@ export class SearchService {
         facets: { categories: {}, years: {}, tags: {} },
         total: 0,
         hits: [],
+        nextCursor: null,
       };
     }
 
@@ -80,19 +82,28 @@ export class SearchService {
             ? ['title:asc']
             : undefined;
 
-    const response = await this.meiliRequest<{ hits: SearchDocument[]; estimatedTotalHits?: number }>(
-      `/indexes/${this.indexUid}/search`,
-      'POST',
-      {
-        q: query,
-        limit: input.limit ?? 40,
-        filter: filterParts.length ? filterParts.join(' AND ') : undefined,
-        sort,
-        facets: ['category', 'year', 'tags'],
-      },
-    );
+    const pageSize = input.limit ?? 40;
+    const offset = input.cursor ? Number.parseInt(input.cursor, 10) : 0;
+    const safeOffset = Number.isFinite(offset) && offset >= 0 ? offset : 0;
 
-    let visibleHits = await this.searchPrivacy.filterHits(response.hits, user);
+    const response = await this.meiliRequest<{
+      hits: SearchDocument[];
+      estimatedTotalHits?: number;
+      offset?: number;
+      limit?: number;
+    }>(`/indexes/${this.indexUid}/search`, 'POST', {
+      q: query,
+      limit: pageSize + 1,
+      offset: safeOffset,
+      filter: filterParts.length ? filterParts.join(' AND ') : undefined,
+      sort,
+      facets: ['category', 'year', 'tags'],
+    });
+
+    const rawHits = response.hits ?? [];
+    const hasMore = rawHits.length > pageSize;
+    const pageHits = hasMore ? rawHits.slice(0, pageSize) : rawHits;
+    let visibleHits = await this.searchPrivacy.filterHits(pageHits, user);
 
     if (input.tags?.length) {
       const tagSet = new Set(input.tags.map((t) => t.toLowerCase()));
@@ -101,7 +112,7 @@ export class SearchService {
 
     const facets = this.buildFacets(visibleHits);
 
-    if (user && options?.recordHistory !== false) {
+    if (user && options?.recordHistory !== false && safeOffset === 0) {
       const workspaceId = await this.resolveWorkspaceId(user);
       if (workspaceId) {
         await this.prisma.searchHistoryEntry.create({
@@ -120,8 +131,9 @@ export class SearchService {
       q: query,
       filters,
       facets,
-      total: visibleHits.length,
+      total: response.estimatedTotalHits ?? visibleHits.length,
       hits: visibleHits,
+      nextCursor: hasMore ? String(safeOffset + pageSize) : null,
     };
   }
 
@@ -562,8 +574,9 @@ export class SearchService {
       burials: [],
     };
     for (const hit of result.hits) {
-      if (hit.category in empty) {
-        (empty as Record<string, SearchDocument[]>)[hit.category]?.push(hit);
+      const bucket = empty[hit.category as keyof Omit<CategorizedSearchResults, 'q'>];
+      if (bucket) {
+        bucket.push(hit);
       }
     }
     return empty;

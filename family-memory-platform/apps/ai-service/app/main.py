@@ -35,6 +35,7 @@ from app.document_intelligence import (
 )
 from app.ocr_engine import tesseract_available
 from app.matching import ScorePairRequest, score_person_pair
+from app.ask_archive import AskArchiveNarrativeRequest, ask_archive_narrative
 from app.photo import (
     PhotoImageRequest,
     PhotoSuggestRequest,
@@ -44,6 +45,7 @@ from app.photo import (
     fetch_image_bytes,
     suggest_person_matches,
 )
+from app.speech import SpeechTranscribeRequest, ffmpeg_available, transcribe_media, whisper_enabled
 
 app = FastAPI(
     title="Family Memory AI Service",
@@ -100,6 +102,12 @@ async def health():
         implemented.append("local-llm.narrative")
     else:
         implemented.append("local-llm.stub")
+    if whisper_enabled():
+        implemented.append("speech.whisper")
+    else:
+        implemented.append("speech.stub")
+    if ffmpeg_available():
+        implemented.append("speech.ffmpeg")
 
     return {
         "status": "ok",
@@ -109,7 +117,9 @@ async def health():
         "mediapipe": mediapipe_module is not None,
         "tesseract": tesseract_available(),
         "localLlm": llm,
-        "futureEngines": ["paddleocr", "face-embeddings"],
+        "whisper": whisper_enabled(),
+        "ffmpeg": ffmpeg_available(),
+        "futureEngines": ["paddleocr", "insightface-embeddings"],
     }
 
 
@@ -333,3 +343,13 @@ async def story_migration_route(payload: StoryMigrationRequest):
 @app.post("/story/era-context")
 async def story_era_context_route(payload: StoryEraContextRequest):
     return await story_era_context(payload)
+
+
+@app.post("/ask-archive/narrative")
+async def ask_archive_narrative_route(payload: AskArchiveNarrativeRequest):
+    return await ask_archive_narrative(payload)
+
+
+@app.post("/speech/transcribe")
+async def speech_transcribe_route(payload: SpeechTranscribeRequest):
+    return await transcribe_media(payload)

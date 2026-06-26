@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { CollaborationModule } from '../collaboration/collaboration.module';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -22,6 +23,7 @@ import { FamilyStoriesService } from './family-stories.service';
     MediaModule,
     DocumentsModule,
     forwardRef(() => WebhooksModule),
+    CollaborationModule,
   ],
   controllers: [
     FamilyStoriesController,

@@ -64,6 +64,8 @@ export class HintsService {
     await Promise.all([
       this.syncMatchingHints(),
       this.syncGapHints(),
+      this.syncDocumentHints(),
+      this.syncPhotoHints(),
     ]);
   }
 
@@ -160,6 +162,180 @@ export class HintsService {
         },
       });
     }
+  }
+
+  private async syncDocumentHints() {
+    const docs = await this.prisma.document.findMany({
+      where: {
+        deletedAt: null,
+        privacyLevel: { not: 'PRIVATE' },
+        OR: [
+          { ocrText: { not: null }, personId: null },
+          { intelligenceAnalysis: { isNot: null } },
+        ],
+      },
+      include: { intelligenceAnalysis: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 25,
+    });
+
+    for (const doc of docs) {
+      const hasOcr = Boolean(doc.ocrText?.trim());
+      const analysis = doc.intelligenceAnalysis;
+      const eventSuggestions = this.extractSuggestionCount(analysis?.events);
+      const entitySuggestions = this.extractSuggestionCount(analysis?.entities);
+
+      if (!hasOcr && eventSuggestions === 0 && entitySuggestions === 0) continue;
+
+      const existing = await this.prisma.hint.findFirst({
+        where: {
+          workspaceId: doc.workspaceId,
+          source: 'DOCUMENT',
+          entityType: 'document',
+          entityId: doc.id,
+          status: 'OPEN',
+        },
+      });
+      if (existing) continue;
+
+      const reasons: Array<{ code: string; label: string; weight: number }> = [];
+      if (hasOcr) {
+        reasons.push({ code: 'document.ocr', label: 'OCR-текст готов к анализу', weight: 0.6 });
+      }
+      if (eventSuggestions > 0) {
+        reasons.push({
+          code: 'document.events',
+          label: `${eventSuggestions} предложенных событий из документа`,
+          weight: 0.8,
+        });
+      }
+      if (entitySuggestions > 0) {
+        reasons.push({
+          code: 'document.entities',
+          label: `${entitySuggestions} распознанных сущностей`,
+          weight: 0.5,
+        });
+      }
+
+      await this.prisma.hint.create({
+        data: {
+          workspaceId: doc.workspaceId,
+          source: 'DOCUMENT',
+          entityType: 'document',
+          entityId: doc.id,
+          title: `Документ: ${doc.title}`,
+          summary: hasOcr
+            ? 'Проверьте OCR и привяжите события или персону'
+            : 'Есть AI-предложения по документу',
+          score: Math.min(0.95, 0.4 + eventSuggestions * 0.1 + (hasOcr ? 0.2 : 0)),
+          metadata: { documentId: doc.id, hasOcr, eventSuggestions, entitySuggestions },
+          reasons: {
+            create: reasons.length
+              ? reasons
+              : [{ code: 'document.pending', label: 'Требуется проверка документа', weight: 0.4 }],
+          },
+        },
+      });
+    }
+  }
+
+  private async syncPhotoHints() {
+    const [unassignedTags, unreviewedClusters] = await Promise.all([
+      this.prisma.photoFaceTag.findMany({
+        where: { personId: null },
+        include: { media: { select: { id: true, title: true, workspaceId: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+      }),
+      this.prisma.faceCluster.findMany({
+        where: { status: 'UNREVIEWED', personId: null },
+        orderBy: { updatedAt: 'desc' },
+        take: 15,
+        include: { person: { select: { id: true, givenName: true, familyName: true } } },
+      }),
+    ]);
+
+    for (const tag of unassignedTags) {
+      if (!tag.media) continue;
+      const workspaceId = tag.media.workspaceId;
+      const existing = await this.prisma.hint.findFirst({
+        where: {
+          workspaceId,
+          source: 'PHOTO',
+          entityType: 'face_tag',
+          entityId: tag.id,
+          status: 'OPEN',
+        },
+      });
+      if (existing) continue;
+
+      const confidence = tag.confidence ?? 0.5;
+      await this.prisma.hint.create({
+        data: {
+          workspaceId,
+          source: 'PHOTO',
+          entityType: 'face_tag',
+          entityId: tag.id,
+          targetEntityType: 'media',
+          targetEntityId: tag.mediaId,
+          title: `Неразмеченное лицо на «${tag.media.title ?? 'фото'}»`,
+          summary: `Уверенность ${Math.round(confidence * 100)}% — назначьте персону`,
+          score: confidence,
+          metadata: { mediaId: tag.mediaId, faceTagId: tag.id },
+          reasons: {
+            create: [
+              {
+                code: 'photo.unassigned_face',
+                label: 'Лицо без привязки к персоне',
+                weight: confidence,
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    for (const cluster of unreviewedClusters) {
+      const existing = await this.prisma.hint.findFirst({
+        where: {
+          workspaceId: cluster.workspaceId,
+          source: 'PHOTO',
+          entityType: 'face_cluster',
+          entityId: cluster.id,
+          status: 'OPEN',
+        },
+      });
+      if (existing) continue;
+
+      await this.prisma.hint.create({
+        data: {
+          workspaceId: cluster.workspaceId,
+          source: 'PHOTO',
+          entityType: 'face_cluster',
+          entityId: cluster.id,
+          title: `Кластер лиц (${cluster.memberCount} фото)`,
+          summary: 'Проверьте кластер и назначьте персону',
+          score: 0.75,
+          metadata: { clusterId: cluster.id, memberCount: cluster.memberCount },
+          reasons: {
+            create: [
+              {
+                code: 'photo.cluster_unreviewed',
+                label: `${cluster.memberCount} лиц в кластере ожидают проверки`,
+                weight: 0.75,
+              },
+            ],
+          },
+        },
+      });
+    }
+  }
+
+  private extractSuggestionCount(payload: Prisma.JsonValue | null | undefined): number {
+    if (!payload || typeof payload !== 'object') return 0;
+    const data = payload as Record<string, unknown>;
+    const items = data.suggestions ?? data.items ?? data.events ?? data.entities;
+    return Array.isArray(items) ? items.length : 0;
   }
 
   private toSummary(row: {

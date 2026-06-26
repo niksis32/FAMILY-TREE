@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsArray, IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 import type { SearchFilters } from '@family/shared';
 
@@ -11,10 +12,12 @@ export class SearchQueryDto {
   categories?: string[];
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   yearFrom?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   yearTo?: number;
 
@@ -32,10 +35,14 @@ export class SearchQueryDto {
   sort?: 'relevance' | 'year_asc' | 'year_desc' | 'title';
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
   limit?: number;
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 }
 
 export class CreateSavedSearchDto {

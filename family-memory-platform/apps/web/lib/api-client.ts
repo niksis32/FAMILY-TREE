@@ -509,12 +509,23 @@ export const apiClient = {
     enrollStart: (token: string) => apiPost<import('@family/shared').MfaEnrollStartResult>('/auth/mfa/totp/enroll/start', {}, token),
     enrollVerify: (code: string, token: string) =>
       apiPost<import('@family/shared').MfaEnrollVerifyResult>('/auth/mfa/totp/enroll/verify', { code }, token),
+    listPasskeys: (token: string) =>
+      apiGet<import('@family/shared').WebAuthnCredentialSummary[]>('/auth/mfa/passkeys', token),
+    passkeyRegisterOptions: (token: string) =>
+      apiPost<Record<string, unknown>>('/auth/mfa/passkeys/register/options', {}, token),
+    passkeyRegisterVerify: (response: unknown, token: string, deviceName?: string) =>
+      apiPost<{ verified: boolean }>('/auth/mfa/passkeys/register/verify', { response, deviceName }, token),
+    passkeyAuthOptions: (mfaSessionToken: string) =>
+      apiPost<Record<string, unknown>>('/auth/mfa/passkeys/auth/options', { mfaSessionToken }),
+    passkeyAuthVerify: (mfaSessionToken: string, response: unknown) =>
+      apiPost<AuthSession>('/auth/mfa/passkeys/auth/verify', { mfaSessionToken, response }),
   },
   admin: {
     ops: (token: string) => apiGet<import('@family/shared').AdminOpsOverview>('/admin/ops', token),
   },
   public: {
     resolveShare: (shareToken: string) => apiGet<unknown>(`/public/share/${shareToken}`),
+    resolveMemorial: (token: string) => apiGet<unknown>(`/public/memorial/${token}`),
   },
   workspaceExport: {
     request: (workspaceId: string, token: string) =>
@@ -530,7 +541,12 @@ export const apiClient = {
     list: (token?: string | null) => apiGet<PersonSummary[]>('/persons', token),
     one: (id: string, token?: string | null) => apiGet<PersonSummary>(`/persons/${id}`, token),
     create: (input: unknown, token?: string | null) => apiPost<PersonSummary>('/persons', input, token),
-    update: (id: string, input: unknown, token?: string | null) => apiPatch<PersonSummary>(`/persons/${id}`, input, token),
+    update: (id: string, input: unknown, token?: string | null, expectedVersion?: number) =>
+      apiPatch<PersonSummary>(
+        `/persons/${id}`,
+        expectedVersion != null ? { ...(input as object), expectedVersion } : input,
+        token,
+      ),
     remove: (id: string, token?: string | null) => apiDelete<PersonSummary>(`/persons/${id}`, token),
   },
   families: {
@@ -878,6 +894,12 @@ export const apiClient = {
     achievements: (token?: string | null) => apiGet('/gamification/achievements', token),
     gaps: (token?: string | null) => apiGet('/gamification/gaps', token),
     mysteries: (token?: string | null) => apiGet('/gamification/mysteries', token),
+    leaderboard: (token?: string | null) =>
+      apiGet<import('@family/shared').QuestLeaderboardResponse>('/gamification/leaderboard', token),
+    leaderboardOptIn: (token?: string | null) =>
+      apiGet<import('@family/shared').QuestLeaderboardOptInDto>('/gamification/leaderboard/opt-in', token),
+    setLeaderboardOptIn: (body: { optedIn: boolean; displayName?: string | null }, token?: string | null) =>
+      apiPatch<import('@family/shared').QuestLeaderboardOptInDto>('/gamification/leaderboard/opt-in', body, token),
   },
   community: {
     groupsList: (params: { type?: string; q?: string } = {}, token?: string | null) => {
@@ -1269,8 +1291,18 @@ export const apiClient = {
   duplicateMerge: {
     preview: (survivorId: string, mergedId: string, token: string) =>
       apiPost<import('@family/shared').MergePreview>('/duplicate-merge/preview', { survivorId, mergedId }, token),
-    execute: (survivorId: string, mergedId: string, token: string) =>
-      apiPost<{ auditId: string }>('/duplicate-merge/execute', { survivorId, mergedId, confirm: true }, token),
+    execute: (
+      survivorId: string,
+      mergedId: string,
+      token: string,
+      fieldResolutions?: Record<string, import('@family/shared').MergeFieldDiff['resolution']>,
+    ) =>
+      apiPost<{ auditId: string }>('/duplicate-merge/execute', {
+        survivorId,
+        mergedId,
+        confirm: true,
+        ...(fieldResolutions ? { fieldResolutions } : {}),
+      }, token),
     audits: (token: string) =>
       apiGet<import('@family/shared').PersonMergeAuditSummary[]>('/duplicate-merge/audits', token),
   },
@@ -1284,6 +1316,10 @@ export const apiClient = {
     },
     exportBibliography: (token: string, format: 'text' | 'bibtex' | 'json' = 'text') =>
       apiGet<import('@family/shared').BibliographyExport>(`/evidence/bibliography/export?format=${format}`, token),
+    createCitation: (
+      body: { sourceId: string; personId?: string; eventId?: string; page?: string; detail?: string },
+      token: string,
+    ) => apiPost<import('@family/shared').EvidenceCitationSummary>('/evidence/citations', body, token),
     listTemplates: (token: string) =>
       apiGet<import('@family/shared').CitationTemplateSummary[]>('/evidence/templates', token),
   },
@@ -1351,6 +1387,10 @@ export const apiClient = {
     rebuild: (token: string) => apiPost<{ ok: boolean }>('/face-clusters/rebuild', {}, token),
     assignPerson: (clusterId: string, personId: string, token: string) =>
       apiPost<unknown>(`/face-clusters/${clusterId}/assign-person`, { personId }, token),
+    merge: (sourceClusterId: string, targetClusterId: string, token: string) =>
+      apiPost<unknown>(`/face-clusters/${sourceClusterId}/merge`, { targetClusterId }, token),
+    split: (clusterId: string, embeddingIds: string[], token: string) =>
+      apiPost<unknown>(`/face-clusters/${clusterId}/split`, { embeddingIds }, token),
   },
   memoryStories: {
     list: (token: string, personId?: string) =>
@@ -1368,6 +1408,8 @@ export const apiClient = {
   },
   socialArchiveImport: {
     providers: (token: string) => apiGet<unknown[]>('/social-archive-import/providers', token),
+    uploadUrl: (fileName: string, token: string) =>
+      apiPost<{ storageKey: string; uploadUrl: string }>('/social-archive-import/upload-url', { fileName }, token),
     create: (body: unknown, token: string) => apiPost<unknown>('/social-archive-import', body, token),
     one: (id: string, token: string) => apiGet<unknown>(`/social-archive-import/${id}`, token),
     items: (id: string, token: string) => apiGet<unknown>(`/social-archive-import/${id}/items`, token),
@@ -1385,16 +1427,21 @@ export const apiClient = {
       apiGet<import('@family/shared').WebhookEndpointSummary[]>('/webhooks/endpoints', token),
     createEndpoint: (body: unknown, token: string) =>
       apiPost<import('@family/shared').WebhookEndpointCreateResult>('/webhooks/endpoints', body, token),
-    listEvents: (token: string, query?: string) =>
-      apiGet<{ items: import('@family/shared').WebhookEventSummary[]; nextCursor: string | null }>(
+    listEvents: async (token: string, query?: string) => {
+      const res = await apiGet<{ data: import('@family/shared').WebhookEventSummary[]; nextCursor: string | null }>(
         `/webhooks/events${query ? `?${query}` : ''}`,
         token,
-      ),
+      );
+      return { items: res.data ?? [], nextCursor: res.nextCursor ?? null };
+    },
+    retryEvent: (eventId: string, token: string) =>
+      apiPost<{ id: string; queued: boolean }>(`/webhooks/events/${eventId}/retry`, {}, token),
     testEndpoint: (id: string, token: string) =>
       apiPost<{ ok: boolean }>(`/webhooks/endpoints/${id}/test`, {}, token),
   },
   externalArchives: {
     providers: (token: string) => apiGet<unknown[]>('/external-archives/providers', token),
+    quota: (token: string) => apiGet<{ quota: number; used: number; remaining: number }>('/external-archives/quota', token),
     search: (body: unknown, token: string) =>
       apiPost<{ searchId: string; status: string }>('/external-archives/search', body, token),
     getSearch: (id: string, token: string) => apiGet<unknown>(`/external-archives/searches/${id}`, token),
@@ -1421,6 +1468,7 @@ export const apiClient = {
   },
   dna: {
     profile: (token: string) => apiGet<unknown>('/dna/profile', token),
+    matches: (token: string) => apiGet<unknown>('/dna/matches', token),
     grantConsent: (token: string) => apiPost<{ ok: boolean }>('/dna/consent/import', {}, token),
     uploadUrl: (fileName: string, token: string) =>
       apiPost<{ uploadUrl: string; storageKey: string }>('/dna/upload-url', { fileName }, token),
@@ -1428,11 +1476,13 @@ export const apiClient = {
     deleteProfile: (token: string) => apiDelete<{ ok: boolean }>('/dna/profile', token),
   },
   cemetery: {
-    listCemeteries: (token: string) => apiGet<unknown[]>('/cemetery/cemeteries', token),
-    createCemetery: (body: unknown, token: string) => apiPost<unknown>('/cemetery/cemeteries', body, token),
+    listCemeteries: (token: string) => apiGet<unknown[]>('/cemetery', token),
+    createCemetery: (body: unknown, token: string) => apiPost<unknown>('/cemetery', body, token),
     listBurialSites: (token: string) => apiGet<unknown[]>('/cemetery/burial-sites', token),
     createBurialSite: (body: unknown, token: string) => apiPost<unknown>('/cemetery/burial-sites', body, token),
     map: (token: string) => apiGet<unknown>('/cemetery/map', token),
+    enableMemorialShare: (memorialId: string, token: string) =>
+      apiPost<unknown>(`/cemetery/memorials/${memorialId}/share`, {}, token),
     reconstruction: (burialSiteId: string, token: string) =>
       apiGet<unknown>(`/cemetery/burial-sites/${burialSiteId}/reconstruction`, token),
     searchBurials: (q: string, token: string) =>
@@ -1445,6 +1495,28 @@ export const apiClient = {
       apiPost<unknown>('/cemetery/routes/plan', body, token),
     analyzePhoto: (body: { mediaId: string }, token: string) =>
       apiPost<unknown>('/cemetery/analyze-photo', body, token),
+  },
+  onboarding: {
+    progress: (token: string) =>
+      apiGet<import('@family/shared').OnboardingProgressDto>('/onboarding/progress', token),
+    updateProgress: (body: unknown, token: string) =>
+      apiPatch<import('@family/shared').OnboardingProgressDto>('/onboarding/progress', body, token),
+  },
+  storyLocales: {
+    list: (storyId: string, token: string) =>
+      apiGet<import('@family/shared').StoryLocaleDto[]>(`/stories/${storyId}/locales`, token),
+    one: (storyId: string, locale: string, token: string) =>
+      apiGet<import('@family/shared').StoryLocaleDto>(`/stories/${storyId}/locales/${locale}`, token),
+    translate: (storyId: string, body: { targetLocale: string; sourceLocale?: string }, token: string) =>
+      apiPost<{ locale: import('@family/shared').StoryLocaleDto; job: import('@family/shared').StoryTranslationJobDto }>(
+        `/stories/${storyId}/locales/translate`,
+        body,
+        token,
+      ),
+  },
+  push: {
+    subscribe: (body: { endpoint?: string }, token: string) =>
+      apiPost<{ ok: boolean; stub: boolean }>('/push/subscribe', body, token),
   },
 };
 

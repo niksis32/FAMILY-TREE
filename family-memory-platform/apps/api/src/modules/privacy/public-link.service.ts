@@ -126,8 +126,9 @@ export class PublicLinkService {
     }
 
     if (share.resourceType === 'MEDIA_BUNDLE') {
+      const workspaceId = share.workspaceId ?? share.resourceId;
       const media = await this.prisma.media.findMany({
-        where: { id: share.resourceId, deletedAt: null },
+        where: { workspaceId, deletedAt: null },
         select: {
           id: true,
           title: true,
@@ -146,7 +147,7 @@ export class PublicLinkService {
       }
       return {
         share: this.mapSummary(share),
-        payload: { type: 'MEDIA_BUNDLE', items: visible },
+        payload: { type: 'MEDIA_BUNDLE', workspaceId, items: visible },
       };
     }
 
@@ -186,22 +187,60 @@ export class PublicLinkService {
 
     const viewer = this.access.viewerFromUser(null, true);
     const nodes = [];
+    const visiblePersonIds = new Set<string>();
     for (const member of members) {
       const policy = await this.access.loadPersonPolicy(member.person.id);
       if (!policy) continue;
       const redacted = this.access.redactPerson(policy, viewer, hideLivingPersons);
       if (!redacted) continue;
+      visiblePersonIds.add(redacted.id);
       nodes.push({
+        id: redacted.id,
         personId: redacted.id,
+        label: [redacted.givenName, redacted.familyName].filter(Boolean).join(' '),
         givenName: redacted.givenName,
         familyName: redacted.familyName,
         birthDate: redacted.birthDate,
         deathDate: redacted.deathDate,
         isLiving: redacted.isLiving,
+        generation: 0,
       });
     }
 
-    return { familyId: family.id, name: family.name, members: nodes };
+    const relationships = await this.prisma.relationship.findMany({
+      where: {
+        deletedAt: null,
+        fromPersonId: { in: [...visiblePersonIds] },
+        toPersonId: { in: [...visiblePersonIds] },
+      },
+      select: { id: true, fromPersonId: true, toPersonId: true, type: true },
+    });
+
+    const edges = relationships.map((r) => ({
+      id: r.id,
+      fromPersonId: r.fromPersonId,
+      toPersonId: r.toPersonId,
+      type: r.type,
+    }));
+
+    return {
+      familyId: family.id,
+      name: family.name,
+      members: nodes.map((n) => ({
+        personId: n.personId,
+        givenName: n.givenName,
+        familyName: n.familyName,
+        birthDate: n.birthDate,
+        deathDate: n.deathDate,
+        isLiving: n.isLiving,
+      })),
+      graph: {
+        rootPersonId: nodes[0]?.personId ?? '',
+        mode: 'full' as const,
+        nodes,
+        edges,
+      },
+    };
   }
 
   private resolveExpiresAt(expiresAt?: Date | null): Date | null {

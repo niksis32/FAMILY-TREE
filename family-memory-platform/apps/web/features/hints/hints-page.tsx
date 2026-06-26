@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { HintSummary } from '@family/shared';
+import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui';
 import { PageHero } from '@family/ui';
@@ -71,6 +72,11 @@ export function HintsPage() {
               </ul>
             ) : null}
             <div className="mt-3 flex gap-2">
+              {hint.source === 'MATCHING' ? (
+                <Link href="/merge" className="text-sm text-amber-800 underline dark:text-amber-200">
+                  {t('openMerge')}
+                </Link>
+              ) : null}
               <Button size="sm" onClick={() => void accept(hint.id)}>{t('accept')}</Button>
               <Button size="sm" variant="secondary" onClick={() => void dismiss(hint.id)}>{t('dismiss')}</Button>
             </div>

@@ -7,6 +7,26 @@ const SEED_TENANT_ID = 'seed-tenant-default';
 const SEED_WORKSPACE_ID = 'seed-workspace-default';
 const DEMO_PASSWORD = 'Test12345!';
 
+const PROFESSIONAL_ENTITLEMENTS = {
+  maxFamilies: 10,
+  maxPersons: 10000,
+  maxMediaBytes: 100 * 1024 * 1024 * 1024,
+  aiCreditsPerMonth: 1000,
+  maxGedcomExportsPerMonth: 100,
+  maxReportExportsPerMonth: 50,
+  features: {
+    gedcomAdvanced: true,
+    historicalMaps: true,
+    communityTools: true,
+    clientManagement: true,
+    multiWorkspace: true,
+    reportExport: true,
+    onPremDeploy: false,
+    whiteLabel: true,
+    webhooksEnabled: true,
+  },
+};
+
 function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
   const hash = scryptSync(password, salt, 64).toString('hex');
@@ -107,6 +127,8 @@ async function main() {
 
   await upsertConsent(admin.id, 'AI_LOCAL_PROCESSING', true);
   await upsertConsent(admin.id, 'GDPR_DATA_PROCESSING', true);
+
+  await upsertProfessionalSubscription(workspace.id);
 
   const ivan = await upsertPerson({
     id: 'seed-person-ivan',
@@ -236,9 +258,153 @@ async function main() {
     },
   });
 
+  // BLOCK 2 smoke: duplicate persons for merge execute (CI optional step)
+  const mergeSurvivor = await upsertPerson({
+    id: 'seed-person-merge-a',
+    workspaceId: workspace.id,
+    givenName: 'Иван',
+    familyName: 'Петров',
+    gender: 'MALE',
+    birthDate: new Date('1948-04-12T00:00:00.000Z'),
+    isLiving: false,
+    deathDate: new Date('2018-09-03T00:00:00.000Z'),
+    biography: 'Тестовый дубликат A для smoke merge.',
+  });
+  const mergeDuplicate = await upsertPerson({
+    id: 'seed-person-merge-b',
+    workspaceId: workspace.id,
+    givenName: 'Ivan',
+    familyName: 'Petrov',
+    gender: 'MALE',
+    birthDate: new Date('1948-04-12T00:00:00.000Z'),
+    isLiving: false,
+    biography: 'Тестовый дубликат B для smoke merge execute.',
+  });
+
+  await prisma.treeMatchCandidate.upsert({
+    where: {
+      sourcePersonId_targetPersonId: {
+        sourcePersonId: mergeSurvivor.id,
+        targetPersonId: mergeDuplicate.id,
+      },
+    },
+    update: {
+      score: 0.91,
+      status: 'NEEDS_REVIEW',
+      reasons: [{ type: 'NAME', weight: 0.8, explanation: 'Similar names' }],
+    },
+    create: {
+      sourcePersonId: mergeSurvivor.id,
+      targetPersonId: mergeDuplicate.id,
+      sourceWorkspaceId: workspace.id,
+      targetWorkspaceId: workspace.id,
+      score: 0.91,
+      status: 'NEEDS_REVIEW',
+      reasons: [{ type: 'NAME', weight: 0.8, explanation: 'Similar names' }],
+    },
+  });
+
+  // BLOCK 2 hints: document with OCR text (DOCUMENT adapter)
+  await prisma.document.upsert({
+    where: { id: 'seed-doc-block2-ocr' },
+    update: {
+      workspaceId: workspace.id,
+      title: 'Метрика BLOCK2 smoke',
+      mimeType: 'application/pdf',
+      storageKey: 'seed/block2/metric.pdf',
+      bucket: 'family-documents',
+      ocrText: 'Родился Иван Петров 12 апреля 1948 года в селе Демо.',
+      personId: null,
+      deletedAt: null,
+    },
+    create: {
+      id: 'seed-doc-block2-ocr',
+      workspaceId: workspace.id,
+      title: 'Метрика BLOCK2 smoke',
+      mimeType: 'application/pdf',
+      storageKey: 'seed/block2/metric.pdf',
+      bucket: 'family-documents',
+      ocrText: 'Родился Иван Петров 12 апреля 1948 года в селе Демо.',
+    },
+  });
+
+  // BLOCK 2 hints: unassigned face tag (PHOTO adapter)
+  await prisma.media.upsert({
+    where: { id: 'seed-media-block2-photo' },
+    update: {
+      workspaceId: workspace.id,
+      title: 'Семейное фото smoke',
+      mimeType: 'image/jpeg',
+      storageKey: 'seed/block2/family.jpg',
+      bucket: 'family-media',
+      deletedAt: null,
+    },
+    create: {
+      id: 'seed-media-block2-photo',
+      workspaceId: workspace.id,
+      title: 'Семейное фото smoke',
+      mimeType: 'image/jpeg',
+      storageKey: 'seed/block2/family.jpg',
+      bucket: 'family-media',
+      sizeBytes: 1024,
+    },
+  });
+
+  await prisma.photoFaceTag.upsert({
+    where: { id: 'seed-face-tag-block2' },
+    update: {
+      mediaId: 'seed-media-block2-photo',
+      personId: null,
+      x: 0.2,
+      y: 0.2,
+      width: 0.15,
+      height: 0.2,
+      confidence: 0.87,
+    },
+    create: {
+      id: 'seed-face-tag-block2',
+      mediaId: 'seed-media-block2-photo',
+      x: 0.2,
+      y: 0.2,
+      width: 0.15,
+      height: 0.2,
+      confidence: 0.87,
+    },
+  });
+
   console.log(
     `Seed completed. Admin: ${admin.email}, viewer: ${viewer.email}, workspace: ${workspace.id}, family: ${family.name}`,
   );
+}
+
+async function upsertProfessionalSubscription(workspaceId) {
+  const plan = await prisma.subscriptionPlan.upsert({
+    where: { code: 'PROFESSIONAL' },
+    update: {
+      entitlements: PROFESSIONAL_ENTITLEMENTS,
+      isActive: true,
+    },
+    create: {
+      code: 'PROFESSIONAL',
+      name: 'Professional',
+      description: 'Клиенты, несколько деревьев, экспорт отчётов, webhooks.',
+      entitlements: PROFESSIONAL_ENTITLEMENTS,
+      sortOrder: 3,
+    },
+  });
+
+  await prisma.workspaceSubscription.upsert({
+    where: { workspaceId },
+    update: {
+      planId: plan.id,
+      status: 'ACTIVE',
+    },
+    create: {
+      workspaceId,
+      planId: plan.id,
+      status: 'ACTIVE',
+    },
+  });
 }
 
 async function upsertConsent(userId, consentKey, granted) {

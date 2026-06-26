@@ -3,7 +3,7 @@
 export type PublicShareResourceType = 'PERSON' | 'FAMILY_TREE' | 'MEDIA_BUNDLE' | 'FAMILY_STORY';
 
 export interface UserConsentRecord {
-  consentKey: 'GDPR_DATA_PROCESSING' | 'GLOBAL_MATCHING' | 'AI_LOCAL_PROCESSING';
+  consentKey: 'GDPR_DATA_PROCESSING' | 'GLOBAL_MATCHING' | 'AI_LOCAL_PROCESSING' | 'DNA_DATA_IMPORT';
   granted: boolean;
   version: string;
   grantedAt: string | null;

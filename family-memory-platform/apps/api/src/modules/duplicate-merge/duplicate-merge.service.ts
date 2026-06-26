@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { MergePreview } from '@family/shared';
+import type { MergeFieldDiff, MergePreview } from '@family/shared';
 import { Gender, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
@@ -72,7 +72,13 @@ export class DuplicateMergeService {
     };
   }
 
-  async execute(survivorId: string, mergedId: string, user: AuthenticatedUser, confirm = false) {
+  async execute(
+    survivorId: string,
+    mergedId: string,
+    user: AuthenticatedUser,
+    confirm = false,
+    fieldResolutions?: Record<string, MergeFieldDiff['resolution']>,
+  ) {
     if (!confirm) {
       throw new BadRequestException('Merge requires explicit confirm=true — no auto-merge');
     }
@@ -90,6 +96,7 @@ export class DuplicateMergeService {
     const snapshot = {
       survivor: this.personSnapshot(survivor),
       merged: this.personSnapshot(merged),
+      fieldResolutions: fieldResolutions ?? null,
     };
 
     const audit = await this.prisma.$transaction(async (tx) => {
@@ -110,7 +117,7 @@ export class DuplicateMergeService {
       await tx.photoFaceTag.updateMany({ where: { personId: mergedId }, data: { personId: survivorId } });
       await tx.personNameAlias.updateMany({ where: { personId: mergedId }, data: { personId: survivorId } });
 
-      const mergedFields = this.resolveSurvivorFields(survivor, merged);
+      const mergedFields = this.resolveSurvivorFields(survivor, merged, preview.fieldDiffs, fieldResolutions);
       await tx.person.update({
         where: { id: survivorId },
         data: {
@@ -269,6 +276,7 @@ export class DuplicateMergeService {
 
   private resolveSurvivorFields(
     survivor: {
+      givenName: string;
       patronymic: string | null;
       familyName: string | null;
       birthDate: Date | null;
@@ -278,6 +286,7 @@ export class DuplicateMergeService {
       avatarMediaId: string | null;
     },
     merged: {
+      givenName: string;
       patronymic: string | null;
       familyName: string | null;
       birthDate: Date | null;
@@ -286,18 +295,34 @@ export class DuplicateMergeService {
       gender: string | null;
       avatarMediaId: string | null;
     },
+    fieldDiffs: MergeFieldDiff[] = [],
+    fieldResolutions?: Record<string, MergeFieldDiff['resolution']>,
   ) {
+    const pick = <T>(field: string, survivorVal: T, mergedVal: T): T => {
+      const resolution =
+        fieldResolutions?.[field] ??
+        fieldDiffs.find((d) => d.field === field)?.resolution ??
+        (survivorVal == null || survivorVal === '' ? 'merged' : 'survivor');
+
+      if (resolution === 'merged') return mergedVal ?? survivorVal;
+      if (resolution === 'combine' && field === 'biography') {
+        const sBio = typeof survivorVal === 'string' ? survivorVal : '';
+        const mBio = typeof mergedVal === 'string' ? mergedVal : '';
+        if (sBio && mBio) return `${sBio}\n\n---\n\n${mBio}` as T;
+        return (sBio || mBio || survivorVal) as T;
+      }
+      return survivorVal ?? mergedVal;
+    };
+
     return {
-      patronymic: survivor.patronymic ?? merged.patronymic,
-      familyName: survivor.familyName ?? merged.familyName,
-      birthDate: survivor.birthDate ?? merged.birthDate,
-      deathDate: survivor.deathDate ?? merged.deathDate,
-      gender: (survivor.gender ?? merged.gender) as Gender | null,
-      avatarMediaId: survivor.avatarMediaId ?? merged.avatarMediaId,
-      biography:
-        survivor.biography && merged.biography
-          ? `${survivor.biography}\n\n---\n\n${merged.biography}`
-          : survivor.biography ?? merged.biography,
+      givenName: pick('givenName', survivor.givenName, merged.givenName),
+      patronymic: pick('patronymic', survivor.patronymic, merged.patronymic),
+      familyName: pick('familyName', survivor.familyName, merged.familyName),
+      birthDate: pick('birthDate', survivor.birthDate, merged.birthDate),
+      deathDate: pick('deathDate', survivor.deathDate, merged.deathDate),
+      gender: pick('gender', survivor.gender, merged.gender) as Gender | null,
+      avatarMediaId: pick('avatarMediaId', survivor.avatarMediaId, merged.avatarMediaId),
+      biography: pick('biography', survivor.biography, merged.biography),
     };
   }
 }

@@ -126,6 +126,11 @@ export class CemeteryController {
     return this.service.createMemorial(user.id, dto);
   }
 
+  @Post('memorials/:id/share')
+  enableMemorialShare(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.service.enableMemorialShare(user.id, id);
+  }
+
   @Get('memorials/:id')
   getMemorial(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.getMemorial(user.id, id);

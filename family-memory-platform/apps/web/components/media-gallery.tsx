@@ -8,6 +8,8 @@ import { useAuth } from '@/components/auth-provider';
 import { MediaPreview } from '@/components/media-preview';
 import { Button } from '@/components/ui';
 import { PhotoViewerModal } from '@/features/photo-intelligence/photo-viewer-modal';
+import { ShareModal } from '@/features/privacy/share-modal';
+import { useWorkspaceId } from '@/features/collaboration/use-workspace-id';
 import { apiClient } from '@/lib/api-client';
 import { useFormatApiError } from '@/lib/use-format-api-error';
 import { cn } from '@/lib/utils';
@@ -22,6 +24,7 @@ interface MediaRecord {
 
 export function MediaGallery({ refreshKey = 0 }: { refreshKey?: number }) {
   const { session } = useAuth();
+  const workspaceId = useWorkspaceId();
   const t = useTranslations('mediaGallery');
   const tPhoto = useTranslations('photoIntelligence');
   const formatApiError = useFormatApiError();
@@ -30,6 +33,7 @@ export function MediaGallery({ refreshKey = 0 }: { refreshKey?: number }) {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [modalMediaId, setModalMediaId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const load = useCallback(async () => {
     setStatus(t('loading'));
@@ -94,8 +98,25 @@ export function MediaGallery({ refreshKey = 0 }: { refreshKey?: number }) {
               AI Lab
             </Button>
           </Link>
+          {session?.accessToken && workspaceId ? (
+            <Button variant="secondary" type="button" onClick={() => setShareOpen(true)}>
+              Поделиться галереей
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {session?.accessToken && workspaceId ? (
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          token={session.accessToken}
+          resourceType="MEDIA_BUNDLE"
+          resourceId={workspaceId}
+          workspaceId={workspaceId}
+          label="Медиа-галерея"
+        />
+      ) : null}
 
       {items.length === 0 ? (
         <div className="rounded-[1.35rem] border border-dashed px-8 py-16 text-center">

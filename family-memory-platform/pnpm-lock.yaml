@@ -20,6 +20,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@family/dna-core':
+        specifier: workspace:*
+        version: link:../../packages/dna-core
       '@family/genealogy-core':
         specifier: workspace:*
         version: link:../../packages/genealogy-core
@@ -68,6 +71,9 @@ importers:
       '@simplewebauthn/server':
         specifier: ^13.1.1
         version: 13.3.1
+      adm-zip:
+        specifier: ^0.5.17
+        version: 0.5.17
       archiver:
         specifier: ^7.0.1
         version: 7.0.1
@@ -117,6 +123,9 @@ importers:
       '@nestjs/schematics':
         specifier: ^10.2.3
         version: 10.2.3(chokidar@3.6.0)(typescript@5.9.3)
+      '@types/adm-zip':
+        specifier: ^0.5.7
+        version: 0.5.8
       '@types/archiver':
         specifier: ^6.0.3
         version: 6.0.4
@@ -173,10 +182,10 @@ importers:
         version: 4.7.1
       next:
         specifier: ^15.1.3
-        version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 15.5.18(@playwright/test@1.61.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       next-intl:
         specifier: ^3.26.5
-        version: 3.26.5(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+        version: 3.26.5(next@15.5.18(@playwright/test@1.61.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -193,6 +202,9 @@ importers:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.14)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.49.1
+        version: 1.61.1
       '@types/cytoscape':
         specifier: ^3.21.9
         version: 3.31.0
@@ -217,6 +229,12 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/dna-core:
+    devDependencies:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -272,7 +290,7 @@ importers:
         version: 8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)
       '@storybook/react-vite':
         specifier: ^8.5.0
-        version: 8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.61.0)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))
+        version: 8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.61.0)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))
       '@types/react':
         specifier: ^18.3.18
         version: 18.3.28
@@ -299,7 +317,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^6.0.7
-        version: 6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)
+        version: 6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1)
 
 packages:
 
@@ -1109,6 +1127,11 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
+  '@playwright/test@1.61.1':
+    resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@prisma/client@6.19.3':
     resolution: {integrity: sha512-mKq3jQFhjvko5LTJFHGilsuQs+W+T3Gm451NzuTDGQxwCzwXHYnIu2zGkRoW+Exq3Rob7yp2MfzSrdIiZVhrBg==}
     engines: {node: '>=18.18'}
@@ -1531,6 +1554,9 @@ packages:
   '@tweenjs/tween.js@23.1.3':
     resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
 
+  '@types/adm-zip@0.5.8':
+    resolution: {integrity: sha512-RVVH7QvZYbN+ihqZ4kX/dMiowf6o+Jk1fNwiSdx0NahBJLU787zkULhGhJM8mf/obmLGmgdMM0bXsQTmyfbR7Q==}
+
   '@types/archiver@6.0.4':
     resolution: {integrity: sha512-ULdQpARQ3sz9WH4nb98mJDYA0ft2A8C4f4fovvUcFwINa1cgGjY36JCAYuP5YypRq4mco1lJp1/7jEMS2oR0Hg==}
 
@@ -1790,6 +1816,10 @@ packages:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  adm-zip@0.5.17:
+    resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
+    engines: {node: '>=12.0'}
 
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
@@ -2707,6 +2737,11 @@ packages:
   fs-monkey@1.1.0:
     resolution: {integrity: sha512-QMUezzXWII9EV5aTFXW1UBVUO77wYPpjqIF8/AviUCThNeSYZykpoTixUeaNNBwmCev0AMDWMAni+f8Hxb1IFw==}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -3518,6 +3553,16 @@ packages:
 
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
+
+  playwright-core@1.61.1:
+    resolution: {integrity: sha512-h7Qlt6m4REp25qvIdvbDtVmD4LqVXfpRxhORv9L0jzETM05p4fuPJ3dKyuSXQxDSbXnmS79HAgi9589lGSpLkg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.61.1:
+    resolution: {integrity: sha512-DWnY5o3YbLWK4GovuAVwpqL+1VwGNdUGrRr++8j8PtQQzvAVZUIMjKQ90fY689sEJZJBbZVw1rXaOKSTitkzPQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
@@ -4946,12 +4991,12 @@ snapshots:
       wrap-ansi: 8.1.0
       wrap-ansi-cjs: wrap-ansi@7.0.0
 
-  '@joshwooding/vite-plugin-react-docgen-typescript@0.5.0(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))':
+  '@joshwooding/vite-plugin-react-docgen-typescript@0.5.0(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))':
     dependencies:
       glob: 10.4.5
       magic-string: 0.27.0
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
-      vite: 6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)
+      vite: 6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1)
     optionalDependencies:
       typescript: 5.9.3
 
@@ -5395,6 +5440,10 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
+  '@playwright/test@1.61.1':
+    dependencies:
+      playwright: 1.61.1
+
   '@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)':
     optionalDependencies:
       prisma: 6.19.3(typescript@5.9.3)
@@ -5685,13 +5734,13 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  '@storybook/builder-vite@8.6.18(storybook@8.6.18(prettier@3.8.3))(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))':
+  '@storybook/builder-vite@8.6.18(storybook@8.6.18(prettier@3.8.3))(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))':
     dependencies:
       '@storybook/csf-plugin': 8.6.18(storybook@8.6.18(prettier@3.8.3))
       browser-assert: 1.2.1
       storybook: 8.6.18(prettier@3.8.3)
       ts-dedent: 2.2.0
-      vite: 6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)
+      vite: 6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1)
 
   '@storybook/components@8.6.18(storybook@8.6.18(prettier@3.8.3))':
     dependencies:
@@ -5755,11 +5804,11 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       storybook: 8.6.18(prettier@3.8.3)
 
-  '@storybook/react-vite@8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.61.0)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))':
+  '@storybook/react-vite@8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.61.0)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))':
     dependencies:
-      '@joshwooding/vite-plugin-react-docgen-typescript': 0.5.0(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))
+      '@joshwooding/vite-plugin-react-docgen-typescript': 0.5.0(typescript@5.9.3)(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))
       '@rollup/pluginutils': 5.4.0(rollup@4.61.0)
-      '@storybook/builder-vite': 8.6.18(storybook@8.6.18(prettier@3.8.3))(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1))
+      '@storybook/builder-vite': 8.6.18(storybook@8.6.18(prettier@3.8.3))(vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1))
       '@storybook/react': 8.6.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.8.3))(typescript@5.9.3)
       find-up: 5.0.0
       magic-string: 0.30.8
@@ -5769,7 +5818,7 @@ snapshots:
       resolve: 1.22.12
       storybook: 8.6.18(prettier@3.8.3)
       tsconfig-paths: 4.2.0
-      vite: 6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)
+      vite: 6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -5828,6 +5877,10 @@ snapshots:
     optional: true
 
   '@tweenjs/tween.js@23.1.3': {}
+
+  '@types/adm-zip@0.5.8':
+    dependencies:
+      '@types/node': 22.19.19
 
   '@types/archiver@6.0.4':
     dependencies:
@@ -6164,6 +6217,8 @@ snapshots:
       negotiator: 0.6.3
 
   acorn@8.16.0: {}
+
+  adm-zip@0.5.17: {}
 
   agent-base@7.1.4: {}
 
@@ -7118,6 +7173,9 @@ snapshots:
 
   fs-monkey@1.1.0: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -7752,15 +7810,15 @@ snapshots:
 
   netmask@2.1.1: {}
 
-  next-intl@3.26.5(next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
+  next-intl@3.26.5(next@15.5.18(@playwright/test@1.61.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
     dependencies:
       '@formatjs/intl-localematcher': 0.5.10
       negotiator: 1.0.0
-      next: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      next: 15.5.18(@playwright/test@1.61.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react: 19.2.6
       use-intl: 3.26.5(react@19.2.6)
 
-  next@15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  next@15.5.18(@playwright/test@1.61.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@next/env': 15.5.18
       '@swc/helpers': 0.5.15
@@ -7778,6 +7836,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 15.5.18
       '@next/swc-win32-arm64-msvc': 15.5.18
       '@next/swc-win32-x64-msvc': 15.5.18
+      '@playwright/test': 1.61.1
       sharp: 0.34.5
     transitivePeerDependencies:
       - '@babel/core'
@@ -7959,6 +8018,14 @@ snapshots:
       confbox: 0.2.4
       exsolve: 1.0.8
       pathe: 2.0.3
+
+  playwright-core@1.61.1: {}
+
+  playwright@1.61.1:
+    dependencies:
+      playwright-core: 1.61.1
+    optionalDependencies:
+      fsevents: 2.3.2
 
   pluralize@8.0.0: {}
 
@@ -8910,7 +8977,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1):
+  vite@6.4.2(@types/node@22.19.19)(jiti@1.21.7)(terser@5.47.1):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
@@ -8921,7 +8988,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.19
       fsevents: 2.3.3
-      jiti: 2.7.0
+      jiti: 1.21.7
       terser: 5.47.1
 
   vt-pbf@3.1.3:

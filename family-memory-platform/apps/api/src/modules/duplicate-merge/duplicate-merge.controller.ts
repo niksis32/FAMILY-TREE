@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import type { MergeFieldDiff } from '@family/shared';
 import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -18,6 +19,10 @@ class MergePreviewDto {
 class MergeExecuteDto extends MergePreviewDto {
   @IsBoolean()
   confirm!: boolean;
+
+  @IsOptional()
+  @IsObject()
+  fieldResolutions?: Record<string, MergeFieldDiff['resolution']>;
 }
 
 @ApiTags('duplicate-merge')
@@ -35,7 +40,7 @@ export class DuplicateMergeController {
 
   @Post('execute')
   execute(@Body() dto: MergeExecuteDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.service.execute(dto.survivorId, dto.mergedId, user, dto.confirm);
+    return this.service.execute(dto.survivorId, dto.mergedId, user, dto.confirm, dto.fieldResolutions);
   }
 
   @Get('audits')

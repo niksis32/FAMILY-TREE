@@ -52,4 +52,9 @@ export class DnaController {
   grantConsent(@CurrentUser() user: AuthenticatedUser) {
     return this.service.grantConsent(user.id);
   }
+
+  @Get('matches')
+  matches(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.listMatches(user.id);
+  }
 }

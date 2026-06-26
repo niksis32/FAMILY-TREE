@@ -98,18 +98,64 @@ curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
   "$API/conversations/$CONV_ID/read" | json_pipe
 echo "OK: mark read"
 
+echo ""
+echo "[9/11] GET /notifications/unread-count (after group message)"
+UNREAD=$(curl -sf -H "Authorization: Bearer $TOKEN" "$API/notifications/unread-count")
+echo "unread-count=$UNREAD"
+echo "OK: notifications unread-count"
+
+echo ""
+echo "[10/11] POST /calendar/reminders/run (dedup — twice)"
+REM1=$(curl -sf -X POST -H "Authorization: Bearer $TOKEN" "$API/calendar/reminders/run")
+REM2=$(curl -sf -X POST -H "Authorization: Bearer $TOKEN" "$API/calendar/reminders/run")
+echo "$REM1" | json_pipe
+echo "$REM2" | json_pipe
+if command -v jq >/dev/null 2>&1; then
+  S1=$(echo "$REM1" | jq -r '.sent // 0')
+  S2=$(echo "$REM2" | jq -r '.sent // 0')
+  if [[ "$S2" -gt "$S1" && "$S1" -gt 0 ]]; then
+    echo "WARN: second reminder run sent more than first (dedup may be broken)"
+    exit 1
+  fi
+fi
+echo "OK: calendar reminder dedup"
+
 PERSON_ID=""
 if command -v jq >/dev/null 2>&1; then
   PERSON_ID=$(curl -sf -H "Authorization: Bearer $TOKEN" "$API/persons" | jq -r '.[0].id // empty')
 fi
 if [[ -n "$PERSON_ID" && "$PERSON_ID" != "null" ]]; then
   echo ""
-  echo "[bonus] POST /collaboration/persons/$PERSON_ID/lock"
+  echo "[11/11] POST /collaboration/persons/$PERSON_ID/lock"
   curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{}' \
     "$API/collaboration/persons/$PERSON_ID/lock" | json_pipe
   echo "OK: person edit lock"
+
+  VIEWER_EMAIL="${SMOKE_VIEWER_EMAIL:-viewer@example.local}"
+  echo ""
+  echo "[bonus] Two-JWT lock conflict ($VIEWER_EMAIL)"
+  VIEWER_JSON=$(curl -sf -X POST "$API/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$VIEWER_EMAIL\",\"password\":\"$PASSWORD\"}" 2>/dev/null || true)
+  if [[ -n "$VIEWER_JSON" ]] && ! echo "$VIEWER_JSON" | grep -q '"mfaRequired"'; then
+    VIEWER_TOKEN=$(echo "$VIEWER_JSON" | { command -v jq >/dev/null && jq -r '.accessToken' || sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p'; })
+    CONFLICT_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+      -H "Authorization: Bearer $VIEWER_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{}' \
+      "$API/collaboration/persons/$PERSON_ID/lock")
+    if [[ "$CONFLICT_CODE" == "409" ]]; then
+      echo "OK: viewer lock → 409 Conflict (realtime edit lock)"
+    else
+      echo "WARN: expected 409 for second lock, got HTTP $CONFLICT_CODE"
+    fi
+    curl -sf -X DELETE -H "Authorization: Bearer $TOKEN" \
+      "$API/collaboration/persons/$PERSON_ID/lock" >/dev/null 2>&1 || true
+  else
+    echo "SKIP: viewer login unavailable for two-JWT smoke"
+  fi
 fi
 
 echo ""

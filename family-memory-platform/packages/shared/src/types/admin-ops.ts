@@ -39,6 +39,7 @@ export interface WorkspaceExportJobSummary {
   downloadUrl: string | null;
   downloadExpiresAt: string | null;
   error: string | null;
+  manifest?: Record<string, unknown> | null;
   createdAt: string;
   completedAt: string | null;
 }

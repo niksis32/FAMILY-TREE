@@ -47,6 +47,8 @@
     "mergeWizard": "Merge wizard",
     "evidence": "Evidence",
     "wiki": "Family wiki",
+    "quests": "Family quests",
+    "onboarding": "Getting started",
     "groups": {
       "explore": "Explore",
       "records": "Records",
@@ -79,7 +81,23 @@
     "loading": "Loading…",
     "empty": "No events in the selected range.",
     "exportIcal": "Export iCal",
-    "open": "Open"
+    "open": "Open",
+    "viewMonth": "Month",
+    "viewWeek": "Week",
+    "today": "Today",
+    "prev": "Previous period",
+    "next": "Next period",
+    "noEventsDay": "No events on this day.",
+    "moreEvents": "+{count} more",
+    "weekdays": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -102,6 +120,7 @@
     "saveSearch": "Save search",
     "allCategories": "All categories",
     "results": "{count} results",
+    "loadMore": "Load more",
     "savedTitle": "Saved searches",
     "historyTitle": "Recent searches",
     "emptySaved": "No saved searches yet.",
@@ -125,7 +144,8 @@
     "refresh": "Refresh",
     "accept": "Accept",
     "dismiss": "Dismiss",
-    "empty": "No open hints."
+    "empty": "No open hints.",
+    "openMerge": "Open merge wizard"
   },
   "mergeWizard": {
     "eyebrow": "Duplicate resolution",
@@ -140,7 +160,16 @@
     "documents": "Documents",
     "citations": "Citations",
     "execute": "Confirm merge",
-    "confirmMerge": "This action is irreversible. Continue?"
+    "confirmMerge": "This action is irreversible. Continue?",
+    "candidatePicker": "From matching inbox",
+    "fieldResolution": "Field resolution",
+    "field": "Field",
+    "survivorValue": "Survivor",
+    "mergedValue": "Merged",
+    "resolution": "Keep",
+    "keepSurvivor": "Survivor",
+    "keepMerged": "Merged",
+    "combineBiography": "Combine biographies"
   },
   "evidence": {
     "eyebrow": "Source citations",
@@ -150,7 +179,15 @@
     "empty": "No citations yet.",
     "linkedEvent": "Event",
     "exportText": "Export bibliography",
-    "exportBibtex": "Export BibTeX"
+    "exportBibtex": "Export BibTeX",
+    "createCitation": "Create citation",
+    "source": "Source",
+    "selectSource": "Select source…",
+    "person": "Person",
+    "selectEvent": "Select event (optional)…",
+    "page": "Page",
+    "detail": "Detail / quote",
+    "saveCitation": "Save citation"
   },
   "wiki": {
     "eyebrow": "Family knowledge",
@@ -164,7 +201,10 @@
     "contentHint": "Use [[page-slug]] and @person:id for links",
     "create": "Create page",
     "defaultContent": "New family wiki page.",
-    "version": "Version"
+    "version": "Version",
+    "revisionHistory": "Revision history",
+    "compareWithLatest": "Compare with latest",
+    "current": "Current"
   },
   "premiumDashboard": {
     "eyebrow": "Genealogy intelligence",
@@ -936,6 +976,7 @@
     "hint": "JPEG, PNG, WebP, PDF, MP4, MP3. Metadata is stored in PostgreSQL (private by default).",
     "personIdPlaceholder": "Person ID to link (optional)",
     "chooseFile": "Choose file",
+    "takePhoto": "Take photo",
     "retry": "Retry",
     "openFile": "Open uploaded file",
     "idle": "Ready to upload",
@@ -1353,11 +1394,17 @@
       "eyebrow": "Integrations",
       "title": "External archives search",
       "description": "Search FamilySearch records and import as sources with attribution.",
+      "tosBanner": "External records require attribution per provider terms of service. Imported sources are stored with courtesy text.",
       "givenName": "Given name",
       "familyName": "Family name",
       "search": "Search archives",
       "searching": "Searching…",
       "providers": "Providers",
+      "quota": "Monthly searches",
+      "remaining": "remaining",
+      "preview": "Preview",
+      "dismiss": "Dismiss",
+      "sourceLink": "Open at source",
       "import": "Import as source",
       "importSuccess": "Source imported"
     },
@@ -1395,6 +1442,12 @@
       "title": "Webhooks",
       "description": "Integration endpoints for external systems (ADMIN).",
       "loading": "Loading…",
+      "wizardStep1": "1. URL",
+      "wizardStep2": "2. Events",
+      "wizardStep3": "3. Done",
+      "urlHint": "HTTPS URL required (e.g. https://example.com/hooks/family)",
+      "next": "Next",
+      "back": "Back",
       "createEndpoint": "New endpoint",
       "descriptionField": "Description (optional)",
       "create": "Create endpoint",
@@ -1402,10 +1455,14 @@
       "secretOnce": "Signing secret (save now)",
       "endpoints": "Active endpoints",
       "noEndpoints": "No endpoints yet.",
+      "disabled": "Auto-disabled after delivery failures",
       "test": "Send test ping",
       "testSent": "Test event queued.",
       "recentEvents": "Recent deliveries",
-      "noEvents": "No events yet."
+      "noEvents": "No events yet.",
+      "allStatuses": "All statuses",
+      "retry": "Retry",
+      "retryQueued": "Retry queued."
     },
     "branding": {
       "title": "Branding & domain",
@@ -1424,12 +1481,19 @@
       "domainConfigured": "Domain configured — add DNS TXT record.",
       "domainVerified": "Domain marked verified.",
       "sslQueued": "TLS provisioning queued",
-      "verifiedBadge": "Domain verified — you can queue TLS."
+      "verifiedBadge": "Domain verified — you can queue TLS.",
+      "logo": "Logo",
+      "uploadLogo": "Upload logo",
+      "logoUploaded": "Logo uploaded."
     },
     "dna": {
       "title": "DNA import",
       "description": "Genealogy-only DNA raw import with explicit consent.",
       "loading": "Loading…",
+      "wizardStep1": "1. Consent",
+      "wizardStep2": "2. Upload",
+      "wizardStep3": "3. Import",
+      "wizardStep4": "4. Profile",
       "disclaimer": "Raw DNA is used for cousin matching research only. No health or trait analysis.",
       "grantConsent": "Grant import consent",
       "consentGranted": "Consent recorded.",
@@ -1443,7 +1507,9 @@
       "file": "File",
       "importedAt": "Imported",
       "deleteProfile": "Delete DNA profile",
-      "deleted": "DNA profile deleted."
+      "deleted": "DNA profile deleted.",
+      "matches": "Match suggestions",
+      "matchesNote": "Read-only v1.1 — no medical interpretation."
     }
   },
   "historicalMap": {
@@ -1471,5 +1537,51 @@
       "events-map": "Events map",
       "historical-places": "Historical places"
     }
+  },
+  "onboarding": {
+    "eyebrow": "Activation",
+    "title": "Onboarding wizard",
+    "description": "Set up your family archive step by step. Progress is saved — reload anytime to resume.",
+    "loading": "Loading progress…",
+    "next": "Complete step",
+    "skip": "Skip",
+    "finish": "Finish",
+    "openStep": "Open this step",
+    "resumeHint": "Progress auto-saved",
+    "steps": {
+      "welcome": "Welcome",
+      "createTree": "Explore your tree",
+      "addPerson": "Add first person",
+      "uploadPhoto": "Upload a photo",
+      "inviteFamily": "Invite family",
+      "complete": "All set"
+    },
+    "hints": {
+      "welcome": "Family Memory helps preserve photos, documents, and stories across generations.",
+      "createTree": "Open the tree view and pick a root person for your research.",
+      "addPerson": "Create at least one profile with birth date or place.",
+      "uploadPhoto": "Use camera capture on mobile or drag a scan from your archive.",
+      "inviteFamily": "Invite editors to collaborate on the same workspace.",
+      "complete": "You are ready to explore quests and stories."
+    }
+  },
+  "questsPage": {
+    "eyebrow": "Retention",
+    "title": "Family quests",
+    "description": "Workspace-scoped research quests with optional leaderboard.",
+    "leaderboardTitle": "Leaderboard (opt-in)",
+    "leaderboardHint": "Only members who opt in appear on the board.",
+    "displayName": "Display name on board",
+    "optIn": "Join leaderboard",
+    "optOut": "Leave leaderboard",
+    "leaderboardEmpty": "No members opted in yet.",
+    "branchCompletion": "Branch completion"
+  },
+  "storyTranslation": {
+    "title": "Story translation",
+    "hint": "Translate story content — separate from UI language settings.",
+    "translate": "Translate",
+    "source": "Source",
+    "empty": "Request a translation to compare side by side."
   }
 }

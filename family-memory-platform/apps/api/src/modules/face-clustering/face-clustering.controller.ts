@@ -4,7 +4,7 @@ import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decora
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { AssignClusterPersonDto } from './face-clustering.dto';
+import { AssignClusterPersonDto, MergeClustersDto, SplitClusterDto } from './face-clustering.dto';
 import { FaceClusteringService } from './face-clustering.service';
 
 @ApiTags('face-clusters')
@@ -46,5 +46,17 @@ export class FaceClusteringController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.assignPerson(id, dto, user);
+  }
+
+  @Post('face-clusters/:id/merge')
+  @Roles('ADMIN', 'EDITOR')
+  merge(@Param('id') id: string, @Body() dto: MergeClustersDto) {
+    return this.service.mergeClusters(id, dto.targetClusterId);
+  }
+
+  @Post('face-clusters/:id/split')
+  @Roles('ADMIN', 'EDITOR')
+  split(@Param('id') id: string, @Body() dto: SplitClusterDto) {
+    return this.service.splitCluster(id, dto.embeddingIds);
   }
 }

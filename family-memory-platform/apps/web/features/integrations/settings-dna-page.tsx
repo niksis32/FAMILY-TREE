@@ -14,10 +14,20 @@ type DnaProfile = {
   disclaimer?: string;
 };
 
+type DnaMatch = {
+  id: string;
+  displayLabel: string;
+  sharedSegments: number;
+  totalCm: number;
+  confidence: number;
+};
+
 export function SettingsDnaPage() {
   const t = useTranslations('block5.dna');
   const { token, loading, error: workspaceError } = useWorkspaceCommercial();
+  const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<DnaProfile | null>(null);
+  const [matches, setMatches] = useState<DnaMatch[]>([]);
   const [consentGranted, setConsentGranted] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -28,6 +38,13 @@ export function SettingsDnaPage() {
       const data = (await apiClient.dna.profile(token)) as DnaProfile;
       setProfile(data);
       setConsentGranted(true);
+      setStep(4);
+      try {
+        const matchData = (await apiClient.dna.matches(token)) as { matches?: DnaMatch[] };
+        setMatches(matchData.matches ?? []);
+      } catch {
+        setMatches([]);
+      }
     } catch {
       setProfile(null);
     }
@@ -42,6 +59,7 @@ export function SettingsDnaPage() {
     try {
       await apiClient.dna.grantConsent(token);
       setConsentGranted(true);
+      setStep(2);
       setStatus(t('consentGranted'));
     } catch (e) {
       setStatus(formatApiError(e));
@@ -68,6 +86,7 @@ export function SettingsDnaPage() {
       if (!put.ok) throw new Error(`Upload failed: ${put.status}`);
       await apiClient.dna.createImportJob({ fileKey: upload.storageKey, fileName: file.name }, token);
       setStatus(t('importQueued'));
+      setStep(4);
       await loadProfile();
     } catch (e) {
       setStatus(formatApiError(e));
@@ -79,6 +98,8 @@ export function SettingsDnaPage() {
     try {
       await apiClient.dna.deleteProfile(token);
       setProfile(null);
+      setMatches([]);
+      setStep(1);
       setStatus(t('deleted'));
     } catch (e) {
       setStatus(formatApiError(e));
@@ -92,29 +113,40 @@ export function SettingsDnaPage() {
     <div className="space-y-8">
       <PageHeader title={t('title')} description={t('description')} />
 
-      <Card>
-        <p className="text-sm text-stone-600 dark:text-stone-300">{t('disclaimer')}</p>
-        {!consentGranted ? (
+      <div className="flex flex-wrap gap-2 text-xs">
+        {[1, 2, 3, 4].map((n) => (
+          <span
+            key={n}
+            className={`rounded-full px-3 py-1 ${step === n ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900' : 'bg-stone-100 dark:bg-slate-800'}`}
+          >
+            {t(`wizardStep${n}`)}
+          </span>
+        ))}
+      </div>
+
+      {step === 1 ? (
+        <Card>
+          <p className="text-sm text-stone-600 dark:text-stone-300">{t('disclaimer')}</p>
           <Button className="mt-4" type="button" onClick={() => void grantConsent()}>
             {t('grantConsent')}
           </Button>
-        ) : (
-          <p className="mt-3 text-sm text-green-700 dark:text-green-400">{t('consentOk')}</p>
-        )}
-      </Card>
+        </Card>
+      ) : null}
 
-      <Card>
-        <h2 className="text-lg font-semibold">{t('import')}</h2>
-        <Input
-          className="mt-4"
-          type="file"
-          accept=".txt,.csv,.zip"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-        <Button className="mt-4" type="button" disabled={!file} onClick={() => void uploadAndImport()}>
-          {t('uploadImport')}
-        </Button>
-      </Card>
+      {step >= 2 && step < 4 ? (
+        <Card>
+          <h2 className="text-lg font-semibold">{t('import')}</h2>
+          <Input
+            className="mt-4"
+            type="file"
+            accept=".txt,.csv,.zip"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <Button className="mt-4" type="button" disabled={!file} onClick={() => void uploadAndImport()}>
+            {t('uploadImport')}
+          </Button>
+        </Card>
+      ) : null}
 
       {profile ? (
         <Card>
@@ -128,6 +160,23 @@ export function SettingsDnaPage() {
           <Button className="mt-4" type="button" variant="secondary" onClick={() => void deleteProfile()}>
             {t('deleteProfile')}
           </Button>
+        </Card>
+      ) : null}
+
+      {matches.length > 0 ? (
+        <Card>
+          <h2 className="text-lg font-semibold">{t('matches')}</h2>
+          <p className="mt-1 text-xs text-stone-500">{t('matchesNote')}</p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {matches.map((m) => (
+              <li key={m.id} className="rounded border p-3 dark:border-slate-700">
+                <p className="font-medium">{m.displayLabel}</p>
+                <p className="text-stone-500">
+                  {m.sharedSegments} segments · {m.totalCm.toFixed(1)} cM · {(m.confidence * 100).toFixed(0)}%
+                </p>
+              </li>
+            ))}
+          </ul>
         </Card>
       ) : null}
 

@@ -1,11 +1,21 @@
 import { createHash } from 'node:crypto';
 
-/** MVP embedding: deterministic unit vector from face tag id (replaced by InsightFace in prod). */
-export function buildMvpFaceVector(faceTagId: string, mediaId: string): number[] {
-  const hash = createHash('sha256').update(`${faceTagId}:${mediaId}`).digest();
+/** MVP embedding v2: hash + normalized bbox features for improved within-archive grouping. */
+export function buildMvpFaceVector(
+  faceTagId: string,
+  mediaId: string,
+  bbox?: { x: number; y: number; width: number; height: number; confidence?: number | null },
+): number[] {
+  const bboxKey = bbox
+    ? `${bbox.x.toFixed(3)}:${bbox.y.toFixed(3)}:${bbox.width.toFixed(3)}:${bbox.height.toFixed(3)}:${bbox.confidence ?? 0}`
+    : '';
+  const hash = createHash('sha256').update(`${faceTagId}:${mediaId}:${bboxKey}`).digest();
   const vector: number[] = [];
   for (let i = 0; i < 32; i++) {
     vector.push((hash[i] - 128) / 128);
+  }
+  if (bbox) {
+    vector.push(bbox.x, bbox.y, bbox.width, bbox.height, (bbox.confidence ?? 0.5) - 0.5);
   }
   let norm = Math.sqrt(vector.reduce((s, v) => s + v * v, 0));
   if (norm === 0) norm = 1;

@@ -56,7 +56,7 @@ export class FaceClusteringService {
     pendingClusters: number;
     assignedClusters: number;
   }> {
-    const workspaceId = this.workspaceContext.requireWorkspaceId();
+    const workspaceId = this.requireWorkspaceId();
     const [totalFaces, unassignedFaces, pendingClusters, assignedClusters] = await Promise.all([
       this.prisma.photoFaceTag.count({
         where: { media: { workspaceId, deletedAt: null } },
@@ -75,7 +75,7 @@ export class FaceClusteringService {
   }
 
   async listClusters(status?: string) {
-    const workspaceId = this.workspaceContext.requireWorkspaceId();
+    const workspaceId = this.requireWorkspaceId();
     const clusters = await this.prisma.faceCluster.findMany({
       where: {
         workspaceId,
@@ -103,7 +103,7 @@ export class FaceClusteringService {
   }
 
   async getCluster(id: string) {
-    const workspaceId = this.workspaceContext.requireWorkspaceId();
+    const workspaceId = this.requireWorkspaceId();
     const cluster = await this.prisma.faceCluster.findFirst({
       where: { id, workspaceId },
       include: {
@@ -142,7 +142,7 @@ export class FaceClusteringService {
   }
 
   async enqueueRebuild(user: AuthenticatedUser) {
-    const workspaceId = this.workspaceContext.requireWorkspaceId();
+    const workspaceId = this.requireWorkspaceId();
     const queue = this.getRebuildQueue();
     if (!queue) {
       await this.rebuildClustersInline(workspaceId);
@@ -159,18 +159,26 @@ export class FaceClusteringService {
     });
 
     for (const tag of tags) {
-      const vector = buildMvpFaceVector(tag.id, tag.media.id);
+      const vector = buildMvpFaceVector(tag.id, tag.media.id, {
+        x: tag.x,
+        y: tag.y,
+        width: tag.width,
+        height: tag.height,
+        confidence: tag.confidence,
+      });
       await this.prisma.faceEmbedding.upsert({
         where: { faceTagId: tag.id },
         create: {
           workspaceId,
           faceTagId: tag.id,
           vectorJson: vector,
+          model: 'mvp-hash-v2',
           status: 'READY',
           qualityScore: tag.confidence ?? 0.5,
         },
         update: {
           vectorJson: vector,
+          model: 'mvp-hash-v2',
           status: 'READY',
         },
       });
@@ -221,7 +229,7 @@ export class FaceClusteringService {
   }
 
   async assignPerson(clusterId: string, dto: AssignClusterPersonDto, user: AuthenticatedUser) {
-    const workspaceId = this.workspaceContext.requireWorkspaceId();
+    const workspaceId = this.requireWorkspaceId();
     const cluster = await this.prisma.faceCluster.findFirst({
       where: { id: clusterId, workspaceId },
       include: { members: { include: { embedding: true } } },
@@ -259,6 +267,100 @@ export class FaceClusteringService {
     ]);
 
     return this.getCluster(clusterId);
+  }
+
+  async mergeClusters(sourceClusterId: string, targetClusterId: string) {
+    const workspaceId = this.requireWorkspaceId();
+    if (sourceClusterId === targetClusterId) {
+      throw new BadRequestException('Cannot merge cluster with itself');
+    }
+
+    const [source, target] = await Promise.all([
+      this.prisma.faceCluster.findFirst({
+        where: { id: sourceClusterId, workspaceId },
+        include: { members: true },
+      }),
+      this.prisma.faceCluster.findFirst({
+        where: { id: targetClusterId, workspaceId },
+        include: { members: true },
+      }),
+    ]);
+    if (!source || !target) throw new NotFoundException('Cluster not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const member of source.members) {
+        await tx.faceClusterMember.update({
+          where: { id: member.id },
+          data: { clusterId: targetClusterId },
+        });
+      }
+      const memberCount = await tx.faceClusterMember.count({ where: { clusterId: targetClusterId } });
+      await tx.faceCluster.update({
+        where: { id: targetClusterId },
+        data: {
+          memberCount,
+          status: target.personId ? 'ASSIGNED' : target.status,
+          lastRebuildAt: new Date(),
+        },
+      });
+      await tx.faceCluster.update({
+        where: { id: sourceClusterId },
+        data: { status: 'MERGED', memberCount: 0 },
+      });
+      await tx.faceClusterMember.deleteMany({ where: { clusterId: sourceClusterId } });
+    });
+
+    return this.getCluster(targetClusterId);
+  }
+
+  async splitCluster(clusterId: string, embeddingIds: string[]) {
+    const workspaceId = this.requireWorkspaceId();
+    if (!embeddingIds.length) {
+      throw new BadRequestException('embeddingIds required for split');
+    }
+
+    const cluster = await this.prisma.faceCluster.findFirst({
+      where: { id: clusterId, workspaceId },
+      include: { members: true },
+    });
+    if (!cluster) throw new NotFoundException('Face cluster not found');
+
+    const toMove = cluster.members.filter((m) => embeddingIds.includes(m.embeddingId));
+    if (!toMove.length || toMove.length >= cluster.members.length) {
+      throw new BadRequestException('Split requires a proper subset of cluster members');
+    }
+
+    const newCluster = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.faceCluster.create({
+        data: {
+          workspaceId,
+          status: 'UNREVIEWED',
+          memberCount: toMove.length,
+          lastRebuildAt: new Date(),
+          label: `${cluster.label ?? 'Cluster'} (split)`,
+        },
+      });
+
+      for (const member of toMove) {
+        await tx.faceClusterMember.update({
+          where: { id: member.id },
+          data: { clusterId: created.id },
+        });
+      }
+
+      const remaining = cluster.members.length - toMove.length;
+      await tx.faceCluster.update({
+        where: { id: clusterId },
+        data: { memberCount: remaining, lastRebuildAt: new Date() },
+      });
+
+      return created;
+    });
+
+    return {
+      originalCluster: await this.getCluster(clusterId),
+      newCluster: await this.getCluster(newCluster.id),
+    };
   }
 
   async enqueueEmbeddingsForMedia(mediaId: string, workspaceId: string) {

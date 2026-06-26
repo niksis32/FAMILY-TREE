@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/current-user.decorator';
 import { MinioStorageService } from '../../common/storage/minio-storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { workspaceScopedCreateData } from '../../prisma/workspace-scoped-create';
 import { AssetPrivacyService } from '../privacy/asset-privacy.service';
+import { CollaborationHooksService } from '../collaboration/collaboration-hooks.service';
 import { SearchService } from '../search/search.service';
 import {
   ALLOWED_DOCUMENT_MIME_TYPES,
@@ -20,6 +21,7 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly search: SearchService,
     private readonly assetPrivacy: AssetPrivacyService,
+    @Optional() private readonly collaborationHooks?: CollaborationHooksService,
   ) {}
 
   async findAll(user?: AuthenticatedUser | null) {
@@ -110,6 +112,16 @@ export class DocumentsService {
       storageKey: document.storageKey,
       mimeType: document.mimeType,
     });
+
+    if (user?.id && document.workspaceId) {
+      void this.collaborationHooks?.onDocumentUploaded({
+        workspaceId: document.workspaceId,
+        actorUserId: user.id,
+        documentId: document.id,
+        title: document.title ?? 'Документ',
+      });
+    }
+
     return document;
   }
 

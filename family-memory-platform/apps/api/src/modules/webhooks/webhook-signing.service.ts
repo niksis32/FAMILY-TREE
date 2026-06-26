@@ -45,6 +45,24 @@ export class WebhookSigningService {
     };
   }
 
+  verifySignature(params: {
+    secret: string;
+    body: string;
+    timestamp: number;
+    signatureHeader: string;
+    toleranceSeconds?: number;
+  }): boolean {
+    const tolerance = params.toleranceSeconds ?? 300;
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - params.timestamp) > tolerance) {
+      return false;
+    }
+    const signedPayload = `${params.timestamp}.${params.body}`;
+    const expected = createHmac('sha256', params.secret).update(signedPayload).digest('hex');
+    const provided = params.signatureHeader.replace(/^sha256=/, '');
+    return expected === provided;
+  }
+
   private stableStringify(value: unknown): string {
     return JSON.stringify(value, (_key, current) => {
       if (current && typeof current === 'object' && !Array.isArray(current)) {
