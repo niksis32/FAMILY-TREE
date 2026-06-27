@@ -16,6 +16,7 @@ import { useFocusTrap } from '@family/ui';
 import { useAuth } from '@/components/auth-provider';
 import {
   PLATFORM_DASHBOARD,
+  PLATFORM_ADMIN,
   PLATFORM_NAV_GROUPS,
   PLATFORM_SETTINGS,
   type NavItemKey,
@@ -35,7 +36,7 @@ interface CommandEntry {
   run?: () => void;
 }
 
-function flattenNavCommands(tNav: (key: NavItemKey) => string): CommandEntry[] {
+function flattenNavCommands(tNav: (key: NavItemKey) => string, showAdmin: boolean): CommandEntry[] {
   const items: CommandEntry[] = [
     {
       id: `nav-${PLATFORM_DASHBOARD.href}`,
@@ -55,6 +56,15 @@ function flattenNavCommands(tNav: (key: NavItemKey) => string): CommandEntry[] {
         icon: item.icon,
       });
     }
+  }
+  if (showAdmin) {
+    items.push({
+      id: `nav-${PLATFORM_ADMIN.href}`,
+      kind: 'nav',
+      label: tNav(PLATFORM_ADMIN.key),
+      href: PLATFORM_ADMIN.href,
+      icon: PLATFORM_ADMIN.icon,
+    });
   }
   items.push({
     id: `nav-${PLATFORM_SETTINGS.href}`,
@@ -101,7 +111,7 @@ export function CommandPalette() {
 
   const staticCommands = useMemo(
     () => [
-      ...flattenNavCommands(tNav),
+      ...flattenNavCommands(tNav, session?.user.role === 'ADMIN'),
       {
         id: 'action-add-person',
         kind: 'action' as const,
@@ -138,7 +148,7 @@ export function CommandPalette() {
         icon: Search,
       },
     ],
-    [t, tNav],
+    [t, tNav, session?.user.role],
   );
 
   useEffect(() => {

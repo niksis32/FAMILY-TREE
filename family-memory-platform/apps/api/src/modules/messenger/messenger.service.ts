@@ -86,6 +86,46 @@ export class MessengerService {
     return this.getConversation(conversation.id, userId);
   }
 
+  /** Find or create a direct chat in a specific workspace and send a message. */
+  async sendDirectMessageInWorkspace(
+    workspaceId: string,
+    fromUserId: string,
+    toUserId: string,
+    body: string,
+  ) {
+    if (fromUserId === toUserId) return null;
+    await this.workspaces.assertMember(workspaceId, fromUserId);
+    await this.workspaces.assertMember(workspaceId, toUserId);
+
+    const candidates = await this.prisma.conversation.findMany({
+      where: {
+        workspaceId,
+        type: 'DIRECT',
+        participants: { some: { userId: fromUserId } },
+      },
+      include: { participants: true },
+    });
+    const existing = candidates.find(
+      (row) =>
+        row.participants.length === 2 &&
+        row.participants.some((p) => p.userId === fromUserId) &&
+        row.participants.some((p) => p.userId === toUserId),
+    );
+
+    const conversation =
+      existing ??
+      (await this.prisma.conversation.create({
+        data: {
+          workspaceId,
+          type: 'DIRECT',
+          createdById: fromUserId,
+          participants: { create: [{ userId: fromUserId }, { userId: toUserId }] },
+        },
+      }));
+
+    return this.sendMessage(conversation.id, fromUserId, body);
+  }
+
   async createGroup(userId: string, title: string, participantUserIds: string[]) {
     const workspace = await this.workspaces.ensureDefaultWorkspace(userId);
     const uniqueIds = [...new Set([userId, ...participantUserIds])];

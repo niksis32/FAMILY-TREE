@@ -114,6 +114,7 @@ const WORKSPACE_SCOPED_MODELS = [
   'memorial',
   'webhookEndpoint',
   'webhookEvent',
+  'militaryConflictDefinition',
 ] as const;
 
 export function workspaceIsolationExtension(getSnapshot: () => WorkspaceContextSnapshot) {

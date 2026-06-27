@@ -54,6 +54,7 @@ import { KnowledgeBlockModule } from './modules/knowledge/knowledge-block.module
 import { MediaAiBlockModule } from './modules/media-ai/media-ai-block.module';
 import { IntegrationsBlockModule } from './modules/integrations/integrations-block.module';
 import { ExperienceBlockModule } from './modules/experience/experience-block.module';
+import { MilitaryHistoryModule } from './modules/military-history/military-history.module';
 
 /**
  * Root application module — registers all MVP domain modules.
@@ -142,6 +143,7 @@ import { ExperienceBlockModule } from './modules/experience/experience-block.mod
     MediaAiBlockModule,
     IntegrationsBlockModule,
     ExperienceBlockModule,
+    MilitaryHistoryModule,
   ],
 })
 export class AppModule {}

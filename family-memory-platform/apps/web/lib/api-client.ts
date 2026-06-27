@@ -95,6 +95,19 @@ export function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE', token });
 }
 
+export interface MilitaryConflictRecord {
+  id: string;
+  name: string;
+  color: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  isCustom: boolean;
+  proposerLabel?: string | null;
+  createdById?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthSession {
   accessToken: string;
   tokenType: 'Bearer';
@@ -521,7 +534,21 @@ export const apiClient = {
       apiPost<AuthSession>('/auth/mfa/passkeys/auth/verify', { mfaSessionToken, response }),
   },
   admin: {
+    stats: (token: string) => apiGet<import('@family/shared').AdminStatsResponse>('/admin/stats', token),
     ops: (token: string) => apiGet<import('@family/shared').AdminOpsOverview>('/admin/ops', token),
+    users: (token: string, params?: { limit?: number; offset?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminUserListResponse>(`/admin/users${suffix}`, token);
+    },
+    createUser: (token: string, body: import('@family/shared').AdminCreateUserInput) =>
+      apiPost<import('@family/shared').AdminUserSummary>('/admin/users', body, token),
+    updateUser: (token: string, id: string, body: import('@family/shared').AdminUpdateUserInput) =>
+      apiPatch<import('@family/shared').AdminUserSummary>(`/admin/users/${id}`, body, token),
+    softDeleteUser: (token: string, id: string, body: import('@family/shared').AdminSoftDeleteUserInput) =>
+      apiPost<import('@family/shared').AdminUserSummary>(`/admin/users/${id}/soft-delete`, body, token),
   },
   public: {
     resolveShare: (shareToken: string) => apiGet<unknown>(`/public/share/${shareToken}`),
@@ -1495,6 +1522,24 @@ export const apiClient = {
       apiPost<unknown>('/cemetery/routes/plan', body, token),
     analyzePhoto: (body: { mediaId: string }, token: string) =>
       apiPost<unknown>('/cemetery/analyze-photo', body, token),
+  },
+  militaryHistory: {
+    listConflicts: (token: string) =>
+      apiGet<MilitaryConflictRecord[]>('/military-history/conflicts', token),
+    listPending: (token: string) =>
+      apiGet<MilitaryConflictRecord[]>('/military-history/conflicts/pending', token),
+    listMyProposals: (token: string) =>
+      apiGet<MilitaryConflictRecord[]>('/military-history/conflicts/proposals', token),
+    proposeConflict: (body: { name: string; color?: string }, token: string) =>
+      apiPost<MilitaryConflictRecord>('/military-history/conflicts', body, token),
+    approveConflict: (id: string, body: { name?: string; color?: string }, token: string) =>
+      apiPatch<MilitaryConflictRecord>(`/military-history/conflicts/${id}/approve`, body, token),
+    rejectConflict: (id: string, token: string) =>
+      apiPatch<MilitaryConflictRecord>(`/military-history/conflicts/${id}/reject`, {}, token),
+    deleteConflict: (id: string, token: string) =>
+      apiDelete<{ ok: boolean; id: string }>(`/military-history/conflicts/${id}`, token),
+    cancelProposal: (id: string, token: string) =>
+      apiDelete<{ ok: boolean; id: string }>(`/military-history/conflicts/proposals/${id}`, token),
   },
   onboarding: {
     progress: (token: string) =>

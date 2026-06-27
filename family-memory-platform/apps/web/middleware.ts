@@ -11,6 +11,7 @@ const protectedPrefixes = [
   '/families',
   '/tree',
   '/map',
+  '/military-history',
   '/research',
   '/timeline',
   '/media',
@@ -22,6 +23,8 @@ const protectedPrefixes = [
   '/community',
   '/matching',
   '/story-drafts',
+  '/admin',
+  '/messages',
 ];
 
 function localeFromPath(pathname: string) {

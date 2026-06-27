@@ -40,6 +40,7 @@
     "messages": "Messages",
     "calendar": "Calendar",
     "archivesSearch": "External archives",
+    "militaryHistory": "Military history",
     "cemeteries": "Cemeteries",
     "exportPdf": "Book & poster export",
     "advancedSearch": "Advanced search",
@@ -49,6 +50,7 @@
     "wiki": "Family wiki",
     "quests": "Family quests",
     "onboarding": "Getting started",
+    "admin": "Admin panel",
     "groups": {
       "explore": "Explore",
       "records": "Records",
@@ -344,7 +346,8 @@
     "defaultDisplayName": "Family Platform Admin",
     "lightTheme": "Light theme",
     "darkTheme": "Dark theme",
-    "logout": "Log out"
+    "logout": "Log out",
+    "adminPanelHint": "Portal management, users, and moderation"
   },
   "community": {
     "hub": {
@@ -1538,6 +1541,111 @@
       "historical-places": "Historical places"
     }
   },
+  "militaryHistory": {
+    "eyebrow": "Military memory",
+    "title": "Family military history",
+    "description": "Combat routes, battle places, awards, memories, and military archives in one historical view for each person.",
+    "person": "Person",
+    "demoPerson": "Family veteran",
+    "conflict": "War or conflict",
+    "allConflicts": "All wars and conflicts",
+    "openArchives": "Search archives",
+    "openTimeline": "Open timeline",
+    "mapTitle": "Combat route map",
+    "mapDescription": "Routes use the existing historical map engine and are ready to connect real military events for a person.",
+    "serviceTitle": "Service route",
+    "awardsTitle": "Awards and confirmations",
+    "memoriesTitle": "Memories",
+    "archivesTitle": "Military archives",
+    "memoryQuote": "From family memories: front-line letters, stories about battle places, and post-war notes can be linked to every route point.",
+    "conflicts": {
+      "ww1": "World War I",
+      "civil": "Civil War",
+      "ww2": "World War II",
+      "ww2Patriotic": "Great Patriotic War",
+      "local": "Local conflicts"
+    },
+    "addConflict": "Add conflict",
+    "newConflictName": "War or conflict name",
+    "newConflictPlaceholder": "e.g. Afghan War",
+    "saveConflict": "Save",
+    "deleteConflict": "Remove",
+    "customConflicts": "Custom conflicts",
+    "customConflictsHint": "Proposals are stored in the workspace. Items appear in the shared War or conflict menu only after admin approval.",
+    "conflictSaved": "Proposal sent for approval",
+    "conflictApprovedDirect": "Item added to the shared menu",
+    "conflictDeleted": "Item removed from menu",
+    "conflictNameInvalid": "Use only letters, numbers, and safe punctuation (2–120 characters).",
+    "pendingReviewTitle": "Awaiting approval",
+    "pendingReviewHint": "Members proposed new items for War or conflict. You can edit the title before publishing.",
+    "myProposalsTitle": "My proposals",
+    "myProposalsHint": "These items are not visible in the shared menu yet — waiting for admin decision.",
+    "proposedBy": "Proposed by: {name}",
+    "approveConflict": "Approve",
+    "rejectConflict": "Reject",
+    "conflictRejected": "Proposal rejected",
+    "editAndApprove": "Save and approve",
+    "cancelProposal": "Withdraw",
+    "statusPending": "Pending review",
+    "statusApproved": "In menu",
+    "statusRejected": "Rejected",
+    "notificationHint": "Administrators receive a notification in the header bell.",
+    "proposalModalTitle": "Sent for approval",
+    "proposalModalBody": "The name «{name}» for the War or conflict menu has been sent to the moderator for approval.",
+    "proposalModalHint": "After approval you will receive a personal message in family chat, and the item will be available to all archive members.",
+    "proposalModalOk": "Got it",
+    "stats": {
+      "routes": "Combat routes",
+      "routesHint": "By selected wars and conflicts",
+      "places": "Battle places",
+      "placesHint": "Geocoded points on the person's map",
+      "awards": "Awards",
+      "awardsHint": "Medals, orders, and archive confirmations"
+    },
+    "stops": {
+      "ww1Front": {
+        "title": "North-Western Front",
+        "place": "Vilna / Vilnius",
+        "description": "World War I: service place, hospital records, regimental lists, and possible mentions in orders."
+      },
+      "civilRail": {
+        "title": "Evacuation train",
+        "place": "Yekaterinburg",
+        "description": "Civil War: movement of the family and military unit, connected with mobilization and evacuation documents."
+      },
+      "ww2Smolensk": {
+        "title": "Defensive battles",
+        "place": "Smolensk",
+        "description": "Early World War II route point: unit cards, reports, letters, and first combat episodes."
+      },
+      "ww2Stalingrad": {
+        "title": "Stalingrad operation",
+        "place": "Stalingrad / Volgograd",
+        "description": "A key route segment where memories, photos, and award sheets can be attached."
+      },
+      "ww2Berlin": {
+        "title": "End of the war",
+        "place": "Berlin",
+        "description": "Final route stage: combat awards, unit orders, and family stories about returning home."
+      },
+      "localMemory": {
+        "title": "Local conflict",
+        "place": "Kabul",
+        "description": "Modern conflicts can use the same model: service place, unit archive, awards, and oral memories."
+      }
+    },
+    "awards": {
+      "medalCourage": "Medal for Courage",
+      "orderGlory": "Order of Glory",
+      "victoryMedal": "Victory Medal",
+      "archiveConfirmed": "Archive confirmed"
+    },
+    "archives": {
+      "registry": "Unit lists, service cards, and casualty reports.",
+      "awards": "Award sheets, orders, and combat-route confirmations.",
+      "memoirs": "Front-line letters, oral memories, photos, and family stories."
+    }
+  },
   "onboarding": {
     "eyebrow": "Activation",
     "title": "Onboarding wizard",
@@ -1583,5 +1691,137 @@
     "translate": "Translate",
     "source": "Source",
     "empty": "Request a translation to compare side by side."
+  },
+  "adminPanel": {
+    "eyebrow": "Portal management",
+    "title": "Admin panel",
+    "subtitle": "Family Memory control center: users, moderation queues, service monitoring, and site settings.",
+    "navLabel": "Admin panel sections",
+    "soonBadge": "soon",
+    "loading": "Loading…",
+    "loginRequiredTitle": "Sign in required",
+    "loginRequiredHint": "Sign in with a platform administrator account.",
+    "loginAction": "Sign in",
+    "forbiddenTitle": "Administrators only",
+    "forbiddenHint": "This area is restricted to users with platform ADMIN role.",
+    "quickLinksTitle": "Quick sections",
+    "quickLinksHint": "Primary tools for portal moderators.",
+    "moderationPreviewTitle": "Content moderation",
+    "moderationPreviewHint": "Queues for user suggestions and published content.",
+    "openModerationHub": "All moderation queues",
+    "moderationHubTitle": "Moderation queues",
+    "moderationHubHint": "Pick a content type to review and publish.",
+    "openQueue": "Open queue",
+    "moderationMilitaryTitle": "Military history",
+    "moderationMilitaryDesc": "Custom labels for the War or conflict menu.",
+    "moderationCommunityTitle": "Community",
+    "moderationCommunityDesc": "Reports, forum posts, and community groups.",
+    "moderationStoriesTitle": "Family stories",
+    "moderationStoriesDesc": "Stories awaiting approval before public release.",
+    "usersTitle": "Platform users",
+    "usersHint": "Manual registration, editing, and soft-delete. Records stay in the database — accounts are hidden from the admin panel.",
+    "usersAdd": "Add user",
+    "usersEdit": "Edit",
+    "usersDelete": "Mark for deletion",
+    "usersDeleteSelfHint": "You cannot delete your own account",
+    "usersDeleteConfirm": "Confirm deletion",
+    "usersEmpty": "No users found.",
+    "usersPagination": "Showing {from}–{to} of {total}",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "entryConfirm": {
+      "title": "Enter admin panel",
+      "subtitle": "Access confirmation",
+      "body": "Do you want to enter the admin panel? User management, moderation, and system settings are available here."
+    },
+    "usersForm": {
+      "createTitle": "New user",
+      "createHint": "Create an account manually.",
+      "editTitle": "Edit user",
+      "editHint": "Update profile, role, and status.",
+      "email": "Email",
+      "displayName": "Display name",
+      "password": "Password",
+      "passwordOptional": "New password (optional)",
+      "role": "Role",
+      "status": "Status"
+    },
+    "usersConfirm": {
+      "createTitle": "Create user?",
+      "createBody": "Confirm registration of the new account.",
+      "editTitle": "Save changes?",
+      "editBody": "Confirm updating this user's data."
+    },
+    "usersDeleteStep1": {
+      "title": "Mark user for deletion?",
+      "body": "User \"{name}\" will be hidden from the admin panel and will not be able to sign in.",
+      "hint": "The record remains in the database. Permanent removal requires a separate procedure."
+    },
+    "usersDeleteStep2": {
+      "title": "Two-step confirmation",
+      "body": "Enter the user's email and confirmation word to finish.",
+      "emailHint": "Enter email: {email}",
+      "emailLabel": "User email",
+      "phraseLabel": "Type \"{phrase}\""
+    },
+    "usersTable": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "workspaces": "Workspaces",
+      "status": "Status",
+      "registered": "Registered",
+      "active": "Active",
+      "inactive": "Disabled",
+      "actions": "Actions"
+    },
+    "stats": {
+      "persons": "Persons in archives",
+      "media": "Media files",
+      "storage": "Media storage",
+      "lastAudit": "Last audit event"
+    },
+    "nav": {
+      "overview": "Overview",
+      "users": "Users",
+      "sessions": "Sessions",
+      "messages": "Messages",
+      "moderation": "Moderation",
+      "site": "Site",
+      "ops": "Monitoring"
+    },
+    "sections": {
+      "usersDesc": "Accounts, roles, and member activity.",
+      "sessionsDesc": "Active sign-ins and JWT session management.",
+      "messagesDesc": "Correspondence review for moderation and support.",
+      "moderationDesc": "All content review queues.",
+      "siteDesc": "Branding, copy, and portal configuration.",
+      "opsDesc": "PostgreSQL, Redis, queues, and API errors."
+    },
+    "placeholders": {
+      "sessionsBody": "View active sessions and force sign-out. Auth currently uses JWT without a server-side session registry.",
+      "sessionsBullets": [
+        "Active tokens and devices",
+        "Admin-initiated session termination",
+        "Sign-in and suspicious activity log"
+      ],
+      "messagesBody": "Moderate the family messenger: search conversations, handle reports, and stop abuse.",
+      "messagesBullets": [
+        "Search by conversation and participants",
+        "Message reports",
+        "Conversation export for investigations"
+      ],
+      "siteBody": "Edit portal appearance and settings: logo, colors, landing copy, feature flags.",
+      "siteBullets": [
+        "Workspace branding",
+        "UI copy and localization",
+        "Enable or disable modules"
+      ],
+      "siteBrandingLink": "Open workspace branding"
+    }
   }
 }

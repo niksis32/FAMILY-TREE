@@ -68,7 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setSession(parsed);
 
       try {
-        await apiClient.me(parsed.accessToken);
+        const user = await apiClient.me(parsed.accessToken);
+        const refreshed: AuthSession = { ...parsed, user };
+        persistSession(refreshed);
+        if (!cancelled) setSession(refreshed);
       } catch {
         clearSession();
         if (!cancelled) setSession(null);

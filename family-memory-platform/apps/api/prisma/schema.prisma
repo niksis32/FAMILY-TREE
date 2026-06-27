@@ -81,6 +81,8 @@ model User {
   onboardingProgress         OnboardingProgress[]
   storyTranslationJobs       StoryTranslationJob[]  @relation("StoryTranslationRequester")
   questLeaderboardOptIn      QuestLeaderboardOptIn[]
+  militaryConflictDefinitions MilitaryConflictDefinition[] @relation("MilitaryConflictCreator")
+  militaryConflictReviews     MilitaryConflictDefinition[] @relation("MilitaryConflictReviewer")
 
   @@index([role])
   @@index([deletedAt])
@@ -1184,6 +1186,7 @@ model Workspace {
   webhookEvents   WebhookEvent[]
   onboardingProgress OnboardingProgress[]
   questLeaderboardOptIn QuestLeaderboardOptIn[]
+  militaryConflictDefinitions MilitaryConflictDefinition[]
 
   @@index([tenantId])
   @@unique([tenantId, name])
@@ -2824,4 +2827,30 @@ model QuestLeaderboardOptIn {
 
   @@unique([userId, workspaceId])
   @@index([workspaceId, optedIn])
+}
+
+enum MilitaryConflictStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model MilitaryConflictDefinition {
+  id           String                   @id @default(cuid())
+  workspaceId  String
+  name         String                   @db.VarChar(120)
+  color        String?                  @db.VarChar(7)
+  status       MilitaryConflictStatus   @default(PENDING)
+  createdById  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("MilitaryConflictCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy User?    @relation("MilitaryConflictReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([workspaceId])
 }

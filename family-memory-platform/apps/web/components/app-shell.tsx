@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, ShieldCheck, Sun, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   PLATFORM_DASHBOARD,
+  PLATFORM_ADMIN,
   PLATFORM_NAV_GROUPS,
   PLATFORM_SETTINGS,
   type PlatformNavGroup,
@@ -111,7 +112,7 @@ function NavGroupSection({
   );
 }
 
-function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function SidebarContent({ pathname, onNavigate, showAdmin }: { pathname: string; onNavigate?: () => void; showAdmin: boolean }) {
   const tShell = useTranslations('shell');
   const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>(() =>
     Object.fromEntries(PLATFORM_NAV_GROUPS.map((group) => [group.groupKey, true])) as Record<NavGroupKey, boolean>,
@@ -169,6 +170,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
         ))}
 
         <div className="border-t border-stone-200/80 pt-4 dark:border-slate-800">
+          {showAdmin ? <NavLink item={PLATFORM_ADMIN} pathname={pathname} onNavigate={onNavigate} /> : null}
           <NavLink item={PLATFORM_SETTINGS} pathname={pathname} onNavigate={onNavigate} />
         </div>
       </nav>
@@ -181,12 +183,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { session, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const tShell = useTranslations('shell');
+  const tNav = useTranslations('nav');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const showAdmin = session?.user.role === 'ADMIN';
+  const adminActive = isNavActive(pathname, PLATFORM_ADMIN);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,39,0.12),transparent_42%),linear-gradient(160deg,#fbfaf8_0%,#f3f0ea_45%,#eef2f7_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,39,0.14),transparent_38%),linear-gradient(160deg,#020617_0%,#0f172a_50%,#111827_100%)]">
+    <div
+      className={cn(
+        'min-h-screen',
+        adminActive
+          ? 'bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.14),transparent_42%),linear-gradient(160deg,#eef2ff_0%,#f8fafc_45%,#f1f5f9_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.18),transparent_38%),linear-gradient(160deg,#020617_0%,#0f172a_50%,#1e1b4b_100%)]'
+          : 'bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,39,0.12),transparent_42%),linear-gradient(160deg,#fbfaf8_0%,#f3f0ea_45%,#eef2f7_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,39,0.14),transparent_38%),linear-gradient(160deg,#020617_0%,#0f172a_50%,#111827_100%)]',
+      )}
+    >
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17.5rem] flex-col border-r border-stone-200/60 bg-white/75 p-4 backdrop-blur-2xl dark:border-slate-800/80 dark:bg-slate-950/75 lg:flex">
-        <SidebarContent pathname={pathname} />
+        <SidebarContent pathname={pathname} showAdmin={showAdmin} />
       </aside>
 
       {mobileOpen ? (
@@ -204,7 +216,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </div>
             <div className="min-h-0 flex-1">
-              <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} showAdmin={showAdmin} />
             </div>
           </aside>
         </div>
@@ -228,6 +240,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {session?.user.displayName ?? tShell('defaultDisplayName')}
                 </p>
               </div>
+              {showAdmin ? (
+                <Link href={PLATFORM_ADMIN.href} className="shrink-0" title={tShell('adminPanelHint')}>
+                  <Button
+                    variant={adminActive ? 'primary' : 'secondary'}
+                    className="h-9 gap-2 px-3 text-xs sm:text-sm"
+                    aria-current={adminActive ? 'page' : undefined}
+                  >
+                    <ShieldCheck className="h-4 w-4" aria-hidden />
+                    <span className="max-w-[9rem] truncate sm:max-w-none">{tNav('admin')}</span>
+                  </Button>
+                </Link>
+              ) : null}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible sm:flex-nowrap">
               <OfflineBadge />

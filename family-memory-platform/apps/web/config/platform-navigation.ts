@@ -10,6 +10,7 @@ import {
   Map,
   Search,
   Settings,
+  Shield,
   Sparkles,
   Users,
   Clock3,
@@ -23,6 +24,7 @@ import {
   Archive,
   Trophy,
   Compass,
+  ShieldCheck,
 } from 'lucide-react';
 
 export type NavItemKey =
@@ -30,6 +32,7 @@ export type NavItemKey =
   | 'tree'
   | 'tree3d'
   | 'map'
+  | 'militaryHistory'
   | 'timeline'
   | 'persons'
   | 'media'
@@ -51,7 +54,8 @@ export type NavItemKey =
   | 'evidence'
   | 'wiki'
   | 'quests'
-  | 'onboarding';
+  | 'onboarding'
+  | 'admin';
 
 export interface PlatformNavItem {
   href: string;
@@ -83,6 +87,7 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         match: (p) => p === '/tree/3d' || p.startsWith('/tree/3d/'),
       },
       { href: '/map', key: 'map', icon: Map },
+      { href: '/military-history', key: 'militaryHistory', icon: Shield },
       { href: '/cemeteries', key: 'cemeteries', icon: Landmark },
       { href: '/timeline', key: 'timeline', icon: Clock3 },
     ],
@@ -127,4 +132,12 @@ export const PLATFORM_SETTINGS: PlatformNavItem = {
   href: '/settings',
   key: 'settings',
   icon: Settings,
+};
+
+/** Visible only to platform ADMIN — rendered separately in app-shell. */
+export const PLATFORM_ADMIN: PlatformNavItem = {
+  href: '/admin',
+  key: 'admin',
+  icon: ShieldCheck,
+  match: (p) => p === '/admin' || p.startsWith('/admin/'),
 };
