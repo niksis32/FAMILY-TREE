@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { REALTIME_EVENTS, type NotificationPreferenceSummary, type NotificationSource, type NotificationSummary, type RealtimeEnvelope } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
+import { MILITARY_CONFLICT_MODERATION_INBOX_TITLE } from '@family/shared';
 import { RealtimePubSubService } from '../realtime/realtime-pubsub.service';
 
 const ALL_SOURCES: NotificationSource[] = [
@@ -33,11 +34,9 @@ export class NotificationsService {
   ) {}
 
   async listForUser(userId: string, unreadOnly = false) {
-    const snapshot = this.workspaceContext.getSnapshot();
     const rows = await this.prisma.notification.findMany({
       where: {
         userId,
-        ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
         ...(unreadOnly ? { readAt: null } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -47,14 +46,18 @@ export class NotificationsService {
   }
 
   async unreadCount(userId: string) {
-    const snapshot = this.workspaceContext.getSnapshot();
-    return this.prisma.notification.count({
-      where: {
-        userId,
-        readAt: null,
-        ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
-      },
-    });
+    const base = { userId, readAt: null };
+    const [total, moderation] = await Promise.all([
+      this.prisma.notification.count({ where: base }),
+      this.prisma.notification.count({
+        where: {
+          ...base,
+          source: 'MODERATION',
+          title: MILITARY_CONFLICT_MODERATION_INBOX_TITLE,
+        },
+      }),
+    ]);
+    return { total, moderation };
   }
 
   async markRead(userId: string, notificationId: string) {
@@ -70,12 +73,10 @@ export class NotificationsService {
   }
 
   async markAllRead(userId: string) {
-    const snapshot = this.workspaceContext.getSnapshot();
     await this.prisma.notification.updateMany({
       where: {
         userId,
         readAt: null,
-        ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
       },
       data: { readAt: new Date() },
     });
@@ -138,7 +139,6 @@ export class NotificationsService {
       emittedAt: new Date().toISOString(),
     };
     await this.pubsub.publishUser(input.userId, envelope);
-    await this.pubsub.publishWorkspace(input.workspaceId, envelope);
     return summary;
   }
 
@@ -156,6 +156,7 @@ export class NotificationsService {
 
   private toSummary(row: {
     id: string;
+    userId: string;
     workspaceId: string;
     source: NotificationSource;
     title: string;
@@ -167,6 +168,7 @@ export class NotificationsService {
   }): NotificationSummary {
     return {
       id: row.id,
+      userId: row.userId,
       workspaceId: row.workspaceId,
       source: row.source,
       title: row.title,

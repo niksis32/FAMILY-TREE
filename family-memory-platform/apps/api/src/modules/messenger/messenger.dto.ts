@@ -1,4 +1,5 @@
-import { IsArray, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsEnum, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ModerationReportCategory } from '@prisma/client';
 
 export class CreateDirectConversationDto {
   @IsString()
@@ -36,4 +37,14 @@ export class SendMessageDto {
   @IsArray()
   @IsString({ each: true })
   attachmentMediaIds?: string[];
+}
+
+export class ReportMessageDto {
+  @IsEnum(ModerationReportCategory)
+  category!: ModerationReportCategory;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  details?: string;
 }

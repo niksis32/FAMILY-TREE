@@ -103,7 +103,10 @@
     "title": "Уведомления",
     "markAllRead": "Прочитать все",
     "empty": "Нет непрочитанных",
-    "open": "Открыть"
+    "open": "Открыть",
+    "openAdminModeration": "Открыть в админ-панели",
+    "moderationBadge": "Модерация",
+    "moderationAlert": "Новых заявок на модерацию: {count}"
   },
   "activityFeed": {
     "title": "Активность workspace",
@@ -345,7 +348,8 @@
     "lightTheme": "Светлая тема",
     "darkTheme": "Тёмная тема",
     "logout": "Выйти",
-    "adminPanelHint": "Управление порталом, пользователями и модерацией"
+    "adminPanelHint": "Управление порталом, пользователями и модерацией",
+    "maintenanceDefault": "Портал временно на обслуживании. Некоторые функции могут быть недоступны."
   },
   "community": {
     "hub": {
@@ -1686,6 +1690,20 @@
     "source": "Оригинал",
     "empty": "Запросите перевод для сравнения side-by-side."
   },
+  "adminShell": {
+    "brandTag": "Платформа",
+    "brandTitle": "Админ-панель",
+    "tagline": "Управление порталом, пользователями и модерацией",
+    "personalArchive": "Мой личный архив",
+    "personalArchiveHint": "Ваше родословное древо и семейный архив — отдельно от админки.",
+    "signedInAs": "Администратор",
+    "defaultAdmin": "Админ платформы",
+    "openMenu": "Открыть меню",
+    "closeMenu": "Закрыть меню",
+    "lightTheme": "Светлая тема",
+    "darkTheme": "Тёмная тема",
+    "logout": "Выйти"
+  },
   "adminPanel": {
     "eyebrow": "Управление порталом",
     "title": "Админская панель",
@@ -1705,7 +1723,18 @@
     "openModerationHub": "Все очереди модерации",
     "moderationHubTitle": "Очереди модерации",
     "moderationHubHint": "Выберите тип контента для проверки и публикации.",
+    "moderationPendingCount": "Ожидает решения: {count}",
     "openQueue": "Открыть очередь",
+    "militaryModeration": {
+      "title": "Военная история — модерация меню",
+      "hint": "Пользователи предлагают новые пункты «Война или конфликт». Одобрите, отредактируйте или отклоните здесь.",
+      "backToHub": "К очередям",
+      "loading": "Загрузка…",
+      "empty": "Нет заявок на модерацию.",
+      "workspaceLabel": "Архив: {name}",
+      "approved": "Пункт одобрен и добавлен в меню.",
+      "rejected": "Предложение отклонено."
+    },
     "moderationMilitaryTitle": "Военная история",
     "moderationMilitaryDesc": "Пользовательские названия в меню «Война или конфликт».",
     "moderationCommunityTitle": "Сообщество",
@@ -1773,6 +1802,250 @@
       "inactive": "Отключён",
       "actions": "Действия"
     },
+    "sessions": {
+      "title": "Сессии и входы",
+      "hint": "Серверный реестр JWT-сессий: активные устройства, принудительный выход и журнал попыток входа.",
+      "loading": "Загрузка…",
+      "refresh": "Обновить",
+      "tabs": {
+        "sessions": "Активные сессии",
+        "loginEvents": "Журнал входов"
+      },
+      "filterUser": "Поиск",
+      "filterUserPlaceholder": "Email, имя или IP",
+      "showRevoked": "Показать завершённые",
+      "suspiciousOnly": "Только подозрительные",
+      "unknownDevice": "Неизвестное устройство",
+      "revoke": "Завершить",
+      "revokeAllUser": "Все сессии",
+      "emptySessions": "Активные сессии не найдены.",
+      "emptyEvents": "События входа не найдены.",
+      "pagination": "Показано {from}–{to} из {total}",
+      "prevPage": "Назад",
+      "nextPage": "Далее",
+      "yes": "Да",
+      "no": "Нет",
+      "stats": {
+        "activeSessions": "Активные сессии",
+        "activeSessionsHint": "JWT-токены с действующим реестром",
+        "activeUsers": "Пользователей онлайн",
+        "activeUsersHint": "Уникальные аккаунты с активной сессией",
+        "failedLogins24h": "Неудачных входов за 24 ч",
+        "failedLogins24hHint": "Неверный пароль, MFA и отключённые аккаунты",
+        "suspicious24h": "Подозрительных событий",
+        "suspicious24hHint": "Серии неудачных попыток с одного IP или email"
+      },
+      "table": {
+        "user": "Пользователь",
+        "device": "Устройство",
+        "ip": "IP",
+        "started": "Начало",
+        "lastSeen": "Последняя активность",
+        "status": "Статус",
+        "actions": "Действия"
+      },
+      "status": {
+        "active": "Активна",
+        "revoked": "Завершена"
+      },
+      "events": {
+        "time": "Время",
+        "account": "Аккаунт",
+        "outcome": "Результат",
+        "device": "Устройство",
+        "ip": "IP",
+        "flags": "Флаги",
+        "suspicious": "Подозрительно"
+      },
+      "outcomes": {
+        "SUCCESS": "Успешный вход",
+        "MFA_CHALLENGE": "Требуется MFA",
+        "FAILURE_BAD_CREDENTIALS": "Неверные данные",
+        "FAILURE_INACTIVE": "Аккаунт отключён",
+        "FAILURE_MFA": "Ошибка MFA"
+      },
+      "revokeConfirm": {
+        "title": "Завершить сессию?",
+        "subtitle": "Пользователь: {user}",
+        "body": "Токен будет немедленно отозван. Пользователю потребуется войти снова на этом устройстве."
+      },
+      "revokeAllConfirm": {
+        "title": "Завершить все сессии?",
+        "subtitle": "Пользователь: {user}",
+        "body": "Все активные входы этого пользователя будут завершены, кроме вашей текущей админ-сессии."
+      }
+    },
+    "messages": {
+      "title": "Модерация переписки",
+      "hint": "Поиск диалогов, жалобы на сообщения, блокировка отправки и экспорт для расследований.",
+      "loading": "Загрузка…",
+      "refresh": "Обновить",
+      "tabs": {
+        "conversations": "Диалоги",
+        "reports": "Жалобы",
+        "sanctions": "Блокировки"
+      },
+      "searchLabel": "Поиск",
+      "searchPlaceholder": "Участник, email, текст сообщения, архив…",
+      "searchAction": "Найти",
+      "view": "Открыть",
+      "review": "Разобрать",
+      "export": "Экспорт JSON",
+      "close": "Закрыть",
+      "hidden": "Скрыто",
+      "hideMessage": "Скрыть",
+      "emptyConversations": "Диалоги не найдены.",
+      "emptyReports": "Жалоб на сообщения нет.",
+      "emptySanctions": "Активных блокировок нет.",
+      "pagination": "Показано {from}–{to} из {total}",
+      "prevPage": "Назад",
+      "nextPage": "Далее",
+      "yes": "Да",
+      "no": "Нет",
+      "dismiss": "Отклонить",
+      "resolveAndBlock": "Скрыть и заблокировать",
+      "detailTitle": "Просмотр переписки",
+      "detailHint": "Сообщения диалога для модерации",
+      "stats": {
+        "conversations": "Диалогов",
+        "conversationsHint": "Всего семейных чатов на платформе",
+        "messages24h": "Сообщений за 24 ч",
+        "messages24hHint": "Отправлено за последние сутки",
+        "openReports": "Открытых жалоб",
+        "openReportsHint": "Жалобы на сообщения в очереди",
+        "sanctions": "Блокировок отправки",
+        "sanctionsHint": "Активные ограничения мессенджера"
+      },
+      "table": {
+        "conversation": "Диалог",
+        "workspace": "Архив",
+        "participants": "Участники",
+        "messages": "Сообщений",
+        "lastActivity": "Активность",
+        "actions": "Действия"
+      },
+      "reports": {
+        "time": "Время",
+        "category": "Категория",
+        "message": "Сообщение",
+        "reporter": "Жалоба от"
+      },
+      "sanctions": {
+        "user": "Пользователь",
+        "scope": "Область",
+        "reason": "Причина",
+        "expires": "До",
+        "platformWide": "Вся платформа",
+        "permanent": "Бессрочно",
+        "revoke": "Снять блок",
+        "revoked": "Снята"
+      },
+      "resolveConfirm": {
+        "title": "Разбор жалобы",
+        "subtitle": "Подтвердите действие модератора",
+        "body": "«Скрыть и заблокировать» скроет сообщение, закроет жалобу и запретит отправку сообщений автору в этом архиве."
+      },
+      "hideConfirm": {
+        "title": "Скрыть сообщение?",
+        "body": "Сообщение будет помечено как удалённое и исчезнет из чата участников."
+      },
+      "revokeSanction": {
+        "title": "Снять блокировку?",
+        "body": "Пользователь снова сможет отправлять сообщения в мессенджере."
+      }
+    },
+    "site": {
+      "title": "Настройки сайта",
+      "hint": "Брендинг портала, тексты landing-страниц, модули, feature flags и брендинг архивов.",
+      "loading": "Загрузка…",
+      "refresh": "Обновить",
+      "save": "Сохранить",
+      "saved": "Настройки сохранены.",
+      "workspaceSaved": "Брендинг архива обновлён.",
+      "openWorkspaceBranding": "Брендинг своего архива",
+      "yes": "Да",
+      "no": "Нет",
+      "cancel": "Отмена",
+      "edit": "Изменить",
+      "enabled": "Включено",
+      "disabled": "Выключено",
+      "searchAction": "Найти",
+      "prevPage": "Назад",
+      "nextPage": "Далее",
+      "tabs": {
+        "settings": "Портал и landing",
+        "modules": "Модули",
+        "workspaces": "Брендинг архивов",
+        "flags": "Feature flags"
+      },
+      "stats": {
+        "workspaces": "Архивов",
+        "workspacesHint": "Workspace на платформе",
+        "branded": "С брендингом",
+        "brandedHint": "Архивы с настроенным оформлением",
+        "flags": "Глобальных флагов",
+        "flagsHint": "Переопределения возможностей",
+        "maintenance": "Режим обслуживания",
+        "maintenanceOn": "Включён",
+        "maintenanceOff": "Выключен",
+        "maintenanceHint": "Блокирует доступ пользователей при включении"
+      },
+      "portalBranding": "Брендинг портала",
+      "portalName": "Название портала",
+      "tagline": "Слоган",
+      "primaryColor": "Основной цвет",
+      "secondaryColor": "Дополнительный цвет",
+      "defaultLocale": "Язык по умолчанию",
+      "maintenanceMode": "Режим обслуживания",
+      "maintenanceMessage": "Сообщение при обслуживании",
+      "landingCopy": "Тексты landing-страницы",
+      "heroTitle": "Заголовок",
+      "heroSubtitle": "Подзаголовок",
+      "ctaLabel": "Текст кнопки",
+      "preview": "Предпросмотр",
+      "displayName": "Отображаемое имя",
+      "footerText": "Текст в подвале",
+      "searchWorkspace": "Поиск архива",
+      "searchWorkspacePlaceholder": "Название workspace…",
+      "editWorkspaceTitle": "Брендинг архива",
+      "workspaceTable": {
+        "name": "Архив",
+        "displayName": "Имя",
+        "domain": "Домен",
+        "logo": "Логотип",
+        "actions": "Действия"
+      },
+      "modulesHint": "Снимите галочку и нажмите «Сохранить» — пункт исчезнет из меню. Прямой URL модуля перенаправит на главную. Перезагрузка проекта не нужна.",
+      "modules": {
+        "messenger": "Семейный мессенджер",
+        "community": "Сообщество",
+        "aiLab": "AI Lab",
+        "cemeteries": "Кладбища",
+        "militaryHistory": "Военная история",
+        "matching": "Сопоставления",
+        "wiki": "Wiki",
+        "archivesSearch": "Внешние архивы",
+        "calendar": "Календарь",
+        "stories": "Истории",
+        "quests": "Квесты"
+      },
+      "flags": {
+        "gedcomAdvanced": "Расширенный GEDCOM",
+        "historicalMaps": "Исторические карты",
+        "communityTools": "Инструменты сообщества",
+        "clientManagement": "Управление клиентами",
+        "multiWorkspace": "Несколько workspace",
+        "reportExport": "Экспорт отчётов",
+        "onPremDeploy": "On-premise",
+        "whiteLabel": "White label",
+        "webhooksEnabled": "Webhooks",
+        "WEBHOOKS_ENABLED": "Webhooks (глобальный флаг)"
+      },
+      "saveConfirm": {
+        "title": "Сохранить настройки сайта?",
+        "body": "Изменения применятся ко всему порталу."
+      }
+    },
     "stats": {
       "persons": "Персоны в архивах",
       "media": "Медиафайлы",
@@ -1790,10 +2063,10 @@
     },
     "sections": {
       "usersDesc": "Аккаунты, роли и активность участников.",
-      "sessionsDesc": "Активные входы и управление JWT-сессиями.",
-      "messagesDesc": "Просмотр переписки для модерации и поддержки.",
+      "sessionsDesc": "Активные устройства, принудительный выход и журнал входов.",
+      "messagesDesc": "Поиск диалогов, жалобы, блокировки и экспорт переписки.",
       "moderationDesc": "Все очереди проверки контента.",
-      "siteDesc": "Брендинг, тексты и параметры портала.",
+      "siteDesc": "Брендинг, landing, модули и feature flags портала.",
       "opsDesc": "PostgreSQL, Redis, очереди и ошибки API."
     },
     "placeholders": {

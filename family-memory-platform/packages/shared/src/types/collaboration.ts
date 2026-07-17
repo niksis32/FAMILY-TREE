@@ -73,6 +73,7 @@ export interface MessageSummary {
 
 export interface NotificationSummary {
   id: string;
+  userId: string;
   workspaceId: string;
   source: NotificationSource;
   title: string;
@@ -81,6 +82,11 @@ export interface NotificationSummary {
   sourceId: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+export interface NotificationUnreadCount {
+  total: number;
+  moderation: number;
 }
 
 export interface NotificationPreferenceSummary {

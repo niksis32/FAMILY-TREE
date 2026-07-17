@@ -2,9 +2,11 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { AuthenticatedUser } from './current-user.decorator';
+import { AuthSessionService } from './auth-session.service';
 
 interface JwtPayload extends AuthenticatedUser {
   sub: string;
+  jti?: string;
 }
 
 @Injectable()
@@ -12,6 +14,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly sessions: AuthSessionService,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -31,10 +34,15 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret });
+      if (payload.jti) {
+        await this.sessions.assertSessionActive(payload.jti);
+        void this.sessions.touchSession(payload.jti);
+      }
       request.user = {
         id: payload.sub,
         email: payload.email,
         role: payload.role,
+        sessionJti: payload.jti,
       };
       return true;
     } catch {

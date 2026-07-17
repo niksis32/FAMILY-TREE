@@ -2,9 +2,11 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { AuthenticatedUser } from './current-user.decorator';
+import { AuthSessionService } from './auth-session.service';
 
 interface JwtPayload extends AuthenticatedUser {
   sub: string;
+  jti?: string;
 }
 
 /** Sets request.user when Bearer token is valid; does not reject anonymous requests. */
@@ -13,6 +15,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly sessions: AuthSessionService,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -29,10 +32,14 @@ export class OptionalJwtAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret });
+      if (payload.jti) {
+        await this.sessions.assertSessionActive(payload.jti);
+      }
       request.user = {
         id: payload.sub,
         email: payload.email,
         role: payload.role,
+        sessionJti: payload.jti,
       };
     } catch {
       // treat as anonymous

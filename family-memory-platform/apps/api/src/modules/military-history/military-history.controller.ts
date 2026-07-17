@@ -21,9 +21,9 @@ export class MilitaryHistoryController {
   }
 
   @Get('conflicts/pending')
-  @Roles('ADMIN', 'EDITOR', 'VIEWER')
+  @Roles('ADMIN')
   listPending(@CurrentUser() user: AuthenticatedUser) {
-    return this.service.listPendingConflicts(user.id);
+    return this.service.listAllPendingForPlatformAdmin(user.id);
   }
 
   @Get('conflicts/proposals')
@@ -39,7 +39,7 @@ export class MilitaryHistoryController {
   }
 
   @Patch('conflicts/:id/approve')
-  @Roles('ADMIN', 'EDITOR', 'VIEWER')
+  @Roles('ADMIN')
   approveConflict(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -49,13 +49,13 @@ export class MilitaryHistoryController {
   }
 
   @Patch('conflicts/:id/reject')
-  @Roles('ADMIN', 'EDITOR', 'VIEWER')
+  @Roles('ADMIN')
   rejectConflict(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.rejectConflict(user.id, id);
   }
 
   @Delete('conflicts/:id')
-  @Roles('ADMIN', 'EDITOR', 'VIEWER')
+  @Roles('ADMIN')
   deleteConflict(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.deleteApprovedConflict(user.id, id);
   }

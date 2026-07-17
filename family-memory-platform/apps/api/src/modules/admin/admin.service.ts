@@ -8,13 +8,17 @@ import {
 import type { AdminStatsResponse, AdminUserListResponse, AdminUserSummary } from '@family/shared';
 import { hashPassword } from '../../common/crypto/password.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthSessionService } from '../auth/auth-session.service';
 import type { AdminCreateUserDto, AdminSoftDeleteUserDto, AdminUpdateUserDto } from './admin.dto';
 
 const SOFT_DELETE_CONFIRM_PHRASE = 'DELETE';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authSessions: AuthSessionService,
+  ) {}
 
   async getStats(): Promise<AdminStatsResponse> {
     const [personsCount, mediaAggregate, lastAudit] = await Promise.all([
@@ -148,6 +152,10 @@ export class AdminService {
       select: this.userSelect(),
     });
 
+    if (dto.isActive === false || dto.password) {
+      await this.authSessions.revokeAllForUser(userId, actorId, dto.password ? 'password_changed' : 'account_deactivated');
+    }
+
     return this.mapUser(row);
   }
 
@@ -178,6 +186,8 @@ export class AdminService {
       },
       select: this.userSelect(),
     });
+
+    await this.authSessions.revokeAllForUser(userId, actorId, 'account_deleted');
 
     return this.mapUser(row);
   }

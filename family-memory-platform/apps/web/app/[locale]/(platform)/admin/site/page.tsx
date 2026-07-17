@@ -1,5 +1,5 @@
-import { AdminPlaceholderPage } from '@/features/admin/admin-placeholder-page';
+import { AdminSitePage } from '@/features/admin/admin-site-page';
 
 export default function AdminSiteRoute() {
-  return <AdminPlaceholderPage section="site" />;
+  return <AdminSitePage />;
 }

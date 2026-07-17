@@ -83,9 +83,68 @@ model User {
   questLeaderboardOptIn      QuestLeaderboardOptIn[]
   militaryConflictDefinitions MilitaryConflictDefinition[] @relation("MilitaryConflictCreator")
   militaryConflictReviews     MilitaryConflictDefinition[] @relation("MilitaryConflictReviewer")
+  authSessions                UserAuthSession[]
+  loginEvents                 UserLoginEvent[]
+  sessionsRevoked             UserAuthSession[] @relation("SessionRevokedBy")
+  messengerSanctions          MessengerSanction[] @relation("MessengerSanctionUser")
+  messengerSanctionsCreated   MessengerSanction[] @relation("MessengerSanctionCreator")
+  portalSiteUpdates           PortalSiteSettings[] @relation("PortalSiteUpdatedBy")
 
   @@index([role])
   @@index([deletedAt])
+}
+
+enum LoginEventOutcome {
+  SUCCESS
+  MFA_CHALLENGE
+  FAILURE_BAD_CREDENTIALS
+  FAILURE_INACTIVE
+  FAILURE_MFA
+}
+
+model UserAuthSession {
+  id           String    @id @default(cuid())
+  userId       String
+  jti          String    @unique
+  deviceLabel  String?
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokedById  String?
+  revokeReason String?
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedBy  User?            @relation("SessionRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  loginEvent UserLoginEvent?
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([lastSeenAt])
+}
+
+model UserLoginEvent {
+  id               String            @id @default(cuid())
+  userId           String?
+  emailAttempt     String?
+  outcome          LoginEventOutcome
+  ipAddress        String?
+  userAgent        String?
+  deviceLabel      String?
+  isSuspicious     Boolean           @default(false)
+  suspiciousReason String?
+  sessionId        String?           @unique
+  createdAt        DateTime          @default(now())
+
+  user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session UserAuthSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([isSuspicious, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -1157,6 +1216,7 @@ model Workspace {
   accessLogs      AccessLog[]
   exportJobs      WorkspaceExportJob[]
   conversations   Conversation[]
+  messengerSanctions MessengerSanction[]
   notifications   Notification[]
   activityEvents  ActivityEvent[]
   personEditLocks PersonEditLock[]
@@ -1858,6 +1918,48 @@ model ConversationParticipant {
 
   @@unique([conversationId, userId])
   @@index([userId])
+}
+
+enum MessengerSanctionType {
+  SEND_BLOCKED
+}
+
+model MessengerSanction {
+  id          String                @id @default(cuid())
+  userId      String
+  workspaceId String?
+  type        MessengerSanctionType @default(SEND_BLOCKED)
+  reason      String?               @db.Text
+  expiresAt   DateTime?
+  createdById String
+  revokedAt   DateTime?
+  createdAt   DateTime              @default(now())
+
+  user      User       @relation("MessengerSanctionUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User       @relation("MessengerSanctionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([workspaceId])
+  @@index([expiresAt])
+}
+
+model PortalSiteSettings {
+  id                 String   @id @default("default")
+  portalName         String   @default("Family Memory")
+  tagline            String?
+  primaryColor       String   @default("#1e3a5f")
+  secondaryColor     String   @default("#c4a35a")
+  faviconUrl         String?
+  landingCopy        Json     @default("{}")
+  modules            Json     @default("{}")
+  defaultLocale      String   @default("ru")
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String?  @db.Text
+  updatedAt          DateTime @updatedAt
+  updatedById        String?
+
+  updatedBy User? @relation("PortalSiteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 model Message {

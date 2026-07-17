@@ -11,7 +11,7 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, showNav = true }: { children: ReactNode; showNav?: boolean }) {
   const pathname = usePathname();
   const t = useTranslations('adminPanel');
 
@@ -25,6 +25,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-300">{t('subtitle')}</p>
       </div>
 
+      {showNav ? (
       <nav
         aria-label={t('navLabel')}
         className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -54,6 +55,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+      ) : null}
 
       {children}
     </div>

@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { extractAuthRequestMeta } from '../auth/auth-request.util';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 import {
@@ -49,8 +50,11 @@ export class MfaController {
   }
 
   @Post('verify')
-  verifyLogin(@Body() dto: MfaVerifyLoginDto) {
-    return this.auth.completeMfaLogin(dto.mfaSessionToken, dto.code);
+  verifyLogin(
+    @Body() dto: MfaVerifyLoginDto,
+    @Req() req: { ip?: string; headers: Record<string, string | string[] | undefined> },
+  ) {
+    return this.auth.completeMfaLogin(dto.mfaSessionToken, dto.code, extractAuthRequestMeta(req));
   }
 
   @Get('passkeys')
@@ -80,8 +84,11 @@ export class MfaController {
   }
 
   @Post('passkeys/auth/verify')
-  async passkeyAuthVerify(@Body() dto: MfaPasskeyAuthVerifyDto) {
+  async passkeyAuthVerify(
+    @Body() dto: MfaPasskeyAuthVerifyDto,
+    @Req() req: { ip?: string; headers: Record<string, string | string[] | undefined> },
+  ) {
     const result = await this.mfa.passkeyAuthVerify(dto.mfaSessionToken, dto.response);
-    return this.auth.buildAuthResponseForUserId(result.userId);
+    return this.auth.buildAuthResponseForUserId(result.userId, extractAuthRequestMeta(req));
   }
 }

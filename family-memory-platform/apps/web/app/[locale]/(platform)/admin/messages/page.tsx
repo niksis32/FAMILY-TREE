@@ -1,5 +1,5 @@
-import { AdminPlaceholderPage } from '@/features/admin/admin-placeholder-page';
+import { AdminMessagesPage } from '@/features/admin/admin-messages-page';
 
 export default function AdminMessagesRoute() {
-  return <AdminPlaceholderPage section="messages" />;
+  return <AdminMessagesPage />;
 }

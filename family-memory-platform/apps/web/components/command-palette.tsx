@@ -20,7 +20,10 @@ import {
   PLATFORM_NAV_GROUPS,
   PLATFORM_SETTINGS,
   type NavItemKey,
+  type PlatformNavGroup,
 } from '@/config/platform-navigation';
+import { filterNavGroups } from '@/config/portal-modules';
+import { usePortalConfig } from '@/components/portal-config-provider';
 import { apiClient, type SearchResultItem } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +39,7 @@ interface CommandEntry {
   run?: () => void;
 }
 
-function flattenNavCommands(tNav: (key: NavItemKey) => string, showAdmin: boolean): CommandEntry[] {
+function flattenNavCommands(tNav: (key: NavItemKey) => string, showAdmin: boolean, navGroups: PlatformNavGroup[]): CommandEntry[] {
   const items: CommandEntry[] = [
     {
       id: `nav-${PLATFORM_DASHBOARD.href}`,
@@ -46,7 +49,7 @@ function flattenNavCommands(tNav: (key: NavItemKey) => string, showAdmin: boolea
       icon: PLATFORM_DASHBOARD.icon,
     },
   ];
-  for (const group of PLATFORM_NAV_GROUPS) {
+  for (const group of navGroups) {
     for (const item of group.items) {
       items.push({
         id: `nav-${item.href}`,
@@ -94,6 +97,8 @@ export function CommandPalette() {
   const tNav = useTranslations('nav');
   const router = useRouter();
   const { session } = useAuth();
+  const { modules, isModuleEnabled } = usePortalConfig();
+  const navGroups = useMemo(() => filterNavGroups(PLATFORM_NAV_GROUPS, modules), [modules]);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
@@ -111,7 +116,7 @@ export function CommandPalette() {
 
   const staticCommands = useMemo(
     () => [
-      ...flattenNavCommands(tNav, session?.user.role === 'ADMIN'),
+      ...flattenNavCommands(tNav, session?.user.role === 'ADMIN', navGroups),
       {
         id: 'action-add-person',
         kind: 'action' as const,
@@ -119,13 +124,17 @@ export function CommandPalette() {
         href: '/persons',
         icon: Users,
       },
-      {
-        id: 'action-ai-lab',
-        kind: 'action' as const,
-        label: t('openAiLab'),
-        href: '/ai-lab',
-        icon: Sparkles,
-      },
+      ...(isModuleEnabled('aiLab')
+        ? [
+            {
+              id: 'action-ai-lab',
+              kind: 'action' as const,
+              label: t('openAiLab'),
+              href: '/ai-lab',
+              icon: Sparkles,
+            },
+          ]
+        : []),
       {
         id: 'action-documents',
         kind: 'action' as const,
@@ -148,7 +157,7 @@ export function CommandPalette() {
         icon: Search,
       },
     ],
-    [t, tNav, session?.user.role],
+    [t, tNav, session?.user.role, navGroups, isModuleEnabled],
   );
 
   useEffect(() => {

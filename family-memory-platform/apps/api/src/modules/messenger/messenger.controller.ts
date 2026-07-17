@@ -7,6 +7,7 @@ import {
   CreateDirectConversationDto,
   CreateGroupConversationDto,
   SendMessageDto,
+  ReportMessageDto,
 } from './messenger.dto';
 import { MessengerService } from './messenger.service';
 
@@ -20,6 +21,15 @@ export class MessengerController {
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.service.listConversations(user.id);
+  }
+
+  @Post('report-message/:messageId')
+  reportMessage(
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReportMessageDto,
+  ) {
+    return this.service.reportMessage(messageId, user.id, dto.category, dto.details);
   }
 
   @Get(':id')

@@ -18,6 +18,7 @@ export * from './dna-import';
 export * from './burials-index';
 export * from './burial-photogrammetry';
 export * from './onboarding';
+export * from './military-history';
 
 /** API route prefix — must match NestJS global prefix */
 export const API_PREFIX = '/api/v1';

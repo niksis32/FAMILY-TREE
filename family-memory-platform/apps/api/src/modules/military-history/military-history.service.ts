@@ -11,6 +11,7 @@ import { WorkspaceContextService } from '../../prisma/workspace-context.service'
 import { CommercialContextService } from '../commercial/commercial-context.service';
 import { MessengerService } from '../messenger/messenger.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MILITARY_CONFLICT_MODERATION_INBOX_TITLE } from '@family/shared';
 import type { ApproveMilitaryConflictDto, CreateMilitaryConflictDto } from './military-history.dto';
 
 const MAX_CUSTOM_CONFLICTS = 50;
@@ -68,39 +69,22 @@ export class MilitaryHistoryService {
     };
   }
 
-  private async isModerator(userId: string, workspaceId: string): Promise<boolean> {
+  private async requirePlatformAdmin(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
-    if (user?.role === 'ADMIN') return true;
-
-    const member = await this.prisma.workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      select: { role: true },
-    });
-    return member?.role === 'OWNER';
-  }
-
-  private async requireModerator(userId: string, workspaceId: string) {
-    if (!(await this.isModerator(userId, workspaceId))) {
-      throw new ForbiddenException('Only workspace owner or platform admin can moderate conflicts');
+    if (user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Only platform admin can moderate menu conflicts');
     }
   }
 
-  private async moderatorUserIds(workspaceId: string): Promise<string[]> {
-    const owners = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId, role: 'OWNER' },
-      select: { userId: true },
+  private async moderatorUserIds(_workspaceId: string): Promise<string[]> {
+    const platformAdmins = await this.prisma.user.findMany({
+      where: { role: 'ADMIN', deletedAt: null, isActive: true },
+      select: { id: true },
     });
-    const platformAdmins = await this.prisma.workspaceMember.findMany({
-      where: {
-        workspaceId,
-        user: { role: 'ADMIN', deletedAt: null, isActive: true },
-      },
-      select: { userId: true },
-    });
-    return [...new Set([...owners.map((o) => o.userId), ...platformAdmins.map((a) => a.userId)])];
+    return platformAdmins.map((a) => a.id);
   }
 
   private async userLabel(userId: string): Promise<string> {
@@ -156,21 +140,48 @@ export class MilitaryHistoryService {
     }
   }
 
-  async listPendingConflicts(userId: string) {
-    const workspaceId = this.requireWorkspaceId();
-    await this.context.resolveForUser(workspaceId, userId);
-    await this.requireModerator(userId, workspaceId);
-
-    const rows = await this.prisma.militaryConflictDefinition.findMany({
-      where: { workspaceId, status: 'PENDING' },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        createdBy: { select: { displayName: true, email: true } },
-      },
-    });
-    return rows.map((row) =>
-      this.mapRow(row, row.createdBy?.displayName ?? row.createdBy?.email ?? null),
+  async countPendingForPlatformAdmin(userId: string): Promise<number> {
+    await this.requirePlatformAdmin(userId);
+    return this.workspaceContext.runBypass(() =>
+      this.prisma.militaryConflictDefinition.count({ where: { status: 'PENDING' } }),
     );
+  }
+
+  async getModerationQueueStats(userId: string) {
+    const militaryConflicts = await this.countPendingForPlatformAdmin(userId);
+    return {
+      generatedAt: new Date().toISOString(),
+      militaryConflicts,
+      total: militaryConflicts,
+    };
+  }
+
+  async listAllPendingForPlatformAdmin(userId: string) {
+    await this.requirePlatformAdmin(userId);
+    return this.workspaceContext.runBypass(async () => {
+      const rows = await this.prisma.militaryConflictDefinition.findMany({
+        where: { status: 'PENDING' },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          createdBy: { select: { displayName: true, email: true } },
+          workspace: { select: { id: true, name: true } },
+        },
+      });
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        color: row.color,
+        workspaceId: row.workspaceId,
+        workspaceName: row.workspace.name,
+        proposerLabel: row.createdBy?.displayName ?? row.createdBy?.email ?? null,
+        createdById: row.createdById,
+        createdAt: row.createdAt.toISOString(),
+      }));
+    });
+  }
+
+  async listPendingConflicts(userId: string) {
+    return this.listAllPendingForPlatformAdmin(userId);
   }
 
   async listMyProposals(userId: string) {
@@ -221,9 +232,9 @@ export class MilitaryHistoryService {
           workspaceId,
           userId: modId,
           source: 'MODERATION',
-          title: 'Новый пункт «Война или конфликт»',
-          body: `${proposerLabel} предлагает добавить: «${name}». Откройте «Военная история» для одобрения.`,
-          deepLink: `/military-history?review=${row.id}`,
+          title: MILITARY_CONFLICT_MODERATION_INBOX_TITLE,
+          body: `${proposerLabel} предлагает добавить: «${name}». Откройте админ-панель → Модерация.`,
+          deepLink: `/admin/moderation/military-history?review=${row.id}`,
           sourceId: row.id,
         });
       } catch {
@@ -235,111 +246,109 @@ export class MilitaryHistoryService {
   }
 
   async approveConflict(userId: string, id: string, dto: ApproveMilitaryConflictDto) {
-    const workspaceId = this.requireWorkspaceId();
-    await this.context.resolveForUser(workspaceId, userId);
-    await this.requireModerator(userId, workspaceId);
+    await this.requirePlatformAdmin(userId);
+    return this.workspaceContext.runBypass(async () => {
+      const row = await this.prisma.militaryConflictDefinition.findFirst({
+        where: { id, status: 'PENDING' },
+      });
+      if (!row) throw new NotFoundException('Pending conflict proposal not found');
 
-    const row = await this.prisma.militaryConflictDefinition.findFirst({
-      where: { id, workspaceId, status: 'PENDING' },
-    });
-    if (!row) throw new NotFoundException('Pending conflict proposal not found');
+      const workspaceId = row.workspaceId;
+      const finalName = this.sanitizeName(dto.name ?? row.name);
+      await this.assertNameAvailable(workspaceId, finalName, row.id);
 
-    const finalName = this.sanitizeName(dto.name ?? row.name);
-    await this.assertNameAvailable(workspaceId, finalName, row.id);
-
-    const approvedCount = await this.prisma.militaryConflictDefinition.count({
-      where: { workspaceId, status: 'APPROVED' },
-    });
-    if (approvedCount >= MAX_CUSTOM_CONFLICTS) {
-      throw new BadRequestException(`Maximum ${MAX_CUSTOM_CONFLICTS} approved conflicts per workspace`);
-    }
-
-    const updated = await this.prisma.militaryConflictDefinition.update({
-      where: { id: row.id },
-      data: {
-        name: finalName,
-        color: dto.color ?? row.color,
-        status: 'APPROVED',
-        reviewedById: userId,
-        reviewedAt: new Date(),
-      },
-    });
-
-    if (row.createdById) {
-      const chatBody = `Ваше название «${finalName}» в меню «Война или конфликт» модератором согласовано. Приятного пользования сервисом.`;
-      try {
-        await this.messenger.sendDirectMessageInWorkspace(
-          workspaceId,
-          userId,
-          row.createdById,
-          chatBody,
-        );
-      } catch {
-        /* chat delivery must not block approval */
+      const approvedCount = await this.prisma.militaryConflictDefinition.count({
+        where: { workspaceId, status: 'APPROVED' },
+      });
+      if (approvedCount >= MAX_CUSTOM_CONFLICTS) {
+        throw new BadRequestException(`Maximum ${MAX_CUSTOM_CONFLICTS} approved conflicts per workspace`);
       }
 
-      if (row.createdById !== userId) {
+      const updated = await this.prisma.militaryConflictDefinition.update({
+        where: { id: row.id },
+        data: {
+          name: finalName,
+          color: dto.color ?? row.color,
+          status: 'APPROVED',
+          reviewedById: userId,
+          reviewedAt: new Date(),
+        },
+      });
+
+      if (row.createdById) {
+        const chatBody = `Ваше название «${finalName}» в меню «Война или конфликт» модератором согласовано. Приятного пользования сервисом.`;
+        try {
+          await this.messenger.sendDirectMessageInWorkspace(
+            workspaceId,
+            userId,
+            row.createdById,
+            chatBody,
+          );
+        } catch {
+          /* chat delivery must not block approval */
+        }
+
+        if (row.createdById !== userId) {
+          await this.notifications.deliver({
+            workspaceId,
+            userId: row.createdById,
+            source: 'MODERATION',
+            title: 'Пункт меню одобрен',
+            body: `«${finalName}» добавлен в общий список «Война или конфликт».`,
+            deepLink: '/military-history',
+            sourceId: updated.id,
+          });
+        }
+      }
+
+      return this.mapRow(updated);
+    });
+  }
+
+  async rejectConflict(userId: string, id: string) {
+    await this.requirePlatformAdmin(userId);
+    return this.workspaceContext.runBypass(async () => {
+      const row = await this.prisma.militaryConflictDefinition.findFirst({
+        where: { id, status: 'PENDING' },
+      });
+      if (!row) throw new NotFoundException('Pending conflict proposal not found');
+
+      const updated = await this.prisma.militaryConflictDefinition.update({
+        where: { id: row.id },
+        data: {
+          status: 'REJECTED',
+          reviewedById: userId,
+          reviewedAt: new Date(),
+        },
+      });
+
+      if (row.createdById && row.createdById !== userId) {
         await this.notifications.deliver({
-          workspaceId,
+          workspaceId: row.workspaceId,
           userId: row.createdById,
           source: 'MODERATION',
-          title: 'Пункт меню одобрен',
-          body: `«${finalName}» добавлен в общий список «Война или конфликт».`,
+          title: 'Пункт меню отклонён',
+          body: `Предложение «${row.name}» не добавлено в «Война или конфликт».`,
           deepLink: '/military-history',
           sourceId: updated.id,
         });
       }
-    }
 
-    return this.mapRow(updated);
-  }
-
-  async rejectConflict(userId: string, id: string) {
-    const workspaceId = this.requireWorkspaceId();
-    await this.context.resolveForUser(workspaceId, userId);
-    await this.requireModerator(userId, workspaceId);
-
-    const row = await this.prisma.militaryConflictDefinition.findFirst({
-      where: { id, workspaceId, status: 'PENDING' },
+      return this.mapRow(updated);
     });
-    if (!row) throw new NotFoundException('Pending conflict proposal not found');
-
-    const updated = await this.prisma.militaryConflictDefinition.update({
-      where: { id: row.id },
-      data: {
-        status: 'REJECTED',
-        reviewedById: userId,
-        reviewedAt: new Date(),
-      },
-    });
-
-    if (row.createdById && row.createdById !== userId) {
-      await this.notifications.deliver({
-        workspaceId,
-        userId: row.createdById,
-        source: 'MODERATION',
-        title: 'Пункт меню отклонён',
-        body: `Предложение «${row.name}» не добавлено в «Война или конфликт».`,
-        deepLink: '/military-history',
-        sourceId: updated.id,
-      });
-    }
-
-    return this.mapRow(updated);
   }
 
   async deleteApprovedConflict(userId: string, id: string) {
-    const workspaceId = this.requireWorkspaceId();
-    await this.context.resolveForUser(workspaceId, userId);
-    await this.requireModerator(userId, workspaceId);
+    await this.requirePlatformAdmin(userId);
+    return this.workspaceContext.runBypass(async () => {
+      const row = await this.prisma.militaryConflictDefinition.findFirst({
+        where: { id, status: 'APPROVED' },
+      });
+      if (!row) throw new NotFoundException('Approved conflict not found');
 
-    const row = await this.prisma.militaryConflictDefinition.findFirst({
-      where: { id, workspaceId, status: 'APPROVED' },
+      await this.prisma.militaryConflictDefinition.delete({ where: { id: row.id } });
+      return { ok: true, id: row.id };
     });
-    if (!row) throw new NotFoundException('Approved conflict not found');
-
-    await this.prisma.militaryConflictDefinition.delete({ where: { id: row.id } });
-    return { ok: true, id: row.id };
   }
 
   async cancelMyProposal(userId: string, id: string) {

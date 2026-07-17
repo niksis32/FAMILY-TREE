@@ -105,7 +105,10 @@
     "title": "Notifications",
     "markAllRead": "Mark all read",
     "empty": "No unread notifications",
-    "open": "Open"
+    "open": "Open",
+    "openAdminModeration": "Open in admin panel",
+    "moderationBadge": "Moderation",
+    "moderationAlert": "New moderation requests: {count}"
   },
   "activityFeed": {
     "title": "Workspace activity",
@@ -347,7 +350,8 @@
     "lightTheme": "Light theme",
     "darkTheme": "Dark theme",
     "logout": "Log out",
-    "adminPanelHint": "Portal management, users, and moderation"
+    "adminPanelHint": "Portal management, users, and moderation",
+    "maintenanceDefault": "The portal is temporarily under maintenance. Some features may be unavailable."
   },
   "community": {
     "hub": {
@@ -1692,6 +1696,20 @@
     "source": "Source",
     "empty": "Request a translation to compare side by side."
   },
+  "adminShell": {
+    "brandTag": "Platform",
+    "brandTitle": "Admin console",
+    "tagline": "Portal management, users, and moderation",
+    "personalArchive": "My personal archive",
+    "personalArchiveHint": "Your family tree and archive — separate from admin tools.",
+    "signedInAs": "Administrator",
+    "defaultAdmin": "Platform admin",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "logout": "Log out"
+  },
   "adminPanel": {
     "eyebrow": "Portal management",
     "title": "Admin panel",
@@ -1711,7 +1729,18 @@
     "openModerationHub": "All moderation queues",
     "moderationHubTitle": "Moderation queues",
     "moderationHubHint": "Pick a content type to review and publish.",
+    "moderationPendingCount": "Awaiting review: {count}",
     "openQueue": "Open queue",
+    "militaryModeration": {
+      "title": "Military history — menu moderation",
+      "hint": "Users propose new “War or conflict” entries. Approve, edit, or reject them here.",
+      "backToHub": "Back to queues",
+      "loading": "Loading…",
+      "empty": "No moderation requests.",
+      "workspaceLabel": "Workspace: {name}",
+      "approved": "Entry approved and added to the menu.",
+      "rejected": "Proposal rejected."
+    },
     "moderationMilitaryTitle": "Military history",
     "moderationMilitaryDesc": "Custom labels for the War or conflict menu.",
     "moderationCommunityTitle": "Community",
@@ -1779,6 +1808,250 @@
       "inactive": "Disabled",
       "actions": "Actions"
     },
+    "sessions": {
+      "title": "Sessions & sign-ins",
+      "hint": "Server-side JWT session registry: active devices, forced sign-out, and login attempt log.",
+      "loading": "Loading…",
+      "refresh": "Refresh",
+      "tabs": {
+        "sessions": "Active sessions",
+        "loginEvents": "Login log"
+      },
+      "filterUser": "Search",
+      "filterUserPlaceholder": "Email, name, or IP",
+      "showRevoked": "Show revoked",
+      "suspiciousOnly": "Suspicious only",
+      "unknownDevice": "Unknown device",
+      "revoke": "Revoke",
+      "revokeAllUser": "All sessions",
+      "emptySessions": "No active sessions found.",
+      "emptyEvents": "No login events found.",
+      "pagination": "Showing {from}–{to} of {total}",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "yes": "Yes",
+      "no": "No",
+      "stats": {
+        "activeSessions": "Active sessions",
+        "activeSessionsHint": "JWT tokens with a valid registry entry",
+        "activeUsers": "Users online",
+        "activeUsersHint": "Unique accounts with an active session",
+        "failedLogins24h": "Failed sign-ins (24h)",
+        "failedLogins24hHint": "Bad password, MFA, and disabled accounts",
+        "suspicious24h": "Suspicious events",
+        "suspicious24hHint": "Repeated failures from the same IP or email"
+      },
+      "table": {
+        "user": "User",
+        "device": "Device",
+        "ip": "IP",
+        "started": "Started",
+        "lastSeen": "Last activity",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "revoked": "Revoked"
+      },
+      "events": {
+        "time": "Time",
+        "account": "Account",
+        "outcome": "Outcome",
+        "device": "Device",
+        "ip": "IP",
+        "flags": "Flags",
+        "suspicious": "Suspicious"
+      },
+      "outcomes": {
+        "SUCCESS": "Success",
+        "MFA_CHALLENGE": "MFA required",
+        "FAILURE_BAD_CREDENTIALS": "Bad credentials",
+        "FAILURE_INACTIVE": "Account disabled",
+        "FAILURE_MFA": "MFA failed"
+      },
+      "revokeConfirm": {
+        "title": "Revoke session?",
+        "subtitle": "User: {user}",
+        "body": "The token will be revoked immediately. The user must sign in again on this device."
+      },
+      "revokeAllConfirm": {
+        "title": "Revoke all sessions?",
+        "subtitle": "User: {user}",
+        "body": "All active sign-ins for this user will be ended, except your current admin session."
+      }
+    },
+    "messages": {
+      "title": "Messenger moderation",
+      "hint": "Search conversations, message reports, send blocks, and export for investigations.",
+      "loading": "Loading…",
+      "refresh": "Refresh",
+      "tabs": {
+        "conversations": "Conversations",
+        "reports": "Reports",
+        "sanctions": "Blocks"
+      },
+      "searchLabel": "Search",
+      "searchPlaceholder": "Participant, email, message text, workspace…",
+      "searchAction": "Search",
+      "view": "Open",
+      "review": "Review",
+      "export": "Export JSON",
+      "close": "Close",
+      "hidden": "Hidden",
+      "hideMessage": "Hide",
+      "emptyConversations": "No conversations found.",
+      "emptyReports": "No message reports.",
+      "emptySanctions": "No active blocks.",
+      "pagination": "Showing {from}–{to} of {total}",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "yes": "Yes",
+      "no": "No",
+      "dismiss": "Dismiss",
+      "resolveAndBlock": "Hide & block sender",
+      "detailTitle": "Conversation review",
+      "detailHint": "Messages for moderation",
+      "stats": {
+        "conversations": "Conversations",
+        "conversationsHint": "Family chats across the platform",
+        "messages24h": "Messages (24h)",
+        "messages24hHint": "Sent in the last 24 hours",
+        "openReports": "Open reports",
+        "openReportsHint": "Message reports in queue",
+        "sanctions": "Send blocks",
+        "sanctionsHint": "Active messenger restrictions"
+      },
+      "table": {
+        "conversation": "Conversation",
+        "workspace": "Workspace",
+        "participants": "Participants",
+        "messages": "Messages",
+        "lastActivity": "Last activity",
+        "actions": "Actions"
+      },
+      "reports": {
+        "time": "Time",
+        "category": "Category",
+        "message": "Message",
+        "reporter": "Reported by"
+      },
+      "sanctions": {
+        "user": "User",
+        "scope": "Scope",
+        "reason": "Reason",
+        "expires": "Until",
+        "platformWide": "Entire platform",
+        "permanent": "Permanent",
+        "revoke": "Lift block",
+        "revoked": "Lifted"
+      },
+      "resolveConfirm": {
+        "title": "Review report",
+        "subtitle": "Confirm moderator action",
+        "body": "Hide & block sender hides the message, closes the report, and blocks the author from sending in that workspace."
+      },
+      "hideConfirm": {
+        "title": "Hide message?",
+        "body": "The message will be soft-deleted and removed from participants' chat view."
+      },
+      "revokeSanction": {
+        "title": "Lift send block?",
+        "body": "The user will be able to send messenger messages again."
+      }
+    },
+    "site": {
+      "title": "Site settings",
+      "hint": "Portal branding, landing copy, modules, feature flags, and workspace branding.",
+      "loading": "Loading…",
+      "refresh": "Refresh",
+      "save": "Save",
+      "saved": "Settings saved.",
+      "workspaceSaved": "Workspace branding updated.",
+      "openWorkspaceBranding": "Your archive branding",
+      "yes": "Yes",
+      "no": "No",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "searchAction": "Search",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "tabs": {
+        "settings": "Portal & landing",
+        "modules": "Modules",
+        "workspaces": "Workspace branding",
+        "flags": "Feature flags"
+      },
+      "stats": {
+        "workspaces": "Workspaces",
+        "workspacesHint": "Workspaces on the platform",
+        "branded": "Branded",
+        "brandedHint": "Workspaces with custom branding",
+        "flags": "Global flags",
+        "flagsHint": "Capability overrides",
+        "maintenance": "Maintenance mode",
+        "maintenanceOn": "On",
+        "maintenanceOff": "Off",
+        "maintenanceHint": "Blocks user access when enabled"
+      },
+      "portalBranding": "Portal branding",
+      "portalName": "Portal name",
+      "tagline": "Tagline",
+      "primaryColor": "Primary color",
+      "secondaryColor": "Secondary color",
+      "defaultLocale": "Default locale",
+      "maintenanceMode": "Maintenance mode",
+      "maintenanceMessage": "Maintenance message",
+      "landingCopy": "Landing page copy",
+      "heroTitle": "Headline",
+      "heroSubtitle": "Subheadline",
+      "ctaLabel": "Button label",
+      "preview": "Preview",
+      "displayName": "Display name",
+      "footerText": "Footer text",
+      "searchWorkspace": "Search workspace",
+      "searchWorkspacePlaceholder": "Workspace name…",
+      "editWorkspaceTitle": "Workspace branding",
+      "workspaceTable": {
+        "name": "Workspace",
+        "displayName": "Display name",
+        "domain": "Domain",
+        "logo": "Logo",
+        "actions": "Actions"
+      },
+      "modulesHint": "Uncheck a module and click Save — it disappears from the menu. Direct URLs redirect to the dashboard. No full project restart needed.",
+      "modules": {
+        "messenger": "Family messenger",
+        "community": "Community",
+        "aiLab": "AI Lab",
+        "cemeteries": "Cemeteries",
+        "militaryHistory": "Military history",
+        "matching": "Matching",
+        "wiki": "Wiki",
+        "archivesSearch": "External archives",
+        "calendar": "Calendar",
+        "stories": "Stories",
+        "quests": "Quests"
+      },
+      "flags": {
+        "gedcomAdvanced": "Advanced GEDCOM",
+        "historicalMaps": "Historical maps",
+        "communityTools": "Community tools",
+        "clientManagement": "Client management",
+        "multiWorkspace": "Multiple workspaces",
+        "reportExport": "Report export",
+        "onPremDeploy": "On-premise",
+        "whiteLabel": "White label",
+        "webhooksEnabled": "Webhooks",
+        "WEBHOOKS_ENABLED": "Webhooks (global flag)"
+      },
+      "saveConfirm": {
+        "title": "Save site settings?",
+        "body": "Changes will apply across the entire portal."
+      }
+    },
     "stats": {
       "persons": "Persons in archives",
       "media": "Media files",
@@ -1796,10 +2069,10 @@
     },
     "sections": {
       "usersDesc": "Accounts, roles, and member activity.",
-      "sessionsDesc": "Active sign-ins and JWT session management.",
-      "messagesDesc": "Correspondence review for moderation and support.",
+      "sessionsDesc": "Active devices, forced sign-out, and login audit log.",
+      "messagesDesc": "Conversation search, reports, blocks, and export.",
       "moderationDesc": "All content review queues.",
-      "siteDesc": "Branding, copy, and portal configuration.",
+      "siteDesc": "Portal branding, landing, modules, and feature flags.",
       "opsDesc": "PostgreSQL, Redis, queues, and API errors."
     },
     "placeholders": {

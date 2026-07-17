@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppLocale, MapPayload, PersonSummary } from '@family/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Badge, Button, Card, FormField, Input, Select } from '@/components/ui';
@@ -138,8 +137,6 @@ function buildMilitaryPayload(
 export function MilitaryHistoryPage() {
   const t = useTranslations('militaryHistory');
   const locale = useLocale() as AppLocale;
-  const searchParams = useSearchParams();
-  const reviewFocusId = searchParams.get('review');
   const { session, isReady } = useAuth();
   const setMode = useHistoricalMapStore((state) => state.setMode);
   const setSelectedPersonId = useHistoricalMapStore((state) => state.setSelectedPersonId);
@@ -149,10 +146,7 @@ export function MilitaryHistoryPage() {
   const [personId, setPersonId] = useState('demo-veteran');
   const [conflict, setConflict] = useState<ConflictKey | 'all'>('ww2');
   const [customConflicts, setCustomConflicts] = useState<CustomConflict[]>([]);
-  const [pendingConflicts, setPendingConflicts] = useState<MilitaryConflictRecord[]>([]);
   const [myProposals, setMyProposals] = useState<MilitaryConflictRecord[]>([]);
-  const [reviewEdits, setReviewEdits] = useState<Record<string, string>>({});
-  const [isModerator, setIsModerator] = useState(false);
   const [newConflictName, setNewConflictName] = useState('');
   const [savingConflict, setSavingConflict] = useState(false);
   const [error, setError] = useState('');
@@ -191,16 +185,6 @@ export function MilitaryHistoryPage() {
       ]);
       setCustomConflicts(approved.map((row) => ({ id: row.id, name: row.name, color: row.color })));
       setMyProposals(mine);
-
-      try {
-        const pending = await apiClient.militaryHistory.listPending(session.accessToken);
-        setPendingConflicts(pending);
-        setReviewEdits(Object.fromEntries(pending.map((row) => [row.id, row.name])));
-        setIsModerator(true);
-      } catch {
-        setPendingConflicts([]);
-        setIsModerator(false);
-      }
     } catch (err) {
       setError(formatApiError(err));
     }
@@ -325,51 +309,6 @@ export function MilitaryHistoryPage() {
     }
   }
 
-  async function handleApproveConflict(id: string) {
-    if (!session?.accessToken || !isModerator) return;
-    const name = (reviewEdits[id] ?? '').trim().replace(/\s+/g, ' ');
-    if (!CONFLICT_NAME_PATTERN.test(name)) {
-      setError(t('conflictNameInvalid'));
-      return;
-    }
-    setError('');
-    try {
-      const approved = await apiClient.militaryHistory.approveConflict(id, { name }, session.accessToken);
-      setPendingConflicts((prev) => prev.filter((item) => item.id !== id));
-      setCustomConflicts((prev) => [...prev, { id: approved.id, name: approved.name, color: approved.color }]);
-      setNotice(t('conflictApprovedDirect'));
-      await loadCustomConflicts();
-    } catch (err) {
-      setError(formatApiError(err));
-    }
-  }
-
-  async function handleRejectConflict(id: string) {
-    if (!session?.accessToken || !isModerator) return;
-    setError('');
-    try {
-      await apiClient.militaryHistory.rejectConflict(id, session.accessToken);
-      setPendingConflicts((prev) => prev.filter((item) => item.id !== id));
-      setNotice(t('conflictRejected'));
-      await loadCustomConflicts();
-    } catch (err) {
-      setError(formatApiError(err));
-    }
-  }
-
-  async function handleDeleteConflict(id: string) {
-    if (!session?.accessToken || !isModerator) return;
-    setError('');
-    try {
-      await apiClient.militaryHistory.deleteConflict(id, session.accessToken);
-      setCustomConflicts((prev) => prev.filter((item) => item.id !== id));
-      if (conflict === id) setConflict('all');
-      setNotice(t('conflictDeleted'));
-    } catch (err) {
-      setError(formatApiError(err));
-    }
-  }
-
   async function handleCancelProposal(id: string) {
     if (!session?.accessToken) return;
     setError('');
@@ -435,48 +374,6 @@ export function MilitaryHistoryPage() {
         </div>
       </Card>
 
-      {isModerator && pendingConflicts.length > 0 ? (
-        <Card className="space-y-4 border-amber-200/80 p-4 dark:border-amber-900/40">
-          <div>
-            <p className="font-serif text-lg font-semibold text-family-ink dark:text-white">{t('pendingReviewTitle')}</p>
-            <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{t('pendingReviewHint')}</p>
-          </div>
-          <ul className="space-y-3">
-            {pendingConflicts.map((item) => (
-              <li
-                key={item.id}
-                className={`rounded-2xl border p-4 ${
-                  reviewFocusId === item.id
-                    ? 'border-family-accent bg-amber-50/80 dark:bg-amber-950/20'
-                    : 'border-stone-200/70 dark:border-slate-700'
-                }`}
-              >
-                {item.proposerLabel ? (
-                  <p className="mb-2 text-xs text-stone-500">{t('proposedBy', { name: item.proposerLabel })}</p>
-                ) : null}
-                <Input
-                  value={reviewEdits[item.id] ?? item.name}
-                  maxLength={120}
-                  aria-label={t('newConflictName')}
-                  onChange={(event) =>
-                    setReviewEdits((prev) => ({
-                      ...prev,
-                      [item.id]: event.target.value,
-                    }))
-                  }
-                />
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button onClick={() => void handleApproveConflict(item.id)}>{t('editAndApprove')}</Button>
-                  <Button variant="secondary" onClick={() => void handleRejectConflict(item.id)}>
-                    {t('rejectConflict')}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
-
       <Card className="space-y-4 p-4">
         <div>
           <p className="font-serif text-lg font-semibold text-family-ink dark:text-white">{t('customConflicts')}</p>
@@ -508,11 +405,6 @@ export function MilitaryHistoryPage() {
                   <span className="text-sm font-medium">{item.name}</span>
                   <Badge tone="green">{t('statusApproved')}</Badge>
                 </div>
-                {isModerator ? (
-                  <Button variant="ghost" onClick={() => void handleDeleteConflict(item.id)}>
-                    {t('deleteConflict')}
-                  </Button>
-                ) : null}
               </li>
             ))}
           </ul>

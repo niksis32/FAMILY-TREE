@@ -11,7 +11,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { REALTIME_EVENTS, type RealtimeEnvelope } from '@family/shared';
+import { REALTIME_EVENTS, type NotificationSummary, type RealtimeEnvelope } from '@family/shared';
 import type { Server, Socket } from 'socket.io';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { RealtimePubSubService } from './realtime-pubsub.service';
@@ -29,6 +29,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   server!: Server;
 
   private readonly socketWorkspaces = new Map<string, Set<string>>();
+  private readonly socketUserIds = new Map<string, string>();
   private readonly presenceByPerson = new Map<string, Map<string, SocketUser>>();
 
   constructor(
@@ -50,6 +51,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
 
     client.data.user = user;
+    await this.joinUserChannel(client, user.id);
+
     const workspaceId =
       typeof client.handshake.query.workspaceId === 'string'
         ? client.handshake.query.workspaceId
@@ -66,6 +69,12 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   async handleDisconnect(client: Socket) {
+    const userId = this.socketUserIds.get(client.id);
+    if (userId) {
+      this.socketUserIds.delete(client.id);
+      client.leave(this.userRoom(userId));
+    }
+
     const workspaces = this.socketWorkspaces.get(client.id);
     if (workspaces) {
       for (const wsId of workspaces) {
@@ -140,11 +149,30 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
   }
 
+  private async joinUserChannel(client: Socket, userId: string) {
+    client.join(this.userRoom(userId));
+    this.socketUserIds.set(client.id, userId);
+    await this.pubsub.subscribeUser(userId);
+  }
+
+  private userRoom(userId: string) {
+    return `user:${userId}`;
+  }
+
   private workspaceRoom(workspaceId: string) {
     return `workspace:${workspaceId}`;
   }
 
   private broadcastEnvelope(envelope: RealtimeEnvelope) {
+    if (envelope.event === REALTIME_EVENTS.NOTIFICATION_NEW) {
+      const note = envelope.payload as NotificationSummary;
+      if (note.userId) {
+        this.server.to(this.userRoom(note.userId)).emit(envelope.event, envelope);
+        return;
+      }
+    }
+
+    if (!envelope.workspaceId) return;
     this.server.to(this.workspaceRoom(envelope.workspaceId)).emit(envelope.event, envelope);
   }
 

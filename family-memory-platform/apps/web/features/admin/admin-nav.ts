@@ -30,10 +30,10 @@ export interface AdminNavItem {
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin', key: 'overview', icon: LayoutDashboard, exact: true },
   { href: '/admin/users', key: 'users', icon: Users },
-  { href: '/admin/sessions', key: 'sessions', icon: Monitor, comingSoon: true },
-  { href: '/admin/messages', key: 'messages', icon: MessageSquare, comingSoon: true },
+  { href: '/admin/sessions', key: 'sessions', icon: Monitor },
+  { href: '/admin/messages', key: 'messages', icon: MessageSquare },
   { href: '/admin/moderation', key: 'moderation', icon: Shield },
-  { href: '/admin/site', key: 'site', icon: Globe2, comingSoon: true },
+  { href: '/admin/site', key: 'site', icon: Globe2 },
   { href: '/admin/ops', key: 'ops', icon: Activity },
 ];
 
@@ -42,14 +42,16 @@ export interface AdminModerationLink {
   titleKey: string;
   descriptionKey: string;
   icon: LucideIcon;
+  queueKey?: 'military';
 }
 
 export const ADMIN_MODERATION_LINKS: AdminModerationLink[] = [
   {
-    href: '/military-history',
+    href: '/admin/moderation/military-history',
     titleKey: 'moderationMilitaryTitle',
     descriptionKey: 'moderationMilitaryDesc',
     icon: ShieldCheck,
+    queueKey: 'military',
   },
   {
     href: '/community/moderation',

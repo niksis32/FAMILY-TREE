@@ -549,10 +549,132 @@ export const apiClient = {
       apiPatch<import('@family/shared').AdminUserSummary>(`/admin/users/${id}`, body, token),
     softDeleteUser: (token: string, id: string, body: import('@family/shared').AdminSoftDeleteUserInput) =>
       apiPost<import('@family/shared').AdminUserSummary>(`/admin/users/${id}/soft-delete`, body, token),
+    sessionStats: (token: string) =>
+      apiGet<import('@family/shared').AdminSessionStatsResponse>('/admin/sessions/stats', token),
+    sessions: (token: string, params?: { limit?: number; offset?: number; userId?: string; activeOnly?: boolean }) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      if (params?.userId) query.set('userId', params.userId);
+      if (params?.activeOnly === false) query.set('activeOnly', 'false');
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminSessionListResponse>(`/admin/sessions${suffix}`, token);
+    },
+    loginEvents: (
+      token: string,
+      params?: { limit?: number; offset?: number; userId?: string; suspiciousOnly?: boolean },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      if (params?.userId) query.set('userId', params.userId);
+      if (params?.suspiciousOnly) query.set('suspiciousOnly', 'true');
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminLoginEventListResponse>(`/admin/sessions/login-events${suffix}`, token);
+    },
+    revokeSession: (token: string, sessionId: string, reason?: string) =>
+      apiPost<import('@family/shared').AdminRevokeSessionResponse>(
+        `/admin/sessions/${sessionId}/revoke`,
+        { reason },
+        token,
+      ),
+    revokeAllUserSessions: (token: string, userId: string) =>
+      apiPost<import('@family/shared').AdminRevokeAllSessionsResponse>(
+        `/admin/sessions/users/${userId}/revoke-all`,
+        {},
+        token,
+      ),
+    messageStats: (token: string) =>
+      apiGet<import('@family/shared').AdminMessengerStatsResponse>('/admin/messages/stats', token),
+    searchConversations: (token: string, params?: { q?: string; limit?: number; offset?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.q) query.set('q', params.q);
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminMessengerConversationListResponse>(
+        `/admin/messages/conversations${suffix}`,
+        token,
+      );
+    },
+    getConversation: (token: string, id: string) =>
+      apiGet<import('@family/shared').AdminMessengerConversationDetail>(`/admin/messages/conversations/${id}`, token),
+    listConversationMessages: (
+      token: string,
+      id: string,
+      params?: { limit?: number; offset?: number; includeDeleted?: boolean },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      if (params?.includeDeleted) query.set('includeDeleted', 'true');
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminMessengerMessageListResponse>(
+        `/admin/messages/conversations/${id}/messages${suffix}`,
+        token,
+      );
+    },
+    exportConversation: (token: string, id: string) =>
+      apiGet<import('@family/shared').AdminMessageExportResponse>(`/admin/messages/conversations/${id}/export`, token),
+    listMessageReports: (
+      token: string,
+      params?: { limit?: number; offset?: number; status?: 'OPEN' | 'UNDER_REVIEW' | 'ALL' },
+    ) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      if (params?.status) query.set('status', params.status);
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminMessageReportListResponse>(`/admin/messages/reports${suffix}`, token);
+    },
+    resolveMessageReport: (token: string, reportId: string, body: import('@family/shared').AdminResolveMessageReportInput) =>
+      apiPost<{ ok: boolean }>(`/admin/messages/reports/${reportId}/resolve`, body, token),
+    hideMessage: (token: string, messageId: string, reason?: string) =>
+      apiPost<{ hidden: boolean; alreadyHidden: boolean }>(`/admin/messages/${messageId}/hide`, { reason }, token),
+    listMessengerSanctions: (token: string, params?: { limit?: number; offset?: number; activeOnly?: boolean }) => {
+      const query = new URLSearchParams();
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      if (params?.activeOnly === false) query.set('activeOnly', 'false');
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').AdminMessengerSanctionListResponse>(`/admin/messages/sanctions${suffix}`, token);
+    },
+    applyMessengerSanction: (token: string, body: import('@family/shared').AdminApplyMessengerSanctionInput) =>
+      apiPost<unknown>('/admin/messages/sanctions', body, token),
+    revokeMessengerSanction: (token: string, sanctionId: string) =>
+      apiPost<{ revoked: boolean; alreadyRevoked: boolean }>(`/admin/messages/sanctions/${sanctionId}/revoke`, {}, token),
+    siteStats: (token: string) => apiGet<import('@family/shared').PortalSiteStatsResponse>('/admin/site/stats', token),
+    siteSettings: (token: string) => apiGet<import('@family/shared').PortalSiteSettingsResponse>('/admin/site/settings', token),
+    updateSiteSettings: (token: string, body: import('@family/shared').AdminUpdatePortalSettingsInput) =>
+      apiPatch<import('@family/shared').PortalSiteSettingsResponse>('/admin/site/settings', body, token),
+    listWorkspaceBranding: (token: string, params?: { q?: string; limit?: number; offset?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.q) query.set('q', params.q);
+      if (params?.limit != null) query.set('limit', String(params.limit));
+      if (params?.offset != null) query.set('offset', String(params.offset));
+      const suffix = query.size ? `?${query}` : '';
+      return apiGet<import('@family/shared').PortalWorkspaceBrandingListResponse>(`/admin/site/workspaces${suffix}`, token);
+    },
+    updateWorkspaceBranding: (token: string, workspaceId: string, body: import('@family/shared').AdminUpdateWorkspaceBrandingInput) =>
+      apiPatch<unknown>(`/admin/site/workspaces/${workspaceId}/branding`, body, token),
+    listGlobalFeatureFlags: (token: string) =>
+      apiGet<import('@family/shared').PortalGlobalFeatureFlagsResponse>('/admin/site/feature-flags', token),
+    upsertGlobalFeatureFlag: (token: string, body: import('@family/shared').AdminUpsertGlobalFeatureFlagInput) =>
+      apiPut<{ key: string; enabled: boolean; id: string }>('/admin/site/feature-flags', body, token),
+    siteLocales: (token: string) => apiGet<import('@family/shared').PortalLocalesResponse>('/admin/site/locales', token),
+    moderationQueueStats: (token: string) =>
+      apiGet<import('@family/shared').AdminModerationQueueStats>('/admin/moderation/queue-stats', token),
+    listPendingMilitaryConflicts: (token: string) =>
+      apiGet<import('@family/shared').AdminMilitaryConflictPending[]>('/admin/moderation/military-conflicts/pending', token),
+    approveMilitaryConflict: (token: string, id: string, body: { name?: string; color?: string }) =>
+      apiPatch<unknown>(`/admin/moderation/military-conflicts/${id}/approve`, body, token),
+    rejectMilitaryConflict: (token: string, id: string) =>
+      apiPatch<unknown>(`/admin/moderation/military-conflicts/${id}/reject`, {}, token),
   },
   public: {
     resolveShare: (shareToken: string) => apiGet<unknown>(`/public/share/${shareToken}`),
     resolveMemorial: (token: string) => apiGet<unknown>(`/public/memorial/${token}`),
+    portalConfig: () => apiGet<import('@family/shared').PortalSiteSettingsResponse>('/public/portal/config'),
   },
   workspaceExport: {
     request: (workspaceId: string, token: string) =>
@@ -1235,6 +1357,11 @@ export const apiClient = {
       apiPost<import('@family/shared').MessageSummary>(`/conversations/${id}/messages`, body, token),
     markRead: (id: string, token: string) =>
       apiPost<{ ok: boolean }>(`/conversations/${id}/read`, {}, token),
+    reportMessage: (
+      messageId: string,
+      body: { category: ModerationReportCategory; details?: string },
+      token: string,
+    ) => apiPost<{ id: string }>(`/conversations/report-message/${messageId}`, body, token),
   },
   notifications: {
     list: (token: string, unreadOnly?: boolean) =>
@@ -1242,7 +1369,8 @@ export const apiClient = {
         `/notifications${unreadOnly ? '?unreadOnly=true' : ''}`,
         token,
       ),
-    unreadCount: (token: string) => apiGet<number>('/notifications/unread-count', token),
+    unreadCount: (token: string) =>
+      apiGet<import('@family/shared').NotificationUnreadCount>('/notifications/unread-count', token),
     markRead: (id: string, token: string) =>
       apiPatch<import('@family/shared').NotificationSummary>(`/notifications/${id}/read`, {}, token),
     markAllRead: (token: string) => apiPost<{ ok: boolean }>('/notifications/read-all', {}, token),

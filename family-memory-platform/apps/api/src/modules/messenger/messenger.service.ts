@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { ModerationReportCategory } from '@prisma/client';
 import { REALTIME_EVENTS, type ConversationSummary, type MessageSummary, type RealtimeEnvelope } from '@family/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceContextService } from '../../prisma/workspace-context.service';
@@ -234,6 +235,8 @@ export class MessengerService {
       include: { participants: true },
     });
 
+    await this.assertCanSend(userId, conversation.workspaceId);
+
     const message = await this.prisma.message.create({
       data: {
         conversationId,
@@ -334,6 +337,49 @@ export class MessengerService {
     };
     await this.pubsub.publishWorkspace(conversation.workspaceId, envelope);
     return { ok: true, readAt: now.toISOString() };
+  }
+
+  async reportMessage(
+    messageId: string,
+    reporterId: string,
+    category: ModerationReportCategory,
+    details?: string,
+  ) {
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, deletedAt: null },
+      include: { conversation: { select: { id: true } } },
+    });
+    if (!message) throw new BadRequestException('Message not found');
+
+    await this.assertParticipant(message.conversationId, reporterId);
+
+    return this.prisma.moderationReport.create({
+      data: {
+        reporterId,
+        targetType: 'MESSAGE',
+        targetId: messageId,
+        category,
+        details,
+      },
+    });
+  }
+
+  private async assertCanSend(userId: string, workspaceId: string) {
+    const now = new Date();
+    const sanction = await this.prisma.messengerSanction.findFirst({
+      where: {
+        userId,
+        revokedAt: null,
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          { OR: [{ workspaceId: null }, { workspaceId }] },
+        ],
+      },
+    });
+
+    if (sanction) {
+      throw new ForbiddenException('Sending messages is temporarily blocked for this account');
+    }
   }
 
   private async assertParticipant(conversationId: string, userId: string) {

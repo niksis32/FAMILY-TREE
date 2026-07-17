@@ -20,6 +20,8 @@ import {
   type PlatformNavGroup,
   type PlatformNavItem,
 } from '@/config/platform-navigation';
+import { filterNavGroups } from '@/config/portal-modules';
+import { usePortalConfig } from '@/components/portal-config-provider';
 
 type NavGroupKey = PlatformNavGroup['groupKey'];
 
@@ -112,10 +114,20 @@ function NavGroupSection({
   );
 }
 
-function SidebarContent({ pathname, onNavigate, showAdmin }: { pathname: string; onNavigate?: () => void; showAdmin: boolean }) {
+function SidebarContent({
+  pathname,
+  onNavigate,
+  showAdmin,
+  navGroups,
+}: {
+  pathname: string;
+  onNavigate?: () => void;
+  showAdmin: boolean;
+  navGroups: PlatformNavGroup[];
+}) {
   const tShell = useTranslations('shell');
   const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupKey, boolean>>(() =>
-    Object.fromEntries(PLATFORM_NAV_GROUPS.map((group) => [group.groupKey, true])) as Record<NavGroupKey, boolean>,
+    Object.fromEntries(navGroups.map((group) => [group.groupKey, true])) as Record<NavGroupKey, boolean>,
   );
 
   useEffect(() => {
@@ -123,7 +135,7 @@ function SidebarContent({ pathname, onNavigate, showAdmin }: { pathname: string;
       const next = { ...prev };
       let changed = false;
 
-      for (const group of PLATFORM_NAV_GROUPS) {
+      for (const group of navGroups) {
         if (groupHasActiveItem(pathname, group) && !next[group.groupKey]) {
           next[group.groupKey] = true;
           changed = true;
@@ -132,7 +144,7 @@ function SidebarContent({ pathname, onNavigate, showAdmin }: { pathname: string;
 
       return changed ? next : prev;
     });
-  }, [pathname]);
+  }, [pathname, navGroups]);
 
   const toggleGroup = (groupKey: NavGroupKey) => {
     setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -158,7 +170,7 @@ function SidebarContent({ pathname, onNavigate, showAdmin }: { pathname: string;
           <NavLink item={PLATFORM_DASHBOARD} pathname={pathname} onNavigate={onNavigate} />
         </div>
 
-        {PLATFORM_NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <NavGroupSection
             key={group.groupKey}
             group={group}
@@ -182,11 +194,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { session, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { modules, maintenanceMode, maintenanceMessage } = usePortalConfig();
   const tShell = useTranslations('shell');
   const tNav = useTranslations('nav');
   const [mobileOpen, setMobileOpen] = useState(false);
   const showAdmin = session?.user.role === 'ADMIN';
   const adminActive = isNavActive(pathname, PLATFORM_ADMIN);
+  const navGroups = filterNavGroups(PLATFORM_NAV_GROUPS, modules);
 
   return (
     <div
@@ -198,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
     >
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17.5rem] flex-col border-r border-stone-200/60 bg-white/75 p-4 backdrop-blur-2xl dark:border-slate-800/80 dark:bg-slate-950/75 lg:flex">
-        <SidebarContent pathname={pathname} showAdmin={showAdmin} />
+        <SidebarContent pathname={pathname} showAdmin={showAdmin} navGroups={navGroups} />
       </aside>
 
       {mobileOpen ? (
@@ -216,7 +230,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </div>
             <div className="min-h-0 flex-1">
-              <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} showAdmin={showAdmin} />
+              <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} showAdmin={showAdmin} navGroups={navGroups} />
             </div>
           </aside>
         </div>
@@ -278,6 +292,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
+
+        {maintenanceMode ? (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+            {maintenanceMessage || tShell('maintenanceDefault')}
+          </div>
+        ) : null}
 
         <main className="mx-auto max-w-[90rem] overflow-x-hidden px-3 py-6 sm:px-4 sm:py-8 md:px-8">{children}</main>
       </div>

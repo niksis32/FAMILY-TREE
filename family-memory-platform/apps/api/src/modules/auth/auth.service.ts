@@ -1,9 +1,12 @@
 import { ConflictException, Inject, Injectable, UnauthorizedException, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { LoginEventOutcome } from '@prisma/client';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MfaService } from '../mfa/mfa.service';
+import type { AuthRequestMeta } from './auth-request.util';
+import { AuthSessionService } from './auth-session.service';
 import type { LoginDto, RegisterFirstAdminDto } from './auth.dto';
 
 @Injectable()
@@ -12,11 +15,12 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly sessions: AuthSessionService,
     @Inject(forwardRef(() => MfaService))
     private readonly mfa: MfaService,
   ) {}
 
-  async registerFirstAdmin(dto: RegisterFirstAdminDto) {
+  async registerFirstAdmin(dto: RegisterFirstAdminDto, meta: AuthRequestMeta = {}) {
     const existingAdmin = await this.prisma.user.findFirst({
       where: { role: 'ADMIN', deletedAt: null },
       select: { id: true },
@@ -36,19 +40,41 @@ export class AuthService {
       select: this.safeUserSelect(),
     });
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, meta);
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, meta: AuthRequestMeta = {}) {
+    const email = dto.email.toLowerCase();
     const user = await this.prisma.user.findFirst({
-      where: {
-        email: dto.email.toLowerCase(),
-        isActive: true,
-        deletedAt: null,
-      },
+      where: { email },
     });
 
-    if (!user || !this.verifyPassword(dto.password, user.passwordHash)) {
+    if (!user || user.deletedAt) {
+      await this.sessions.recordLoginEvent({
+        emailAttempt: email,
+        outcome: LoginEventOutcome.FAILURE_BAD_CREDENTIALS,
+        meta,
+      });
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.isActive) {
+      await this.sessions.recordLoginEvent({
+        userId: user.id,
+        emailAttempt: email,
+        outcome: LoginEventOutcome.FAILURE_INACTIVE,
+        meta,
+      });
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!this.verifyPassword(dto.password, user.passwordHash)) {
+      await this.sessions.recordLoginEvent({
+        userId: user.id,
+        emailAttempt: email,
+        outcome: LoginEventOutcome.FAILURE_BAD_CREDENTIALS,
+        meta,
+      });
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -64,6 +90,12 @@ export class AuthService {
 
     const mfaRequired = await this.mfa.isMfaRequired(user.id);
     if (mfaRequired) {
+      await this.sessions.recordLoginEvent({
+        userId: user.id,
+        emailAttempt: email,
+        outcome: LoginEventOutcome.MFA_CHALLENGE,
+        meta,
+      });
       const mfaSessionToken = await this.mfa.createMfaSession(user.id);
       const status = await this.mfa.getStatus(user.id);
       const methods: Array<'totp' | 'recovery' | 'passkey'> = [];
@@ -79,34 +111,45 @@ export class AuthService {
       };
     }
 
-    return this.buildAuthResponse(safeUser);
+    return this.buildAuthResponse(safeUser, meta);
   }
 
-  async completeMfaLogin(mfaSessionToken: string, code: string) {
-    const result = await this.mfa.verifyLoginMfa(mfaSessionToken, code);
-    return this.buildAuthResponseForUserId(result.userId);
+  async completeMfaLogin(mfaSessionToken: string, code: string, meta: AuthRequestMeta = {}) {
+    try {
+      const result = await this.mfa.verifyLoginMfa(mfaSessionToken, code);
+      return this.buildAuthResponseForUserId(result.userId, meta);
+    } catch (error) {
+      await this.sessions.recordLoginEvent({
+        outcome: LoginEventOutcome.FAILURE_MFA,
+        meta,
+      });
+      throw error;
+    }
   }
 
-  async buildAuthResponseForUserId(userId: string) {
+  async buildAuthResponseForUserId(userId: string, meta: AuthRequestMeta = {}) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, isActive: true, deletedAt: null },
       select: this.safeUserSelect(),
     });
     if (!user) throw new UnauthorizedException('User not found');
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, meta);
   }
 
-  private async buildAuthResponse(user: SafeUser) {
+  private async buildAuthResponse(user: SafeUser, meta: AuthRequestMeta = {}) {
     const secret = this.config.get<string>('JWT_SECRET');
     if (!secret) {
       throw new UnauthorizedException('JWT_SECRET is not configured');
     }
+
+    const session = await this.sessions.createSession(user.id, meta);
 
     const accessToken = await this.jwt.signAsync(
       {
         sub: user.id,
         email: user.email,
         role: user.role,
+        jti: session.jti,
       },
       {
         secret,

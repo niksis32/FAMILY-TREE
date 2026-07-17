@@ -1,6 +1,7 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { extractAuthRequestMeta } from './auth-request.util';
 import { LoginDto, RegisterFirstAdminDto } from './auth.dto';
 import { AuthService } from './auth.service';
 
@@ -15,12 +16,15 @@ export class AuthController {
   @Post('login')
   @UseGuards(ThrottlerGuard)
   @Throttle(LOGIN_THROTTLE)
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Req() req: { ip?: string; headers: Record<string, string | string[] | undefined> }) {
+    return this.authService.login(dto, extractAuthRequestMeta(req));
   }
 
   @Post('register-first-admin')
-  registerFirstAdmin(@Body() dto: RegisterFirstAdminDto) {
-    return this.authService.registerFirstAdmin(dto);
+  registerFirstAdmin(
+    @Body() dto: RegisterFirstAdminDto,
+    @Req() req: { ip?: string; headers: Record<string, string | string[] | undefined> },
+  ) {
+    return this.authService.registerFirstAdmin(dto, extractAuthRequestMeta(req));
   }
 }
